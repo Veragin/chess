@@ -1,0 +1,17 @@
+services:
+    chess:
+        platform: linux/amd64
+        image: pipeline/dev
+        ports:
+            - 3002:3002
+            - 5174:5174
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.dev
+        volumes:
+            - .:/app
+            - ~/.gitconfig:/home/node/.gitconfig:ro
+        command: tail -f /dev/stdout
+        working_dir: /app
+        user: node
+        tty: true

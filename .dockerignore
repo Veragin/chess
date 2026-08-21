@@ -1,0 +1,20 @@
+# Never copy host-built artifacts or installed deps into the build context —
+# they get rebuilt cleanly inside the image, and copying them in is slow and
+# can produce stale results.
+**/node_modules
+**/dist
+**/dist-ssr
+
+# TypeScript incremental build cache. Copying a stale one in would make `tsc`
+# think the sources are already up to date and skip emitting -> empty/partial dist.
+**/*.tsbuildinfo
+
+# git / editor / OS noise
+.git
+**/*.log
+.DS_Store
+.vscode
+.idea
+
+# dev-only host mounts that used to live in docker-compose
+.gitconfig
