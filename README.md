@@ -50,8 +50,14 @@ User can train his saved lines (mewns starting position + series of moves)
 
 ## Steps to implement
 
+0. setup enviroment
+    - typescript
+    - react
+    - vite
+    - styled-components
 1. Chess board
     - display board and chess pieces
+    - download images from chess.com (eg. https://assets-themes.chess.com/image/ejgfv/150/wk.png)
     - allowed valid moves
     - use chessjs: https://github.com/jhlywa/chess.js/
     - button to rotate board (swith playing as white or black)
