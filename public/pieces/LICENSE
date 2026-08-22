@@ -1,0 +1,39 @@
+cburnett chess piece set
+========================
+
+Files: wK.svg wQ.svg wR.svg wB.svg wN.svg wP.svg
+       bK.svg bQ.svg bR.svg bB.svg bN.svg bP.svg
+
+Upstream author
+---------------
+Colin M.L. Burnett ("Cburnett").
+Originally published on Wikimedia Commons as the SVG chess piece set
+"Cburnett", widely known as the default piece set of lichess.org.
+
+Source of these exact files
+---------------------------
+Vendored (downloaded verbatim, unmodified) from the lila repository:
+
+  https://github.com/lichess-org/lila
+  public/piece/cburnett/{wK,wQ,wR,wB,wN,wP,bK,bQ,bR,bB,bN,bP}.svg
+
+Licence
+-------
+GNU General Public License, version 2 or any later version (GPLv2+).
+
+These images are free software: you can redistribute them and/or modify
+them under the terms of the GNU General Public License as published by the
+Free Software Foundation, either version 2 of the License, or (at your
+option) any later version.
+
+They are distributed in the hope that they will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+details.
+
+Full licence text: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+
+Attribution notice, as required
+-------------------------------
+Chess pieces by Colin M.L. Burnett, licensed GPLv2+, obtained via
+lichess-org/lila. Not modified.

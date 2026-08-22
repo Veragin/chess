@@ -9,3 +9,27 @@
 !**/.yarn/versions
 
 .rostistate
+
+# dependencies
+node_modules/
+
+# build output
+dist/
+dist-ssr/
+
+# vite / vitest caches
+.vite/
+node_modules/.vite/
+node_modules/.tmp/
+*.tsbuildinfo
+coverage/
+
+# logs & editor noise
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

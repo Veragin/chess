@@ -60,7 +60,7 @@ stop:
 	$(COMPOSE) down
 
 bash:
-	$(COMPOSE) exec -w /app/server chess bash
+	$(COMPOSE) exec -w /app chess bash
 
 destroy:
 	$(COMPOSE) down -v

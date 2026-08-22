@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#14181d" />
+    <meta name="color-scheme" content="dark" />
+    <meta
+      name="description"
+      content="Browser-only chess trainer: analyse with Stockfish, drill an opening repertoire, play blind chess by voice."
+    />
+    <title>Chess Trainer</title>
+
+    <!--
+      Icons. Paths start with `/` and are rewritten by Vite to include `base`, so a
+      `VITE_BASE=/chess/` build points at `/chess/favicon.ico` etc.
+      The `<link rel="manifest">` tag is injected by vite-plugin-pwa at build time.
+    -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" sizes="180x180" />
+
+    <!-- Installed-app hints. Both spellings of `*-web-app-capable` are present: Chrome
+         deprecation-warns when only the `apple-` one is used, iOS only reads the `apple-` one. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Chess" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
