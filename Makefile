@@ -24,6 +24,7 @@ AGENT_ENV_ARGS = \
 # Shared bootstrap: ensure local bins are on PATH and configure git author.
 define GIT_SETUP
 	export PATH="$$HOME/.local/bin:$$PATH" && \
+	if [ -f "$$HOME/.gitconfig-host" ]; then git config --global include.path "$$HOME/.gitconfig-host"; fi && \
 	if [ -n "$$GIT_USER_NAME" ]; then git config --global user.name "$$GIT_USER_NAME"; fi && \
 	if [ -n "$$GIT_USER_EMAIL" ]; then git config --global user.email "$$GIT_USER_EMAIL"; fi && \
 	if [ -z "$$GIT_USER_NAME" ] && [ -z "$$GIT_USER_EMAIL" ]; then \

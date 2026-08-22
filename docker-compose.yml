@@ -10,7 +10,7 @@ services:
             dockerfile: docker/Dockerfile.dev
         volumes:
             - .:/app
-            - ~/.gitconfig:/home/node/.gitconfig:ro
+            - ~/.gitconfig:/home/node/.gitconfig-host:ro
         command: tail -f /dev/stdout
         working_dir: /app
         user: node
