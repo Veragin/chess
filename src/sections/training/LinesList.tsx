@@ -40,12 +40,13 @@ import {
   storageWarning,
 } from '../../storage/lines';
 import { normaliseFolderPath, type Line } from '../../storage/schema';
+import { seedReport } from '../../storage/seed';
 import { ConfirmDialog } from './lines/ConfirmDialog';
 import { LinkButton } from './lines/LinkButton';
 import { Notice, NoticeList, NoticeTitle } from './lines/Notice';
 import { downloadText, serialiseLinesFile } from './lines/download';
 import { drillPath, editLinePath, newLinePath, playLinePath } from './lines/folderNav';
-import { describeImport, type ImportReportView } from './lines/importReport';
+import { describeImport, describeSeed, type ImportReportView } from './lines/importReport';
 import {
   colorLabel,
   describeLine,
@@ -73,7 +74,9 @@ export function LinesList() {
   /** Non-null while the rename dialog is open; holds the name being typed. */
   const [renameTo, setRenameTo] = useState<string | null>(null);
   const [renameError, setRenameError] = useState<string | null>(null);
-  const [report, setReport] = useState<ImportReportView | null>(null);
+  // Seeded lines need no announcement — they are simply in the list. A bundled file that could
+  // not be read does, or its lines would be missing with no explanation (see `describeSeed`).
+  const [report, setReport] = useState<ImportReportView | null>(() => describeSeed(seedReport()));
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   /** Re-reads the store. Also refreshes the storage warning, which any write can raise. */

@@ -8,6 +8,7 @@
  */
 
 import type { ImportResult } from '../../../storage/lines';
+import type { SeedReport } from '../../../storage/seed';
 
 export type ReportTone = 'ok' | 'warn' | 'error';
 
@@ -55,4 +56,38 @@ export function describeImport(result: ImportResult): ImportReportView {
     return { tone: 'warn', headline: counts, details: [result.error, ...details] };
   }
   return { tone: skipped > 0 ? 'warn' : 'ok', headline: counts, details };
+}
+
+/**
+ * The startup seed of `public/data/*.json` (`storage/seed.ts`) reports only when something
+ * went wrong: lines that *did* arrive are self-evident — they are in the list — while a file
+ * that was silently refused would leave the user hunting for lines that never appear.
+ * Returns null when there is nothing to say.
+ */
+export function describeSeed(report: SeedReport | null): ImportReportView | null {
+  if (report === null) return null;
+
+  const details: string[] = [];
+  if (report.error !== undefined) details.push(report.error);
+  for (const file of report.files) {
+    if (file.error !== undefined) details.push(`${file.file} — ${file.error}`);
+    for (const rejection of file.rejections) {
+      details.push(`${file.file} — ${rejection.name} — ${rejection.reason}`);
+    }
+  }
+  if (details.length === 0) return null;
+
+  const added = Math.max(0, report.added);
+  if (added > 0) {
+    return {
+      tone: 'warn',
+      headline: `Added ${added} bundled line(s); the rest could not be loaded.`,
+      details,
+    };
+  }
+  return {
+    tone: 'error',
+    headline: 'Bundled lines could not be loaded — your saved lines were left untouched.',
+    details,
+  };
 }

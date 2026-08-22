@@ -331,6 +331,79 @@ export interface ImportResult {
   error?: string;
 }
 
+/** What became of one candidate line from a file: a usable `Line`, or a reason it was refused. */
+export interface LineCandidate {
+  /** Position in the file's `lines` array — the caller's handle on the raw entry. */
+  index: number;
+  /** Label used in rejection messages (the line's name, or `(unnamed line #n)`). */
+  name: string;
+  /** Validated and SAN-normalised, still carrying the file's own `id`. Null when rejected. */
+  line: Line | null;
+  reason?: string;
+}
+
+function validateCandidate(raw: unknown, index: number): LineCandidate {
+  const name = lineLabel(raw, index);
+
+  const shape = validateLineShape(raw);
+  if (!shape.valid) {
+    return { index, name, line: null, reason: shape.error ?? 'invalid line' };
+  }
+  const line = toLine(raw);
+  if (line === null) {
+    return { index, name, line: null, reason: 'invalid line' };
+  }
+
+  const fen = validateFenRules(line.startFen);
+  if (!fen.valid) {
+    return {
+      index,
+      name,
+      line: null,
+      reason: `illegal start position: ${fen.error ?? 'invalid FEN'}`,
+    };
+  }
+
+  const replay = replaySan(line.startFen, line.moves);
+  if (!replay.ok) {
+    const ply = replay.failedAtPly ?? 0;
+    const san = line.moves[ply] ?? '(missing)';
+    return {
+      index,
+      name,
+      line: null,
+      reason: `illegal move "${san}" at ply ${ply} (move ${Math.floor(ply / 2) + 1}, ${
+        ply % 2 === 0 ? 'first' : 'second'
+      } side to move)`,
+    };
+  }
+
+  return { index, name, line: { ...line, moves: replay.sans } };
+}
+
+/**
+ * Validates shape, FEN legality and SAN replayability of every candidate line, per line and
+ * without writing anything. Shared by `importFile` and by the startup seeder (`seed.ts`),
+ * which needs to know *which* lines were accepted, not just how many.
+ */
+export function validateImportLines(rawLines: unknown[]): LineCandidate[] {
+  return rawLines.map((raw, index) => validateCandidate(raw, index));
+}
+
+/**
+ * Appends already-validated lines in one write, each under a **fresh id** — which is what
+ * makes an import (or a seed) unable to clobber an existing line. `error` is set when the
+ * write only reached the in-memory fallback.
+ */
+export function addLines(lines: Line[]): { added: number; error?: string } {
+  if (lines.length === 0) return { added: 0 };
+  const existing = loadFile().lines;
+  const fresh = lines.map((line) => ({ ...line, id: newId() }));
+  const persisted = saveFile([...existing, ...fresh]);
+  if (persisted) return { added: fresh.length };
+  return { added: fresh.length, error: warning ?? WRITE_FAILED };
+}
+
 /**
  * Validates shape, FEN legality, and SAN replayability of every line BEFORE writing
  * anything.
@@ -348,64 +421,27 @@ export function importFile(json: string): ImportResult {
     return { added: 0, skipped: 0, rejections: [], error: payload.error };
   }
 
-  const accepted: Line[] = [];
-  const rejections: ImportRejection[] = [];
-
-  for (let i = 0; i < payload.rawLines.length; i++) {
-    const raw = payload.rawLines[i];
-    const label = lineLabel(raw, i);
-
-    const shape = validateLineShape(raw);
-    if (!shape.valid) {
-      rejections.push({ name: label, reason: shape.error ?? 'invalid line' });
-      continue;
-    }
-    const line = toLine(raw);
-    if (line === null) {
-      rejections.push({ name: label, reason: 'invalid line' });
-      continue;
-    }
-
-    const fen = validateFenRules(line.startFen);
-    if (!fen.valid) {
-      rejections.push({
-        name: label,
-        reason: `illegal start position: ${fen.error ?? 'invalid FEN'}`,
-      });
-      continue;
-    }
-
-    const replay = replaySan(line.startFen, line.moves);
-    if (!replay.ok) {
-      const ply = replay.failedAtPly ?? 0;
-      const san = line.moves[ply] ?? '(missing)';
-      rejections.push({
-        name: label,
-        reason: `illegal move "${san}" at ply ${ply} (move ${Math.floor(ply / 2) + 1}, ${
-          ply % 2 === 0 ? 'first' : 'second'
-        } side to move)`,
-      });
-      continue;
-    }
-
-    // Fresh id: an import never overwrites an existing line.
-    accepted.push({ ...line, id: newId(), moves: replay.sans });
-  }
+  const candidates = validateImportLines(payload.rawLines);
+  const accepted = candidates
+    .map((c) => c.line)
+    .filter((line): line is Line => line !== null);
+  const rejections: ImportRejection[] = candidates
+    .filter((c) => c.line === null)
+    .map((c) => ({ name: c.name, reason: c.reason ?? 'invalid line' }));
 
   if (accepted.length === 0) {
     return { added: 0, skipped: rejections.length, rejections };
   }
 
   // Nothing has been written up to this point — all validation is done.
-  const existing = loadFile().lines;
-  const persisted = saveFile([...existing, ...accepted]);
+  const write = addLines(accepted);
   const result: ImportResult = {
-    added: accepted.length,
+    added: write.added,
     skipped: rejections.length,
     rejections,
   };
-  if (!persisted) {
-    result.error = warning ?? WRITE_FAILED;
+  if (write.error !== undefined) {
+    result.error = write.error;
   }
   return result;
 }

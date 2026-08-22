@@ -5,11 +5,17 @@ import { App } from './App';
 import { GlobalStyle } from './GlobalStyle';
 import { theme } from './theme';
 import { registerPwa } from './pwa/registerPwa';
+import { seedBundledLines } from './storage/seedData';
 
 const container = document.getElementById('root');
 if (!container) {
   throw new Error('Root element #root not found in index.html');
 }
+
+// Before the first render, so the lines list never paints without the bundled repertoire and
+// never has to re-read the store. Synchronous (the files are in the bundle), seeds each line
+// exactly once ever, and reports what it could not read through `seedReport()`.
+seedBundledLines();
 
 createRoot(container).render(
   <StrictMode>

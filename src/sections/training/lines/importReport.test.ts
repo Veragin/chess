@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ImportResult } from '../../../storage/lines';
-import { describeImport } from './importReport';
+import type { SeedReport } from '../../../storage/seed';
+import { describeImport, describeSeed } from './importReport';
 
 function result(partial: Partial<ImportResult>): ImportResult {
   return { added: 0, skipped: 0, rejections: [], ...partial };
@@ -62,5 +63,64 @@ describe('describeImport', () => {
     expect(view.tone).toBe('warn');
     expect(view.headline).toContain('Imported 2');
     expect(view.details).toContain('storage full');
+  });
+});
+
+describe('describeSeed', () => {
+  function seed(partial: Partial<SeedReport>): SeedReport {
+    return { added: 0, files: [], ...partial };
+  }
+
+  it('says nothing before the seeder has run', () => {
+    expect(describeSeed(null)).toBeNull();
+  });
+
+  it('says nothing when every bundled line was readable', () => {
+    const view = describeSeed(
+      seed({ added: 27, files: [{ file: 'stafford.json', added: 27, skipped: 0, rejections: [] }] }),
+    );
+    // The lines are in the list; announcing them would be noise on every first visit.
+    expect(view).toBeNull();
+  });
+
+  it('names the file for a line it could not read', () => {
+    const view = describeSeed(
+      seed({
+        added: 2,
+        files: [
+          {
+            file: 'stafford.json',
+            added: 2,
+            skipped: 1,
+            rejections: [{ name: 'Broken', reason: 'illegal move "Qxh8" at ply 2' }],
+          },
+        ],
+      }),
+    );
+    expect(view?.tone).toBe('warn');
+    expect(view?.headline).toContain('Added 2');
+    expect(view?.details).toEqual(['stafford.json — Broken — illegal move "Qxh8" at ply 2']);
+  });
+
+  it('reports a file-level failure as an error when nothing was added', () => {
+    const view = describeSeed(
+      seed({
+        files: [{ file: 'junk.json', added: 0, skipped: 0, rejections: [], error: 'Not valid JSON' }],
+      }),
+    );
+    expect(view?.tone).toBe('error');
+    expect(view?.headline).toMatch(/left untouched/i);
+    expect(view?.details).toEqual(['junk.json — Not valid JSON']);
+  });
+
+  it('leads with a write failure that affected the whole seed', () => {
+    const view = describeSeed(
+      seed({
+        added: 1,
+        error: 'storage full',
+        files: [{ file: 'a.json', added: 1, skipped: 0, rejections: [] }],
+      }),
+    );
+    expect(view?.details).toEqual(['storage full']);
   });
 });

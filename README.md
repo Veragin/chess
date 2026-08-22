@@ -11,7 +11,8 @@ at runtime.
 - **Training** — a repertoire of linear lines (one start position, one ordered move list),
   organised in nested folders, stored in `localStorage` and exportable as a single `.json` file.
   Play a line move by move, or drill the whole repertoire (or one folder) from a board that
-  shows nothing else.
+  shows nothing else. Files in `public/data/` ship as a starter repertoire — see
+  [Bundled lines](#bundled-lines-publicdata).
 - **Blind chess** — two players sharing one phone, board rendered empty, moves spoken in English
   algebraic ("e4", "knight f3", "bishop takes c6", "castles short"). Installable as a PWA and
   works offline after the first load.
@@ -38,6 +39,38 @@ yarn preview        # serve the build → host :3002
 yarn test           # vitest
 yarn typecheck      # tsc --noEmit
 ```
+
+---
+
+## Bundled lines (`public/data`)
+
+Every `public/data/*.json` file is a Training export (`schemaVersion`, `exportedAt`, `lines`),
+and its lines are added to the user's repertoire automatically. To ship a repertoire with the
+app: export it from Training, drop the file in `public/data/`, rebuild. There is no list of file
+names to maintain — `src/storage/seedData.ts` globs the directory at **build time** and the JSON
+travels inside the bundle, so seeding needs no fetch, no manifest and no network (it works on the
+very first visit and offline). Each line's own `folder` field decides where it is filed;
+`stafford.json` puts its lines in `Stafford`.
+
+Rules the seeder (`src/storage/seed.ts`) keeps:
+
+- **Once, then hands off.** A line is seeded on the first load that sees it and is an ordinary
+  line from then on — editable, deletable, exported with the rest. Delete it and it stays
+  deleted; edit it and the edit survives the next load.
+- **A record of its own.** Delivered lines are remembered as `file::id` keys under
+  `chess-trainer.seededLines.v1`, separate from the repertoire. Adding a file, or a line to an
+  existing file, seeds exactly the new material next time. Same `id` in two files = two lines.
+- **Bundled files are validated like any import.** Same shape, FEN-legality and SAN-replay checks
+  as `Import…`, per line: one unplayable line is refused with a reason while its healthy siblings
+  are seeded, and an unreadable file changes nothing at all. Refusals are *not* recorded as
+  delivered, so fixing the file seeds the line on the next load, and the lines screen shows what
+  it could not read (silence there would look like a missing line).
+- **One write, and never a false record.** All files are validated first, added in a single
+  write, and the record is only persisted if that write reached `localStorage` — a memory-only
+  session must not tell the next one that these lines were already delivered.
+
+Fresh ids are assigned on the way in (as for any import), so a seed can never overwrite an
+existing line; an identical-content guard keeps duplicates away even if the record is lost.
 
 ---
 
@@ -69,6 +102,8 @@ dist/
 ├── sw.js, workbox-*.js         # service worker + its runtime
 ├── favicon.ico, favicon.svg
 ├── assets/                     # content-hashed JS
+├── data/                       # the bundled line files, copied verbatim; the app never
+│                               #   fetches them (they are already inside assets/)
 ├── icons/                      # PWA icons + favicon PNGs
 ├── pieces/                     # 12 cburnett SVGs (+ LICENSE)
 └── engine/                     # stockfish-18-lite-single.js + .wasm (+ LICENSE)
