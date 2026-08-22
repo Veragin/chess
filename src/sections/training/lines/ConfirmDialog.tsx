@@ -9,6 +9,12 @@ export interface ConfirmDialogProps {
   cancelLabel?: string;
   /** 'danger' renders the confirm button as destructive (delete). */
   tone?: 'danger' | 'primary';
+  /**
+   * Set false when `children` contain the field the user is meant to type in (the folder rename
+   * dialog). Focus then belongs to that field, and there is nothing destructive for a stray
+   * Enter to trigger.
+   */
+  autoFocusCancel?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -27,6 +33,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel = 'Cancel',
   tone = 'danger',
+  autoFocusCancel = true,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -53,7 +60,7 @@ export function ConfirmDialog({
         {children !== undefined && <Body>{children}</Body>}
         <Actions>
           {/* Focus starts on Cancel so a stray Enter never destroys anything. */}
-          <Button autoFocus data-testid="confirm-cancel" onClick={onCancel}>
+          <Button autoFocus={autoFocusCancel} data-testid="confirm-cancel" onClick={onCancel}>
             {cancelLabel}
           </Button>
           <Button

@@ -210,3 +210,43 @@ describe('parseLinesFilePayload', () => {
     if (!res.ok) expect(res.error).toContain('Not valid JSON');
   });
 });
+
+describe('the folder field', () => {
+  it('is optional, and any string is a valid folder', () => {
+    expect(validateLineShape(makeLine()).valid).toBe(true);
+    expect(validateLineShape(makeLine({ folder: '' })).valid).toBe(true);
+    expect(validateLineShape(makeLine({ folder: 'Black/Sicilian' })).valid).toBe(true);
+  });
+
+  it('rejects a folder of the wrong type', () => {
+    expect(validateLineShape({ ...makeLine(), folder: 42 }).error).toMatch(/folder/);
+    expect(validateLineShape({ ...makeLine(), folder: ['a'] }).error).toMatch(/folder/);
+  });
+
+  it('is normalised by toLine, and omitted when it comes to nothing', () => {
+    expect(toLine(makeLine({ folder: ' Black // Sicilian / ' }))?.folder).toBe('Black/Sicilian');
+    expect('folder' in (toLine(makeLine({ folder: '  ' })) as object)).toBe(false);
+    expect('folder' in (toLine(makeLine()) as object)).toBe(false);
+  });
+
+  it('survives a round trip through migrate', () => {
+    const result = migrate({
+      schemaVersion: LINES_SCHEMA_VERSION,
+      exportedAt: 5,
+      lines: [makeLine({ folder: 'White/Italian' })],
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.file.lines[0]?.folder).toBe('White/Italian');
+  });
+
+  it('reads a pre-folders file as a repertoire with no folders at all', () => {
+    const result = migrate({
+      schemaVersion: LINES_SCHEMA_VERSION,
+      exportedAt: 5,
+      lines: [makeLine()],
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.changed).toBe(false);
+    expect(result.file.lines[0]?.folder).toBeUndefined();
+  });
+});

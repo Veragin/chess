@@ -18,19 +18,31 @@
 import { replaySan, validateFenRules, type Color } from '../../../chess/game';
 import { createHistory, sansOf, type HistoryState } from '../../../chess/history';
 import { START_FEN } from '../../../chess/position';
-import type { Line } from '../../../storage/schema';
+import { normaliseFolderPath, type Line } from '../../../storage/schema';
 
 export interface LineDraft {
   name: string;
   userColor: Color;
+  /**
+   * `/`-separated folder path, exactly as typed. Normalised on save and when comparing for
+   * dirtiness, never while the user is mid-keystroke — trimming under the caret would fight
+   * whoever is typing `Black / Sicilian`.
+   */
+  folder: string;
   /** Always a string in the draft; written as `undefined` when blank. */
   notes: string;
   history: HistoryState;
 }
 
-/** A brand-new line: standard start position, White, nothing played. */
-export function emptyDraft(): LineDraft {
-  return { name: '', userColor: 'w', notes: '', history: createHistory(START_FEN) };
+/** A brand-new line: standard start position, White, nothing played, at the root. */
+export function emptyDraft(folder = ''): LineDraft {
+  return {
+    name: '',
+    userColor: 'w',
+    folder: normaliseFolderPath(folder),
+    notes: '',
+    history: createHistory(START_FEN),
+  };
 }
 
 /** SAN moves that would be saved: everything up to and including the cursor. */
@@ -80,6 +92,7 @@ export function draftFromLine(line: Line): { draft: LineDraft; dropped: number }
     draft: {
       name: line.name,
       userColor: line.userColor,
+      folder: normaliseFolderPath(line.folder),
       notes: line.notes ?? '',
       history: rebased.history,
     },
@@ -146,6 +159,9 @@ export function toLineInput(draft: LineDraft): Omit<Line, 'id' | 'createdAt' | '
     startFen: draft.history.startFen,
     moves: draftMoves(draft.history),
     userColor: draft.userColor,
+    // Always present, including as `''`: on an update this is what moves a line back to the
+    // root, and `updateLine` reads a missing key as "leave the folder alone".
+    folder: normaliseFolderPath(draft.folder),
   };
   if (notes.length > 0) input.notes = notes;
   return input;
@@ -158,6 +174,7 @@ export function toLineInput(draft: LineDraft): Omit<Line, 'id' | 'createdAt' | '
 export function isDirty(draft: LineDraft, baseline: LineDraft): boolean {
   if (draft.name !== baseline.name) return true;
   if (draft.userColor !== baseline.userColor) return true;
+  if (normaliseFolderPath(draft.folder) !== normaliseFolderPath(baseline.folder)) return true;
   if (draft.notes.trim() !== baseline.notes.trim()) return true;
   if (draft.history.startFen !== baseline.history.startFen) return true;
   const a = draftMoves(draft.history);

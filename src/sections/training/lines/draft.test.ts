@@ -273,3 +273,41 @@ describe('isDirty', () => {
     expect(isDirty({ ...base, history: stepBack(base.history) }, base)).toBe(true);
   });
 });
+
+describe('folders in the draft', () => {
+  it('starts at the root, or in the folder the editor was opened from', () => {
+    expect(emptyDraft().folder).toBe('');
+    expect(emptyDraft('  Black / Sicilian ').folder).toBe('Black/Sicilian');
+  });
+
+  it('loads a stored folder and normalises a hand-edited one', () => {
+    expect(draftFromLine(storedLine({})).draft.folder).toBe('');
+    expect(draftFromLine(storedLine({ folder: 'White/Italian' })).draft.folder).toBe(
+      'White/Italian',
+    );
+    expect(draftFromLine(storedLine({ folder: '/White//Italian/' })).draft.folder).toBe(
+      'White/Italian',
+    );
+  });
+
+  it('always sends a folder to storage, so clearing the field moves a line to the root', () => {
+    const filed = play({ ...emptyDraft(), name: 'X', folder: ' White / Italian ' }, 'e4');
+    expect(toLineInput(filed).folder).toBe('White/Italian');
+
+    const cleared = play({ ...emptyDraft(), name: 'X', folder: '   ' }, 'e4');
+    expect('folder' in toLineInput(cleared)).toBe(true);
+    expect(toLineInput(cleared).folder).toBe('');
+  });
+
+  it('is not saveable-blocking: a folder is a label, never a validation failure', () => {
+    const d = play({ ...emptyDraft(), name: 'X', folder: '///' }, 'e4');
+    expect(validateDraft(d).ok).toBe(true);
+  });
+
+  it('counts a folder change as dirty, but not a re-typing of the same path', () => {
+    const base = draftFromLine(storedLine({ folder: 'White' })).draft;
+    expect(isDirty({ ...base, folder: 'Black' }, base)).toBe(true);
+    expect(isDirty({ ...base, folder: '' }, base)).toBe(true);
+    expect(isDirty({ ...base, folder: ' White / ' }, base)).toBe(false);
+  });
+});

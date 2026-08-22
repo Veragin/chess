@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import styled from 'styled-components';
 import { Board } from '../../components/Board';
 import { MoveList } from '../../components/MoveList';
@@ -41,8 +41,11 @@ import {
   type HistoryState,
 } from '../../chess/history';
 import { flipOrientation, type Orientation } from '../../chess/position';
-import { createLine, getLine, updateLine } from '../../storage/lines';
+import { allFolderPaths, folderLabel } from '../../storage/folders';
+import { createLine, getLine, listLines, updateLine } from '../../storage/lines';
+import { normaliseFolderPath } from '../../storage/schema';
 import { ConfirmDialog } from './lines/ConfirmDialog';
+import { linesPath } from './lines/folderNav';
 import { Notice, NoticeTitle } from './lines/Notice';
 import {
   draftFromLine,
@@ -68,9 +71,11 @@ interface EditorState {
   loadNotice: string | null;
 }
 
-function seedState(id: string | undefined): EditorState {
+function seedState(id: string | undefined, folder: string): EditorState {
   if (id === undefined) {
-    const draft = emptyDraft();
+    // A new line lands in whichever folder the list was showing, so "New line" inside a folder
+    // files it there without the user having to retype the path.
+    const draft = emptyDraft(folder);
     return { routeId: null, status: 'new', draft, baseline: draft, loadNotice: null };
   }
   const line = getLine(id);
@@ -95,8 +100,14 @@ function seedState(id: string | undefined): EditorState {
 export function LineEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  // Where the user came from in the list, and (for a new line) the folder to file it in.
+  const [params] = useSearchParams();
+  const fromFolder = normaliseFolderPath(params.get('folder'));
+  const backTo = linesPath(fromFolder);
 
-  const [state, setState] = useState<EditorState>(() => seedState(id));
+  const [state, setState] = useState<EditorState>(() => seedState(id, fromFolder));
+  /** Existing folder paths, for the field's autocomplete. Read once — the editor is the writer. */
+  const knownFolders = useMemo(() => allFolderPaths(listLines()), []);
   const [orientation, setOrientation] = useState<Orientation>(() =>
     seedOrientation(state.draft.userColor),
   );
@@ -111,7 +122,7 @@ export function LineEditor() {
   // "adjust state when a prop changes" pattern) rather than in an effect, which would paint the
   // wrong line for one frame.
   if (state.routeId !== (id ?? null)) {
-    const next = seedState(id);
+    const next = seedState(id, fromFolder);
     setState(next);
     setOrientation(seedOrientation(next.draft.userColor));
     setEditingPosition(false);
@@ -196,7 +207,9 @@ export function LineEditor() {
     }
     // A write that only reached the in-memory fallback still counts as saved for this session;
     // the list surfaces `storageWarning()` prominently, so it is reported there, not here.
-    navigate('/training');
+    // Return to the line's *own* folder rather than where the user came from: after moving a
+    // line to another folder, an empty list at the old location looks like the save failed.
+    navigate(linesPath(input.folder ?? ''));
   }, [draft, id, navigate, status]);
 
   const leave = useCallback(
@@ -213,7 +226,7 @@ export function LineEditor() {
         <Panel title="Line not found">
           <EmptyBody data-testid="line-not-found">
             <p>There is no saved line with that id. It may have been deleted, or the link is old.</p>
-            <Button variant="primary" onClick={() => navigate('/training')}>
+            <Button variant="primary" onClick={() => navigate(backTo)}>
               Back to lines
             </Button>
           </EmptyBody>
@@ -253,7 +266,7 @@ export function LineEditor() {
       <TopBar>
         <Heading>{status === 'edit' ? 'Edit line' : 'New line'}</Heading>
         <Grow />
-        <Button data-testid="cancel-edit" onClick={() => leave('/training')}>
+        <Button data-testid="cancel-edit" onClick={() => leave(backTo)}>
           {dirty ? 'Discard' : 'Back'}
         </Button>
         <Button variant="primary" data-testid="save-line" onClick={onSave}>
@@ -351,6 +364,31 @@ export function LineEditor() {
                   data-testid="name-input"
                   onChange={(event) => patch({ name: event.target.value })}
                 />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="line-folder">Folder (optional)</FieldLabel>
+                <TextInput
+                  id="line-folder"
+                  value={draft.folder}
+                  placeholder="e.g. Black/Sicilian"
+                  autoComplete="off"
+                  list="line-folder-options"
+                  data-testid="folder-input"
+                  onChange={(event) => patch({ folder: event.target.value })}
+                />
+                {/* Folders are implicit: typing a path that does not exist yet creates it on
+                    save, and the last line to leave a folder removes it. */}
+                <datalist id="line-folder-options">
+                  {knownFolders.map((path) => (
+                    <option key={path} value={path} />
+                  ))}
+                </datalist>
+                <Hint data-testid="folder-hint">
+                  {normaliseFolderPath(draft.folder).length === 0
+                    ? `Leave blank to keep this line in ${folderLabel('')}.`
+                    : `Filed under ${normaliseFolderPath(draft.folder)}. Use “/” to nest.`}
+                </Hint>
               </Field>
 
               <Field>

@@ -17,10 +17,12 @@
  */
 
 import { replaySan, validateFenRules } from '../chess/game';
+import { folderRenameError, isWithinFolder, lineFolder, renameFolderPath } from './folders';
 import {
   LINES_SCHEMA_VERSION,
   lineLabel,
   migrate,
+  normaliseFolderPath,
   parseLinesFilePayload,
   toLine,
   validateLineShape,
@@ -196,6 +198,10 @@ export function createLine(input: Omit<Line, 'id' | 'createdAt' | 'updatedAt'>):
     createdAt: now,
     updatedAt: now,
   };
+  const folder = normaliseFolderPath(input.folder);
+  if (folder.length > 0) {
+    line.folder = folder;
+  }
   if (input.notes !== undefined) {
     line.notes = input.notes;
   }
@@ -221,6 +227,13 @@ export function updateLine(
     userColor: patch.userColor ?? current.userColor,
     updatedAt: patch.updatedAt ?? Date.now(),
   };
+  if (patch.folder !== undefined) {
+    // `''` is a meaningful value here — "move this line to the root" — so the key is deleted
+    // rather than written empty, keeping the stored record free of no-op fields.
+    const folder = normaliseFolderPath(patch.folder);
+    if (folder.length > 0) updated.folder = folder;
+    else delete updated.folder;
+  }
   if (patch.notes !== undefined) {
     updated.notes = patch.notes;
   }
@@ -237,6 +250,61 @@ export function deleteLine(id: string): boolean {
   if (next.length === file.lines.length) return false;
   saveFile(next);
   return true;
+}
+
+// ---------------------------------------------------------------------------------------
+// Folders
+//
+// Folders live only in each line's `folder` path (see `folders.ts`), so every folder operation
+// is a bulk edit of lines. There is nothing else to delete, create or keep in sync.
+// ---------------------------------------------------------------------------------------
+
+export interface FolderOpResult {
+  ok: boolean;
+  /** Lines whose folder path changed. */
+  moved: number;
+  /** Why nothing was done, or why the write did not reach disk. */
+  error?: string;
+}
+
+/**
+ * Renames folder `from` to `to`, carrying its whole subtree with it. `to` may name a folder that
+ * already exists — the two simply merge, which is the only reasonable reading of "rename A to B"
+ * when B is already there and folders have no identity of their own.
+ *
+ * `updatedAt` is deliberately **not** touched: filing a line somewhere else is not a change to
+ * the line, and bumping it would reshuffle the whole list order for a rename.
+ */
+export function renameFolder(from: string, to: string): FolderOpResult {
+  const invalid = folderRenameError(from, to);
+  if (invalid !== null) return { ok: false, moved: 0, error: invalid };
+
+  const file = loadFile();
+  let moved = 0;
+  const next = file.lines.map((line) => {
+    const current = lineFolder(line);
+    if (!isWithinFolder(current, from)) return line;
+    const folder = renameFolderPath(current, from, to);
+    if (folder === current) return line;
+    moved++;
+    const updated: Line = { ...line };
+    if (folder.length > 0) updated.folder = folder;
+    else delete updated.folder;
+    return updated;
+  });
+
+  if (moved === 0) return { ok: true, moved: 0 };
+  const persisted = saveFile(next);
+  const result: FolderOpResult = { ok: true, moved };
+  if (!persisted) result.error = warning ?? WRITE_FAILED;
+  return result;
+}
+
+/** Files one line under `folder` (`''` for the root). Returns the updated line, or null. */
+export function moveLineToFolder(id: string, folder: string): Line | null {
+  const current = getLine(id);
+  if (current === null) return null;
+  return updateLine(id, { folder: normaliseFolderPath(folder), updatedAt: current.updatedAt });
 }
 
 // ---------------------------------------------------------------------------------------

@@ -352,11 +352,22 @@ describe('resolveSpokenMove — pieces and pawns', () => {
     expect(san(START_FEN, 'g three')).toBe('g3');
   });
 
-  it('is ambiguous when a bare destination fits a pawn and a knight', () => {
-    // h3 is reachable by the h-pawn and by Ng1.
-    expect(ambiguous(resolve(START_FEN, 'h three'))).toEqual(['Nh3', 'h3']);
+  it('prefers the pawn when a bare destination fits a pawn and a knight', () => {
+    // h3 is reachable by the h-pawn and by Ng1; an unqualified square means the pawn.
+    expect(san(START_FEN, 'h three')).toBe('h3');
     expect(san(START_FEN, 'pawn h3')).toBe('h3');
     expect(san(START_FEN, 'knight h3')).toBe('Nh3');
+  });
+
+  it('lets a later alternative that names a piece beat the pawn preference', () => {
+    // "nine h3" parses as a bare destination, so on its own it would prefer the pawn.
+    expect(resolved(resolve(START_FEN, 'nine h3')).san).toBe('h3');
+    expect(resolved(resolve(START_FEN, 'nine h3', 'knight h3')).san).toBe('Nh3');
+  });
+
+  it('stays ambiguous when the preference cannot pick a single pawn move', () => {
+    // c4, e4 and the queen all reach d5, so "d5" alone still needs narrowing.
+    expect(ambiguous(resolve(TWO_PAWN_CAPTURES, 'd five'))).toEqual(['Qxd5', 'cxd5', 'exd5']);
   });
 
   it('resolves a knight move given as an origin/destination pair', () => {

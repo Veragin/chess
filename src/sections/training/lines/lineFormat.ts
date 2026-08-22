@@ -48,6 +48,25 @@ export function moveCountLabel(count: number): string {
   return count === 1 ? '1 move' : `${count} moves`;
 }
 
+export function lineCountLabel(count: number): string {
+  if (count <= 0) return 'no lines';
+  return count === 1 ? '1 line' : `${count} lines`;
+}
+
+export function subfolderCountLabel(count: number): string {
+  if (count <= 0) return 'no subfolders';
+  return count === 1 ? '1 subfolder' : `${count} subfolders`;
+}
+
+/**
+ * The panel heading for one folder's contents. Mentions the subtree only when it actually adds
+ * something — "3 lines · 7 including subfolders" is noise when there are no subfolders.
+ */
+export function folderCountLabel(direct: number, total: number): string {
+  const here = lineCountLabel(direct);
+  return total > direct ? `${here} · ${total} including subfolders` : here;
+}
+
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
 }

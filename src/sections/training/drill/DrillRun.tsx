@@ -27,11 +27,20 @@ import type { Square } from '../../../chess/position';
 import { Board } from '../../../components/Board';
 import { Button } from '../../../components/ui';
 import { drillSummaryLabel } from '../../../chess/drill';
+import { folderName } from '../../../storage/folders';
 import { useDrillRun } from './useDrillRun';
 
 export interface DrillRunProps {
   /** Which line to serve. Opaque to the screen — never rendered. */
   lineId: string;
+  /**
+   * Folder the pool was scoped to, or `''` for the whole repertoire. Safe to render, unlike
+   * anything else about the line: it is the scope the user just chose, so it tells them nothing
+   * they did not already type. It does not narrow *which* line this is beyond their own choice.
+   */
+  folder?: string;
+  /** Where the exit links go — back to the folder the drill was started from. */
+  exitTo?: string;
   /** Serve the next line from the cycle. */
   onNext: () => void;
 }
@@ -43,7 +52,7 @@ function colorName(color: Color): string {
 /** How long the hint button stays armed before it disarms itself. */
 const HINT_ARM_MS = 4000;
 
-export function DrillRun({ lineId, onNext }: DrillRunProps) {
+export function DrillRun({ lineId, folder = '', exitTo = '/training', onNext }: DrillRunProps) {
   const { run, attempt, hint } = useDrillRun(lineId);
 
   /**
@@ -68,7 +77,7 @@ export function DrillRun({ lineId, onNext }: DrillRunProps) {
     return (
       <Wrap data-testid="drill-unavailable">
         <TopBar>
-          <ExitLink to="/training">‹ Exit drill</ExitLink>
+          <ExitLink to={exitTo}>‹ Exit drill</ExitLink>
         </TopBar>
         <Notice $tone="error" role="alert">
           {run.status === 'missing'
@@ -109,8 +118,17 @@ export function DrillRun({ lineId, onNext }: DrillRunProps) {
   return (
     <Wrap data-testid="drill-run">
       <TopBar>
-        <ExitLink to="/training">‹ Exit drill</ExitLink>
-        <Badge data-testid="drill-side">Playing {you}</Badge>
+        <ExitLink to={exitTo}>‹ Exit drill</ExitLink>
+        <Badges>
+          {folder.length > 0 && (
+            /* Leaf name only: the full path is the tooltip, so a deep folder cannot push the
+               "Playing White" badge off a narrow screen. */
+            <FolderBadge data-testid="drill-folder" title={folder}>
+              {folderName(folder)}
+            </FolderBadge>
+          )}
+          <Badge data-testid="drill-side">Playing {you}</Badge>
+        </Badges>
       </TopBar>
 
       <StatusRow>
@@ -164,7 +182,7 @@ export function DrillRun({ lineId, onNext }: DrillRunProps) {
             <Button size="lg" variant="primary" data-testid="drill-next" onClick={onNext}>
               Next line
             </Button>
-            <ExitButton to="/training" data-testid="drill-exit">
+            <ExitButton to={exitTo} data-testid="drill-exit">
               Exit
             </ExitButton>
           </Controls>
@@ -233,6 +251,13 @@ const ExitLink = styled(Link)`
   }
 `;
 
+const Badges = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${(p) => p.theme.space.xs};
+  min-width: 0;
+`;
+
 const Badge = styled.span`
   flex: 0 0 auto;
   padding: 2px ${(p) => p.theme.space.sm};
@@ -242,6 +267,13 @@ const Badge = styled.span`
   color: ${(p) => p.theme.color.textMuted};
   font-size: ${(p) => p.theme.font.size.sm};
   white-space: nowrap;
+`;
+
+const FolderBadge = styled(Badge)`
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const StatusRow = styled.div`

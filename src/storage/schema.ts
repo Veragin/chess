@@ -13,6 +13,11 @@
 
 export const LINES_SCHEMA_VERSION = 1;
 
+/** Deepest folder nesting a path may express; anything below is truncated, never rejected. */
+export const MAX_FOLDER_DEPTH = 8;
+/** Longest single folder segment. Long enough for a real opening name, short enough to render. */
+export const MAX_FOLDER_SEGMENT = 64;
+
 /** A linear repertoire line: one starting position, one ordered move sequence. */
 export interface Line {
   id: string; // crypto.randomUUID()
@@ -22,9 +27,36 @@ export interface Line {
   moves: string[];
   /** Side the user trains as. Determines who moves in drill vs who is auto-played. */
   userColor: 'w' | 'b';
+  /**
+   * `/`-separated folder path (`Black/Sicilian`), or absent/empty for the root. Purely a label:
+   * folders are implicit in these strings, never stored as records — see `folders.ts`.
+   *
+   * Optional on purpose. It was added after `schemaVersion` 1 shipped, and an *additive optional*
+   * field needs no version bump: an older export simply has no folders, and an older build drops
+   * the field instead of refusing the file.
+   */
+  folder?: string;
   notes?: string;
   createdAt: number; // epoch ms
   updatedAt: number;
+}
+
+/**
+ * The one definition of a folder path: `/`-separated segments, each whitespace-collapsed, with
+ * empty segments dropped. Returns `''` for the root and for anything unusable, so callers never
+ * have to handle a malformed path — there is no such thing.
+ *
+ * Total (never throws, never rejects) because a folder is a label, not data worth losing a line
+ * over: a hand-edited store with `folder: 42` files that line at the root rather than dropping it.
+ */
+export function normaliseFolderPath(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  return raw
+    .split('/')
+    .map((segment) => segment.trim().replace(/\s+/g, ' ').slice(0, MAX_FOLDER_SEGMENT))
+    .filter((segment) => segment.length > 0)
+    .slice(0, MAX_FOLDER_DEPTH)
+    .join('/');
 }
 
 export interface LinesFile {
@@ -96,6 +128,9 @@ export function validateLineShape(raw: unknown): LineShapeResult {
   if (raw.notes !== undefined && typeof raw.notes !== 'string') {
     return { valid: false, error: '"notes" must be a string when present' };
   }
+  if (raw.folder !== undefined && raw.folder !== null && typeof raw.folder !== 'string') {
+    return { valid: false, error: '"folder" must be a string when present' };
+  }
   if (!isFiniteNumber(raw.createdAt)) {
     return { valid: false, error: 'missing or invalid "createdAt"' };
   }
@@ -120,6 +155,10 @@ export function toLine(raw: unknown): Line | null {
     createdAt: raw.createdAt as number,
     updatedAt: raw.updatedAt as number,
   };
+  const folder = normaliseFolderPath(raw.folder);
+  if (folder.length > 0) {
+    line.folder = folder;
+  }
   if (typeof raw.notes === 'string') {
     line.notes = raw.notes;
   }

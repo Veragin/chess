@@ -6,11 +6,14 @@ import {
   describeLine,
   exportFileName,
   filterLines,
+  folderCountLabel,
   formatTimestamp,
   isStandardStart,
+  lineCountLabel,
   moveCountLabel,
   normaliseQuery,
   startPositionLabel,
+  subfolderCountLabel,
 } from './lineFormat';
 
 function line(partial: Partial<Line>): Line {
@@ -127,5 +130,23 @@ describe('formatTimestamp', () => {
 describe('exportFileName', () => {
   it('dates the export file', () => {
     expect(exportFileName(new Date(2026, 0, 9, 3, 4).getTime())).toBe('chess-lines-2026-01-09.json');
+  });
+});
+
+describe('folder labels', () => {
+  it('counts lines and subfolders in words', () => {
+    expect(lineCountLabel(0)).toBe('no lines');
+    expect(lineCountLabel(1)).toBe('1 line');
+    expect(lineCountLabel(12)).toBe('12 lines');
+    expect(subfolderCountLabel(0)).toBe('no subfolders');
+    expect(subfolderCountLabel(1)).toBe('1 subfolder');
+    expect(subfolderCountLabel(3)).toBe('3 subfolders');
+  });
+
+  it('mentions the subtree only when it holds more than this folder does', () => {
+    expect(folderCountLabel(3, 3)).toBe('3 lines');
+    expect(folderCountLabel(0, 0)).toBe('no lines');
+    expect(folderCountLabel(3, 7)).toBe('3 lines · 7 including subfolders');
+    expect(folderCountLabel(0, 4)).toBe('no lines · 4 including subfolders');
   });
 });

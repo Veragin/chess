@@ -551,3 +551,151 @@ describe('localStorage failure modes', () => {
     expect(lines.listLines()).toHaveLength(1);
   });
 });
+
+describe('folders', () => {
+  it('round-trips a folder path, normalising it on the way in', async () => {
+    const lines = await load();
+    const created = lines.createLine({ ...ITALIAN, folder: '  White / Italian  ' });
+
+    expect(created.folder).toBe('White/Italian');
+    expect(lines.getLine(created.id)?.folder).toBe('White/Italian');
+
+    vi.resetModules();
+    const reloaded = await load();
+    expect(reloaded.getLine(created.id)?.folder).toBe('White/Italian');
+  });
+
+  it('omits the field entirely rather than storing an empty folder', async () => {
+    const lines = await load();
+    const created = lines.createLine({ ...ITALIAN, folder: '   ' });
+
+    expect('folder' in created).toBe(false);
+    const payload = JSON.parse(storedRaw() as string) as LinesFile;
+    expect('folder' in (payload.lines[0] as object)).toBe(false);
+  });
+
+  it('moves a line between folders, and back to the root with an empty string', async () => {
+    const lines = await load();
+    const created = lines.createLine({ ...ITALIAN, folder: 'White' });
+
+    expect(lines.updateLine(created.id, { folder: 'Black/Sicilian' })?.folder).toBe(
+      'Black/Sicilian',
+    );
+    const rooted = lines.updateLine(created.id, { folder: '' });
+    expect(rooted).not.toBeNull();
+    expect('folder' in (rooted as object)).toBe(false);
+    expect(lines.getLine(created.id)?.folder).toBeUndefined();
+  });
+
+  it('leaves the folder alone when a patch does not mention it', async () => {
+    const lines = await load();
+    const created = lines.createLine({ ...ITALIAN, folder: 'White' });
+
+    expect(lines.updateLine(created.id, { name: 'Renamed' })?.folder).toBe('White');
+  });
+
+  it('renames a folder, carrying its subtree and leaving siblings alone', async () => {
+    const lines = await load();
+    const sicilian = lines.createLine({ ...FRENCH, name: 'Najdorf', folder: 'Black/Sicilian' });
+    const najdorf = lines.createLine({
+      ...FRENCH,
+      name: 'Poisoned pawn',
+      folder: 'Black/Sicilian/Najdorf',
+    });
+    const caro = lines.createLine({ ...FRENCH, name: 'Caro', folder: 'Black/Caro-Kann' });
+    const white = lines.createLine({ ...ITALIAN, folder: 'White' });
+
+    const result = lines.renameFolder('Black/Sicilian', 'Black/Open Sicilian');
+    expect(result).toEqual({ ok: true, moved: 2 });
+
+    expect(lines.getLine(sicilian.id)?.folder).toBe('Black/Open Sicilian');
+    expect(lines.getLine(najdorf.id)?.folder).toBe('Black/Open Sicilian/Najdorf');
+    expect(lines.getLine(caro.id)?.folder).toBe('Black/Caro-Kann');
+    expect(lines.getLine(white.id)?.folder).toBe('White');
+  });
+
+  it('does not touch updatedAt when refiling lines', async () => {
+    const lines = await load();
+    const created = lines.createLine({ ...ITALIAN, folder: 'White' });
+    lines.updateLine(created.id, { updatedAt: 5_000 });
+
+    lines.renameFolder('White', 'Białe');
+    expect(lines.getLine(created.id)?.updatedAt).toBe(5_000);
+
+    lines.moveLineToFolder(created.id, 'Black');
+    expect(lines.getLine(created.id)?.folder).toBe('Black');
+    expect(lines.getLine(created.id)?.updatedAt).toBe(5_000);
+  });
+
+  it('refuses to move a folder inside itself, writing nothing', async () => {
+    const lines = await load();
+    const created = lines.createLine({ ...ITALIAN, folder: 'Black' });
+
+    const result = lines.renameFolder('Black', 'Black/Sicilian');
+    expect(result.ok).toBe(false);
+    expect(result.moved).toBe(0);
+    expect(result.error).toMatch(/inside itself/i);
+    expect(lines.getLine(created.id)?.folder).toBe('Black');
+  });
+
+  it('merges into an existing folder rather than inventing a second one', async () => {
+    const lines = await load();
+    const a = lines.createLine({ ...ITALIAN, name: 'A', folder: 'Italian' });
+    const b = lines.createLine({ ...ITALIAN, name: 'B', folder: 'Italiann' });
+
+    expect(lines.renameFolder('Italiann', 'Italian').moved).toBe(1);
+    expect(lines.getLine(a.id)?.folder).toBe('Italian');
+    expect(lines.getLine(b.id)?.folder).toBe('Italian');
+  });
+
+  it('reports a rename that only reached memory', async () => {
+    const lines = await load();
+    lines.createLine({ ...ITALIAN, folder: 'White' });
+    store.throwOnSet = true;
+
+    const result = lines.renameFolder('White', 'Black');
+    expect(result.ok).toBe(true);
+    expect(result.moved).toBe(1);
+    expect(result.error).toContain('full');
+  });
+
+  it('survives a hand-edited store with a non-string folder', async () => {
+    store.map.set(
+      STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: LINES_SCHEMA_VERSION,
+        exportedAt: 1,
+        lines: [
+          {
+            id: 'a',
+            name: 'Odd',
+            startFen: START_FEN,
+            moves: ['e4'],
+            userColor: 'w',
+            folder: 42,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ],
+      }),
+    );
+    const lines = await load();
+
+    // The line is rejected rather than silently refiled: a wrong *type* is a broken payload,
+    // not a folder the user typed.
+    expect(lines.listLines()).toEqual([]);
+    expect(lines.storageWarning()).toContain('folder');
+  });
+
+  it('carries folders through export and import', async () => {
+    const first = await load();
+    first.createLine({ ...ITALIAN, folder: 'White/Italian' });
+    const json = JSON.stringify(first.exportAll());
+
+    vi.resetModules();
+    store.map.clear();
+    const second = await load();
+    expect(second.importFile(json).added).toBe(1);
+    expect(second.listLines()[0]?.folder).toBe('White/Italian');
+  });
+});

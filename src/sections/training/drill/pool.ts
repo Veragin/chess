@@ -15,11 +15,18 @@
  */
 
 import { resolveLine, type ResolvedLine } from '../../../chess/line';
+import { linesUnderFolder } from '../../../storage/folders';
 import { getLine, listLines } from '../../../storage/lines';
 
-/** Ids of every saved line whose start position is legal and whose moves all replay. */
-export function drillablePool(): string[] {
-  return listLines()
+/**
+ * Ids of every saved line whose start position is legal and whose moves all replay.
+ *
+ * `folder` scopes the pool to one folder **and everything beneath it** — drilling `Black` drills
+ * `Black/Sicilian` too, which is the point of nesting a repertoire. The root (`''`, the default)
+ * is every line, so an unscoped drill behaves exactly as before folders existed.
+ */
+export function drillablePool(folder = ''): string[] {
+  return linesUnderFolder(listLines(), folder)
     .filter((line) => resolveLine(line).ok)
     .map((line) => line.id);
 }

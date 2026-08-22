@@ -162,6 +162,12 @@ export interface Line {
   moves: string[];
   /** Side the user trains as. Determines who moves in drill vs who is auto-played. */
   userColor: 'w' | 'b';
+  /**
+   * `/`-separated folder path (`'Black/Sicilian'`), absent/empty for the root. Folders are
+   * *implicit* — there is no folder record, a folder exists while some line names it. Added
+   * after schemaVersion 1: an additive optional field needs no version bump.
+   */
+  folder?: string;
   notes?: string;
   createdAt: number;        // epoch ms
   updatedAt: number;
@@ -340,19 +346,31 @@ switching preserves the analysis.
   `exportAll(): LinesFile`, `importFile(json)` with per-line validation.
 - `#/training` — list of saved lines (name, start position thumbnail or FEN, move count,
   trained-as colour, updated date), with search-by-name.
-- Line editor: name, trained-as colour, starting position (reuse the Phase 4 position editor),
-  and move entry by playing moves on the board with undo/redo. Save validates that every move
-  is legal from `startFen`.
+- Line editor: name, folder, trained-as colour, starting position (reuse the Phase 4 position
+  editor), and move entry by playing moves on the board with undo/redo. Save validates that
+  every move is legal from `startFen`.
 - Delete with confirmation. Export downloads a `.json`; import accepts a file and reports
   added / skipped counts and rejection reasons.
 - "Open in analyze" hands a line's start position and moves to the Analyze section.
 
+**Folders** (`storage/folders.ts`): the list shows one folder at a time — breadcrumbs up,
+subfolder rows down, the lines filed directly here in between. Nesting is `/`-separated, the
+root is `''`, and the open folder lives in `?folder=` so a folder is a real, linkable location
+(`lines/folderNav.ts`). A folder is created by typing a path into a line's Folder field and
+disappears when its last line leaves; renaming one is a bulk edit of its lines' paths, subtree
+included, and does not touch their `updatedAt`. Search is scoped to the open folder and
+everything below it.
+
 **Unit tests:** create/update/delete round-trip through storage; export→import is
 lossless; import rejects a bad schema version, a malformed FEN, and a move sequence that is
 illegal at ply 3, without corrupting existing data; `migrate()` handles an empty/absent store.
+Folder path normalisation is idempotent and total; containment is segment-aware
+(`Sicilian Defence` is not inside `Sicilian`); the implicit tree lists intermediate folders;
+renaming carries the subtree, leaves siblings alone, and refuses to move a folder inside itself.
 
 **Done when:** lines survive a reload, export/import round-trips across a cleared
-`localStorage`, corrupt imports are rejected cleanly, and "open in analyze" loads the line.
+`localStorage`, corrupt imports are rejected cleanly, "open in analyze" loads the line, and a
+line can be filed in a nested folder, found by browsing to it, and moved out again.
 
 ### Phase 6 — Interactive line play
 
@@ -378,6 +396,11 @@ reveal/step-back/restart behave.
 - Pick a line uniformly at random from the saved set, excluding lines already served in the
   current cycle; when every line has been served, reshuffle. If no lines exist, show an empty
   state pointing at line management.
+- **Scope**: `#/training/drill?folder=…` drills one folder *and its subfolders* — the pool is
+  filtered before the cycle starts, so nothing else can ever be served. No parameter means the
+  whole repertoire, exactly as before. Changing scope starts a fresh cycle; "Exit drill" returns
+  to the folder it was started from. The folder name is the one label the drill screen may show
+  (it is the user's own choice, so it leaks no answer).
 - Show the line's starting position oriented for `userColor`. The user must play the correct
   move; the app then auto-plays the opponent's line move and continues to the end.
 - Wrong move: reject, mark the attempt as failed, let them retry. **Hint** button reveals the
@@ -386,10 +409,11 @@ reveal/step-back/restart behave.
 
 **Unit tests:** the cycle never repeats a line before all have been served; the hint returns the
 correct SAN at each ply; drill state machine transitions (awaiting-user → auto-reply →
-complete) for a full line, including a line where the user moves second.
+complete) for a full line, including a line where the user moves second; a folder-scoped pool
+contains that folder's subtree and nothing else.
 
-**Done when:** drill runs several lines end-to-end, reveals nothing but the board, and hints and
-retries work.
+**Done when:** drill runs several lines end-to-end, reveals nothing but the board, hints and
+retries work, and drilling a folder never serves a line from outside it.
 
 ### Phase 8 — Blind chess
 
@@ -413,6 +437,11 @@ Two players sharing one phone.
   4. Filter `game.legalMoves()` by that intent. Exactly one survivor ⇒ resolved. Zero or
      several ⇒ try the next `SpeechRecognition` alternative; if all fail, report
      `unrecognised` or `ambiguous` and do not move.
+  5. Pawn preference, applied only after every alternative has failed to resolve outright: when
+     no piece was named and exactly one of the remaining candidates is a pawn move, take it —
+     an unqualified `"d4"` means the pawn push, not `Nd4`. Several pawn candidates (two pawn
+     captures onto one square, an unnamed promotion piece) stay `ambiguous`, and a later
+     alternative that names a piece still wins over the preference.
 - `speech/speak.ts`: `SpeechSynthesis` echo of what was understood before applying it —
   "knight f3" — then apply. On failure, speak the failure ("didn't catch that").
 - Screen Wake Lock held for the game, re-acquired on `visibilitychange`.
@@ -424,6 +453,7 @@ Two players sharing one phone.
 `"e four"` → `e4`; `"knight f3"` → `Nf3`; `"bishop takes c6"` → `Bxc6`;
 `"castles short"` → `O-O`, `"castles queenside"` → `O-O-O`; `"rook a1"` disambiguating two
 rooks by file (`Rad1`-style cases resolve, genuinely ambiguous ones return `ambiguous`);
+`"h3"` from the start position → `h3` (pawn preferred over `Nh3`);
 `"e8 queen"` / `"e8 promotes to queen"` → `e8=Q`; a legal-sounding but illegal move returns
 `unrecognised`; garbage input returns `unrecognised`; an alternative later in the list resolves
 when the first is unusable.

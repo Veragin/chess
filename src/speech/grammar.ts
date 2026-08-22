@@ -503,6 +503,19 @@ function describeMove(move: LegalMove, legal: LegalMove[]): string {
 }
 
 /**
+ * Last-resort tiebreak for a bare destination like "d4" that a pawn *and* a piece can reach:
+ * chess convention is that an unqualified square means the pawn move, so prefer it rather than
+ * asking "which one". Only applies when the speaker named no piece and exactly one pawn move
+ * survives — two pawn captures onto the same square, or an unnamed promotion piece, stay
+ * genuinely ambiguous.
+ */
+function preferPawn(survivors: LegalMove[], intent: MoveIntent): LegalMove | undefined {
+  if (intent.piece !== undefined) return undefined;
+  const pawnMoves = survivors.filter((move) => move.piece === 'p');
+  return pawnMoves.length === 1 ? pawnMoves[0] : undefined;
+}
+
+/**
  * Tries each transcript alternative in confidence order; the first one that narrows the legal
  * move list to exactly one move wins.
  *
@@ -511,11 +524,13 @@ function describeMove(move: LegalMove, legal: LegalMove[]): string {
  *    `unrecognised`;
  *  - a phrase that matches several legal moves is `ambiguous`, carrying the candidate SANs.
  *
- * A later alternative that resolves cleanly always beats an earlier ambiguous one; when nothing
- * resolves, the highest-confidence ambiguity is what gets reported.
+ * A later alternative that resolves cleanly always beats an earlier ambiguous one; only once no
+ * alternative resolves outright is the pawn preference applied to the highest-confidence
+ * ambiguity — an explicit "knight h3" further down the list must still beat a preferred "h3".
+ * When even that leaves several candidates, the ambiguity is what gets reported.
  */
 export function resolveSpokenMove(alternatives: string[], legal: LegalMove[]): ResolveOutcome {
-  let ambiguous: string[] | null = null;
+  let ambiguous: { survivors: LegalMove[]; intent: MoveIntent } | null = null;
 
   for (const alternative of alternatives) {
     const intent = parseIntent(normaliseTranscript(alternative));
@@ -532,10 +547,21 @@ export function resolveSpokenMove(alternatives: string[], legal: LegalMove[]): R
       };
     }
     if (survivors.length > 1 && ambiguous === null) {
-      ambiguous = survivors.map((move) => move.san);
+      ambiguous = { survivors, intent };
     }
   }
 
-  if (ambiguous !== null) return { status: 'ambiguous', candidates: ambiguous };
+  if (ambiguous !== null) {
+    const pawn = preferPawn(ambiguous.survivors, ambiguous.intent);
+    if (pawn !== undefined) {
+      return {
+        status: 'resolved',
+        san: pawn.san,
+        move: pawn,
+        spoken: describeMove(pawn, legal),
+      };
+    }
+    return { status: 'ambiguous', candidates: ambiguous.survivors.map((move) => move.san) };
+  }
   return { status: 'unrecognised' };
 }
