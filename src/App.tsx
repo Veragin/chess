@@ -1,7 +1,6 @@
-import { HashRouter, Navigate, NavLink, Route, Routes } from 'react-router';
+import { HashRouter, Navigate, NavLink, Route, Routes, useLocation } from 'react-router';
 import styled from 'styled-components';
 import { AnalyzeSection } from './sections/analyze/AnalyzeSection';
-import { ExploreSection } from './sections/explore/ExploreSection';
 import { TrainingSection } from './sections/training/TrainingSection';
 import { BlindSection } from './sections/blind/BlindSection';
 
@@ -104,12 +103,25 @@ const Main = styled.main`
     }
 `;
 
+/**
+ * Explore is deliberately not here: it is a question about the repertoire, so it lives inside
+ * Training (`#/training/explore`), reached from the Explore button beside Drill.
+ */
 const ROUTES = [
     { to: '/analyze', label: 'Analyze' },
-    { to: '/explore', label: 'Explore' },
     { to: '/training', label: 'Training' },
     { to: '/blind', label: 'Blind' },
 ] as const;
+
+/**
+ * Keeps a bookmarked `#/explore?folder=…` working now that explore is a training route. The
+ * query string is carried over, or the redirect would silently widen the scope to the whole
+ * repertoire.
+ */
+function ExploreRedirect() {
+    const { search } = useLocation();
+    return <Navigate to={{ pathname: '/training/explore', search }} replace />;
+}
 
 export function App() {
     return (
@@ -130,8 +142,8 @@ export function App() {
                 <Main>
                     <Routes>
                         <Route path="/" element={<Navigate to="/analyze" replace />} />
-                        <Route path="/analyze" element={<AnalyzeSection />} />{' '}
-                        <Route path="/explore" element={<ExploreSection />} />
+                        <Route path="/analyze" element={<AnalyzeSection />} />
+                        <Route path="/explore" element={<ExploreRedirect />} />
                         <Route path="/training/*" element={<TrainingSection />} />
                         <Route path="/blind" element={<BlindSection />} />
                         <Route path="*" element={<Navigate to="/analyze" replace />} />

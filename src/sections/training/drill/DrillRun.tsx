@@ -17,10 +17,15 @@
  *
  * The run itself is held outside React by `useDrillRun`; this component only ever sees a
  * `DrillView`.
+ *
+ * Once the line is complete the summary is where the run can be left in more than one direction:
+ * on to the next line, the same line again from the start, or into Analyze with the whole line on
+ * the board. All three are only offered *after* the last move — before it, none of them could be
+ * shown without handing over the answer.
  */
 
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import styled from 'styled-components';
 import type { Color } from '../../../chess/game';
 import type { Square } from '../../../chess/position';
@@ -28,6 +33,7 @@ import { Board } from '../../../components/Board';
 import { Button } from '../../../components/ui';
 import { drillSummaryLabel } from '../../../chess/drill';
 import { folderName } from '../../../storage/folders';
+import { loadLineIntoAnalysis } from './analyzeHandoff';
 import { useDrillRun } from './useDrillRun';
 
 export interface DrillRunProps {
@@ -49,6 +55,12 @@ export interface DrillRunProps {
   last?: boolean;
   /** Serve the next line from the cycle, or end the drill when this was the last one. */
   onNext: () => void;
+  /**
+   * Play this same line again from the start. Offered only in the end-of-line summary: the answer
+   * has just been played out in full, so a repeat is practice, not a peek. It does not put the
+   * line back in the cycle — the drill still moves on when `onNext` is pressed.
+   */
+  onReplay?: () => void;
 }
 
 function colorName(color: Color): string {
@@ -64,8 +76,12 @@ export function DrillRun({
   exitTo = '/training',
   last = false,
   onNext,
+  onReplay,
 }: DrillRunProps) {
+  const navigate = useNavigate();
   const { run, attempt, hint } = useDrillRun(lineId);
+  /** Set only if the line has been deleted since the run started (see `loadLineIntoAnalysis`). */
+  const [gone, setGone] = useState(false);
 
   /**
    * The hint is two taps. It has to be within thumb reach on a phone, which also makes it easy
@@ -78,6 +94,15 @@ export function DrillRun({
   const [armedAtPly, setArmedAtPly] = useState<number | null>(null);
   const ply = run.status === 'ready' ? run.view.ply : -1;
   const armed = armedAtPly === ply;
+
+  /**
+   * Hands the finished line to Analyze. The line is read here, in the handler, and goes straight
+   * into the analysis store — this screen never holds it (see `./analyzeHandoff`).
+   */
+  const openInAnalyze = () => {
+    if (loadLineIntoAnalysis(lineId)) navigate('/analyze');
+    else setGone(true);
+  };
 
   useEffect(() => {
     if (!armed) return;
@@ -190,9 +215,24 @@ export function DrillRun({
               {view.summary.wrongAttempts === 1 ? 'attempt' : 'attempts'}
             </SummaryMuted>
           )}
+          {gone && (
+            <Notice $tone="error" role="alert" data-testid="drill-analyze-missing">
+              That line has been deleted, so there is nothing to open in analyze.
+            </Notice>
+          )}
           <Controls>
             <Button size="lg" variant="primary" data-testid="drill-next" onClick={onNext}>
               {last ? 'Finish drill' : 'Next line'}
+            </Button>
+            {/* The line has just been played out in full, so replaying it reveals nothing the
+                user has not already seen — and it is the natural thing to want after a miss. */}
+            {onReplay !== undefined && (
+              <Button size="lg" data-testid="drill-replay" onClick={onReplay}>
+                Restart line
+              </Button>
+            )}
+            <Button size="lg" data-testid="drill-analyze" onClick={openInAnalyze}>
+              Open in analyze
             </Button>
             <ExitButton to={exitTo} data-testid="drill-exit">
               Exit

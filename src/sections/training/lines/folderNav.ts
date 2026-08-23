@@ -49,12 +49,12 @@ export function newLineFromExplorePath(folder: string): string {
 /**
  * The explore screen, comparing against `folder` and everything below it.
  *
- * Explore is its own top-level section rather than a training route, but it is reached from the
- * lines list and scoped by the same `?folder=` convention, so its URL is built here with the
- * others — one place where folder scoping is spelled out.
+ * A training route rather than a top-level section: exploring asks what the *repertoire* covers,
+ * so it belongs to the same tab as the lines it reads, and it is reached from the Explore button
+ * beside Drill. Scoped by the same `?folder=` convention as its siblings.
  */
 export function explorePath(folder: string): string {
-  return withFolder('/explore', folder);
+  return withFolder('/training/explore', folder);
 }
 
 /** The editor for an existing line; `folder` is only where "Back" returns to. */

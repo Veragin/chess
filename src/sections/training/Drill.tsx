@@ -90,6 +90,15 @@ export function Drill() {
     setServed((previous) => firstServe(pool, scope, previous.run + 1));
   }, [pool, scope]);
 
+  /**
+   * Play the served line again from the start ("Restart line" in the summary). Only `run` moves:
+   * the cycle is untouched, so the line stays spent and the drill still advances to a *new* line
+   * when the user presses Next — a replay is practice, not another draw.
+   */
+  const replay = useCallback(() => {
+    setServed((previous) => ({ ...previous, run: previous.run + 1 }));
+  }, []);
+
   if (served.id === null) {
     // Nothing was ever served: the pool itself is empty.
     if (served.cycle.served.length === 0) {
@@ -168,6 +177,7 @@ export function Drill() {
       exitTo={exitTo}
       last={last}
       onNext={next}
+      onReplay={replay}
     />
   );
 }

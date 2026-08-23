@@ -8,18 +8,20 @@ at runtime.
 
 - **Analyze** — free exploration from the start position or a custom FEN, with a live eval bar
   and the engine's top three lines. The user moves both colours; there is no engine opponent.
-- **Explore** — the same board and engine as Analyze, next to what the *repertoire* says about
-  the position on it: every saved line that reaches it (by transposition, not just by move
-  order), the move each of them plays next, and which lines end there. Playing a continuation is
-  one click, so checking a repertoire for holes is a walk down the tree; when the engine suggests
-  something no line covers, the move history saves straight into a new line. Scoped by folder,
-  reachable from any Drill button and from each line's row — see [Explore](#explore).
 - **Training** — a repertoire of linear lines (one start position, one ordered move list),
   organised in nested folders, stored in `localStorage` and exportable as a single `.json` file.
   Drill one line, one folder or the whole repertoire from a board that shows nothing else —
-  random order, and every line comes up exactly once per drill. Files in `public/data/` ship as
+  random order, and every line comes up exactly once per drill; when a line is done you can take
+  the next one, replay that same line, or open it in Analyze. Files in `public/data/` ship as
   a starter repertoire — see
   [Bundled lines](#bundled-lines-publicdata).
+- **Explore** (inside Training) — the same board and engine as Analyze, next to what the
+  *repertoire* says about the position on it: every saved line that reaches it (by transposition,
+  not just by move order), the move each of them plays next, and which lines end there. Playing a
+  continuation is one click, so checking a repertoire for holes is a walk down the tree; when the
+  engine suggests something no line covers, the move history saves straight into a new line.
+  Scoped by folder, reached from the Explore button beside Drill and from each line's row — see
+  [Explore](#explore).
 - **Blind chess** — two players sharing one phone, board rendered empty, moves spoken in English
   algebraic ("e4", "knight f3", "bishop takes c6", "castles short"). Installable as a PWA and
   works offline after the first load.
@@ -83,9 +85,15 @@ existing line; an identical-content guard keeps duplicates away even if the reco
 
 ## Explore
 
-`#/explore` answers one question about the position on the board: **is it covered?** The left
-half is the analyse screen (eval bar, engine's top lines, both colours movable); the right half
-is the repertoire's own answer.
+`#/training/explore` answers one question about the position on the board: **is it covered?** The
+left half is the analyse screen (eval bar, engine's top lines, both colours movable); the right
+half is the repertoire's own answer.
+
+It is a screen of the **Training** tab, not a tab of its own: what it reads and what it writes are
+both the repertoire, so it sits next to the lines it compares against. The way in is the
+**Explore** button beside Drill / Drill folder on the lines screen (and per folder and per line
+row); the way out is the `‹ Lines` link, which returns to the folder that scoped the exploration.
+A bookmarked `#/explore?folder=…` still works — it redirects, folder and all.
 
 - **Lines are matched by transposition.** Two lines reaching the same position by different move
   orders are both listed. The key is the first four FEN fields — placement, side to move,

@@ -16,7 +16,7 @@ describe('folder URLs', () => {
     expect(linesPath('//')).toBe('/training');
     expect(drillPath('')).toBe('/training/drill');
     expect(newLinePath('')).toBe('/training/new');
-    expect(explorePath('')).toBe('/explore');
+    expect(explorePath('')).toBe('/training/explore');
   });
 
   it('carries the folder as a query parameter', () => {
@@ -24,7 +24,7 @@ describe('folder URLs', () => {
     expect(drillPath('White')).toBe('/training/drill?folder=White');
     expect(newLinePath('White')).toBe('/training/new?folder=White');
     expect(editLinePath('abc', 'White')).toBe('/training/abc/edit?folder=White');
-    expect(explorePath('White')).toBe('/explore?folder=White');
+    expect(explorePath('White')).toBe('/training/explore?folder=White');
   });
 
   it('marks the explore hand-off in the URL, with or without a folder', () => {

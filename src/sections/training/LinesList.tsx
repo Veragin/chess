@@ -12,7 +12,7 @@
  * Every row shows what the spec asks for (name, start position, move count, trained-as colour,
  * updated date) and offers Drill / Explore / Edit / Open in analyze / Delete. A row's Drill
  * button is the same drill screen as the header's, with a pool of exactly that one line (see
- * `drillLinePath`); its Explore button opens `#/explore` on the line, scoped to the line's own
+ * `drillLinePath`); its Explore button opens `#/training/explore` on the line, scoped to its own
  * folder — the lines it could transpose with are its siblings, not whichever folder the list
  * happened to be showing.
  * Export and import go straight through `storage/lines.ts`; all this file does is turn the

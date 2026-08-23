@@ -1,5 +1,10 @@
 /**
- * `#/explore` — free play on a board that keeps answering one question: **is this covered?**
+ * `#/training/explore` — free play on a board that keeps answering one question: **is this
+ * covered?**
+ *
+ * A screen of the Training tab (routed by `TrainingSection`, reached from the Explore button
+ * beside Drill) rather than a section of its own: what it reads and what it writes are both the
+ * repertoire.
  *
  * It is the analyse screen's engine (eval bar + top lines, `engine/useEngine.ts`) next to the
  * repertoire's own answer for the same position (`./coverage.ts`): every saved line that
@@ -16,14 +21,15 @@
  *    second save form here.
  *
  * `?folder=` scopes which lines count as coverage, using the same convention (and the same URL
- * helpers) as the rest of Training, so "Explore" from inside a folder checks *that* repertoire.
+ * helpers) as the rest of Training, so "Explore" from inside a folder checks *that* repertoire —
+ * and the way back out lands in that same folder.
  *
  * Layout follows analyse and the single 900px breakpoint (README §6): a thin eval strip and
  * stacked panels on a phone, eval strip beside the board with a side column on a wide screen.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import styled from 'styled-components';
 import { Board } from '../../components/Board';
 import { EngineLines } from '../../components/EngineLines';
@@ -49,7 +55,7 @@ import { listLines } from '../../storage/lines';
 import { normaliseFolderPath } from '../../storage/schema';
 import { useIsWideLayout } from '../analyze/useIsWideLayout';
 import { draftMoves } from '../training/lines/draft';
-import { newLineFromExplorePath } from '../training/lines/folderNav';
+import { linesPath, newLineFromExplorePath } from '../training/lines/folderNav';
 import { moveCountLabel } from '../training/lines/lineFormat';
 import { CoveragePanel } from './CoveragePanel';
 import { buildCoverageIndex, coverageAt } from './coverage';
@@ -134,6 +140,11 @@ export function ExploreSection() {
 
   const toolbar = (
     <Toolbar>
+      {/* Explore is not a tab, so the way back to the lines it compares against has to be on the
+          screen — and it returns to the folder that scoped this exploration. */}
+      <BackLink to={linesPath(folder)} data-testid="explore-back">
+        ‹ Lines
+      </BackLink>
       <Button data-testid="explore-start" onClick={() => loadExploration(START_FEN)}>
         Start position
       </Button>
@@ -286,6 +297,20 @@ const Toolbar = styled.div`
   align-items: center;
   gap: ${(p) => p.theme.space.sm};
   min-width: 0;
+`;
+
+const BackLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-height: 44px;
+  color: ${(p) => p.theme.color.textMuted};
+  font-size: ${(p) => p.theme.font.size.sm};
+  text-decoration: none;
+
+  &:hover {
+    color: ${(p) => p.theme.color.text};
+  }
 `;
 
 const ScopeField = styled.div`
