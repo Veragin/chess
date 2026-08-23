@@ -10,8 +10,11 @@
  * folder" and the editor's Back button land where the user actually was.
  *
  * Every row shows what the spec asks for (name, start position, move count, trained-as colour,
- * updated date) and offers Drill / Edit / Open in analyze / Delete. A row's Drill button is the
- * same drill screen as the header's, with a pool of exactly that one line (see `drillLinePath`).
+ * updated date) and offers Drill / Explore / Edit / Open in analyze / Delete. A row's Drill
+ * button is the same drill screen as the header's, with a pool of exactly that one line (see
+ * `drillLinePath`); its Explore button opens `#/explore` on the line, scoped to the line's own
+ * folder — the lines it could transpose with are its siblings, not whichever folder the list
+ * happened to be showing.
  * Export and import go straight through `storage/lines.ts`; all this file does is turn the
  * result into a `Blob` or a report.
  *
@@ -25,6 +28,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import styled from 'styled-components';
 import { Button, Panel } from '../../components/ui';
 import { loadPosition } from '../../state/analysis';
+import { loadExploration } from '../../state/explore';
 import {
   childFolders,
   folderCrumbs,
@@ -47,7 +51,13 @@ import { ConfirmDialog } from './lines/ConfirmDialog';
 import { LinkButton } from './lines/LinkButton';
 import { Notice, NoticeList, NoticeTitle } from './lines/Notice';
 import { downloadText, serialiseLinesFile } from './lines/download';
-import { drillLinePath, drillPath, editLinePath, newLinePath } from './lines/folderNav';
+import {
+  drillLinePath,
+  drillPath,
+  editLinePath,
+  explorePath,
+  newLinePath,
+} from './lines/folderNav';
 import { describeImport, describeSeed, type ImportReportView } from './lines/importReport';
 import {
   colorLabel,
@@ -114,6 +124,16 @@ export function LinesList() {
       // has the line already in place on its first paint.
       loadPosition(line.startFen, line.moves);
       navigate('/analyze');
+    },
+    [navigate],
+  );
+
+  const openInExplore = useCallback(
+    (line: Line) => {
+      // Same hand-off as "Open in analyze", into explore's own store: the board opens at the end
+      // of the line, and its move list is how the user walks back to where it branches.
+      loadExploration(line.startFen, line.moves);
+      navigate(explorePath(lineFolder(line)));
     },
     [navigate],
   );
@@ -190,6 +210,11 @@ export function LinesList() {
         </Button>
         <LinkButton to={drillPath(folder)} data-testid="drill-link">
           {inFolder ? 'Drill folder' : 'Drill'}
+        </LinkButton>
+        {/* The same scope as Drill, asked the other way round: not "can I play these lines"
+            but "what do they cover". */}
+        <LinkButton to={explorePath(folder)} data-testid="explore-link">
+          Explore
         </LinkButton>
       </TopBar>
 
@@ -376,6 +401,14 @@ export function LinesList() {
                       >
                         Drill
                       </LinkButton>
+                      <LinkButton
+                        to={explorePath(node.path)}
+                        $size="sm"
+                        data-testid="folder-explore"
+                        aria-label={`Explore ${node.name}`}
+                      >
+                        Explore
+                      </LinkButton>
                     </FolderCard>
                   ))}
                 </Rows>
@@ -532,6 +565,9 @@ export function LinesList() {
           >
             Drill
           </LinkButton>
+          <Button size="sm" data-testid="line-explore" onClick={() => openInExplore(line)}>
+            Explore
+          </Button>
           <LinkButton to={editLinePath(line.id, folder)} $size="sm" data-testid="line-edit">
             Edit
           </LinkButton>

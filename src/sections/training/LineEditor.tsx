@@ -44,6 +44,7 @@ import { flipOrientation, type Orientation } from '../../chess/position';
 import { allFolderPaths, folderLabel } from '../../storage/folders';
 import { createLine, getLine, listLines, updateLine } from '../../storage/lines';
 import { normaliseFolderPath } from '../../storage/schema';
+import { clearStagedLine, peekStagedLine, type StagedLine } from '../../state/newLine';
 import { ConfirmDialog } from './lines/ConfirmDialog';
 import { linesPath } from './lines/folderNav';
 import { Notice, NoticeTitle } from './lines/Notice';
@@ -71,12 +72,38 @@ interface EditorState {
   loadNotice: string | null;
 }
 
-function seedState(id: string | undefined, folder: string): EditorState {
+function seedState(
+  id: string | undefined,
+  folder: string,
+  staged: StagedLine | null,
+): EditorState {
   if (id === undefined) {
     // A new line lands in whichever folder the list was showing, so "New line" inside a folder
     // files it there without the user having to retype the path.
     const draft = emptyDraft(folder);
-    return { routeId: null, status: 'new', draft, baseline: draft, loadNotice: null };
+    if (staged === null) {
+      return { routeId: null, status: 'new', draft, baseline: draft, loadNotice: null };
+    }
+    // Moves handed over by explore. Rebased rather than trusted: the staged list came from a
+    // live board, but the editor re-derives every position it shows from the start FEN anyway.
+    const rebased = rebaseHistory(staged.startFen, staged.moves);
+    const seeded: LineDraft = {
+      ...draft,
+      folder: normaliseFolderPath(staged.folder),
+      userColor: staged.userColor,
+      history: rebased.history,
+    };
+    return {
+      routeId: null,
+      status: 'new',
+      draft: seeded,
+      // A blank baseline, so leaving without saving still counts as discarding something.
+      baseline: draft,
+      loadNotice:
+        rebased.dropped > 0
+          ? `${rebased.dropped} move(s) from explore could not be replayed and were dropped.`
+          : null,
+    };
   }
   const line = getLine(id);
   if (line === null) {
@@ -104,8 +131,11 @@ export function LineEditor() {
   const [params] = useSearchParams();
   const fromFolder = normaliseFolderPath(params.get('folder'));
   const backTo = linesPath(fromFolder);
+  // Only a hand-off that says so may claim the staged moves (see `state/newLine.ts`); peeking is
+  // side-effect-free, so it is safe here and under StrictMode's double-invoked initialisers.
+  const staged = params.get('from') === 'explore' ? peekStagedLine() : null;
 
-  const [state, setState] = useState<EditorState>(() => seedState(id, fromFolder));
+  const [state, setState] = useState<EditorState>(() => seedState(id, fromFolder, staged));
   /** Existing folder paths, for the field's autocomplete. Read once — the editor is the writer. */
   const knownFolders = useMemo(() => allFolderPaths(listLines()), []);
   const [orientation, setOrientation] = useState<Orientation>(() =>
@@ -122,7 +152,7 @@ export function LineEditor() {
   // "adjust state when a prop changes" pattern) rather than in an effect, which would paint the
   // wrong line for one frame.
   if (state.routeId !== (id ?? null)) {
-    const next = seedState(id, fromFolder);
+    const next = seedState(id, fromFolder, staged);
     setState(next);
     setOrientation(seedOrientation(next.draft.userColor));
     setEditingPosition(false);
@@ -138,6 +168,18 @@ export function LineEditor() {
     setError(null);
     setState((prev) => ({ ...prev, draft: { ...prev.draft, ...next } }));
   }, []);
+
+  /**
+   * Every way out of the editor. A staged hand-off is over the moment the editor closes —
+   * saved, discarded or abandoned — so it is dropped here rather than at each exit.
+   */
+  const goTo = useCallback(
+    (to: string) => {
+      clearStagedLine();
+      navigate(to);
+    },
+    [navigate],
+  );
 
   const dirty = useMemo(() => isDirty(draft, baseline), [draft, baseline]);
   const moves = sansOf(history);
@@ -209,15 +251,15 @@ export function LineEditor() {
     // the list surfaces `storageWarning()` prominently, so it is reported there, not here.
     // Return to the line's *own* folder rather than where the user came from: after moving a
     // line to another folder, an empty list at the old location looks like the save failed.
-    navigate(linesPath(input.folder ?? ''));
-  }, [draft, id, navigate, status]);
+    goTo(linesPath(input.folder ?? ''));
+  }, [draft, goTo, id, status]);
 
   const leave = useCallback(
     (to: string) => {
       if (dirty) setPendingLeave(to);
-      else navigate(to);
+      else goTo(to);
     },
-    [dirty, navigate],
+    [dirty, goTo],
   );
 
   if (status === 'missing') {
@@ -226,7 +268,7 @@ export function LineEditor() {
         <Panel title="Line not found">
           <EmptyBody data-testid="line-not-found">
             <p>There is no saved line with that id. It may have been deleted, or the link is old.</p>
-            <Button variant="primary" onClick={() => navigate(backTo)}>
+            <Button variant="primary" onClick={() => goTo(backTo)}>
               Back to lines
             </Button>
           </EmptyBody>
@@ -461,7 +503,7 @@ export function LineEditor() {
           onConfirm={() => {
             const to = pendingLeave;
             setPendingLeave(null);
-            navigate(to);
+            goTo(to);
           }}
         >
           This line has changes that have not been saved. Leaving now loses them.

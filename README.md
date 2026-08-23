@@ -8,6 +8,12 @@ at runtime.
 
 - **Analyze** — free exploration from the start position or a custom FEN, with a live eval bar
   and the engine's top three lines. The user moves both colours; there is no engine opponent.
+- **Explore** — the same board and engine as Analyze, next to what the *repertoire* says about
+  the position on it: every saved line that reaches it (by transposition, not just by move
+  order), the move each of them plays next, and which lines end there. Playing a continuation is
+  one click, so checking a repertoire for holes is a walk down the tree; when the engine suggests
+  something no line covers, the move history saves straight into a new line. Scoped by folder,
+  reachable from any Drill button and from each line's row — see [Explore](#explore).
 - **Training** — a repertoire of linear lines (one start position, one ordered move list),
   organised in nested folders, stored in `localStorage` and exportable as a single `.json` file.
   Drill one line, one folder or the whole repertoire from a board that shows nothing else —
@@ -72,6 +78,38 @@ Rules the seeder (`src/storage/seed.ts`) keeps:
 
 Fresh ids are assigned on the way in (as for any import), so a seed can never overwrite an
 existing line; an identical-content guard keeps duplicates away even if the record is lost.
+
+---
+
+## Explore
+
+`#/explore` answers one question about the position on the board: **is it covered?** The left
+half is the analyse screen (eval bar, engine's top lines, both colours movable); the right half
+is the repertoire's own answer.
+
+- **Lines are matched by transposition.** Two lines reaching the same position by different move
+  orders are both listed. The key is the first four FEN fields — placement, side to move,
+  castling rights, en-passant square — so the move counters, which are exactly what differs
+  between two routes, are ignored. Every scoped line is replayed once into an index
+  (`src/sections/explore/coverage.ts`), not re-replayed on every move.
+- **Every continuation is a button.** The panel groups the lines that reach the position by the
+  move each plays next, most-played first, and clicking one plays it — so walking the tree is how
+  you find the gap. Lines that *end* in the position are listed separately: a line that has said
+  all it wants to say is not a hole.
+- **The move history saves into a new line.** "Save as new line" hands the moves up to the cursor
+  to the ordinary line editor (`#/training/new?from=explore`), which is where the name, folder,
+  trained-as colour and notes are filled in. The moves travel in memory, not in the URL
+  (`src/state/newLine.ts`) — a truncated query string would silently save a shorter line.
+- **`?folder=` scopes what counts as coverage**, exactly as it does for drill, so "Explore" inside
+  a folder checks that repertoire and nothing else. The scope is also a dropdown on the screen.
+  From a line's row it opens on that line, scoped to the line's own folder — the lines it could
+  transpose with are its siblings.
+- **A damaged line is reported, not hidden.** A stored line whose moves no longer replay (a
+  hand-edited `localStorage`, an edited start position) is indexed as far as it goes and named
+  under "cannot continue", with the rest of the panel unaffected.
+
+The exploration itself lives outside the React tree (`src/state/explore.ts`), separately from
+Analyze's, so going to Training to fix a line and coming back does not lose the position.
 
 ---
 
@@ -152,8 +190,8 @@ dist/
   content-hashed chunks, so a worker that kept serving an old `index.html` would ask for chunks
   that no longer exist. All app state lives in `localStorage`, so a reload loses nothing.
 - **Offline scope.** After one successful load, with the network disabled: analyse (including
-  live Stockfish evaluation), line management, line play, drill and blind chess all work, and a
-  hard reload still boots the app. There is no network feature to lose — the app makes no runtime
+  live Stockfish evaluation), explore, line management, line play, drill and blind chess all
+  work, and a hard reload still boots the app. There is no network feature to lose — the app makes no runtime
   network calls of its own.
 - **Not offline-capable:** the very first visit. The wasm has to be downloaded once.
 
@@ -161,7 +199,7 @@ dist/
 
 | Capability | Chrome / Edge | Safari | Firefox |
 |---|---|---|---|
-| Board, analyse, lines, drill, blind board | Yes | Yes | Yes |
+| Board, analyse, explore, lines, drill, blind board | Yes | Yes | Yes |
 | Stockfish (single-threaded WASM) | Yes | Yes | Yes |
 | Install as an app (PWA) | Yes | iOS/iPadOS 16.4+, macOS 14+ ("Add to Dock") | Android yes; desktop no install UI |
 | Offline via service worker | Yes | Yes | Yes |

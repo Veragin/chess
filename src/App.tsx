@@ -1,6 +1,7 @@
 import { HashRouter, Navigate, NavLink, Route, Routes } from 'react-router';
 import styled from 'styled-components';
 import { AnalyzeSection } from './sections/analyze/AnalyzeSection';
+import { ExploreSection } from './sections/explore/ExploreSection';
 import { TrainingSection } from './sections/training/TrainingSection';
 import { BlindSection } from './sections/blind/BlindSection';
 
@@ -105,6 +106,7 @@ const Main = styled.main`
 
 const ROUTES = [
     { to: '/analyze', label: 'Analyze' },
+    { to: '/explore', label: 'Explore' },
     { to: '/training', label: 'Training' },
     { to: '/blind', label: 'Blind' },
 ] as const;
@@ -129,6 +131,7 @@ export function App() {
                     <Routes>
                         <Route path="/" element={<Navigate to="/analyze" replace />} />
                         <Route path="/analyze" element={<AnalyzeSection />} />{' '}
+                        <Route path="/explore" element={<ExploreSection />} />
                         <Route path="/training/*" element={<TrainingSection />} />
                         <Route path="/blind" element={<BlindSection />} />
                         <Route path="*" element={<Navigate to="/analyze" replace />} />

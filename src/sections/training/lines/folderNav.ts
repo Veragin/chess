@@ -34,6 +34,29 @@ export function newLinePath(folder: string): string {
   return withFolder('/training/new', folder);
 }
 
+/**
+ * The editor for a new line whose moves explore has staged (`state/newLine.ts`).
+ *
+ * The moves themselves are not in the URL — a move list is unbounded, and a truncated one would
+ * silently save a shorter line. `from=explore` is the *intent*, which is what stops a plain
+ * "New line" from picking up a draft left behind by an earlier hand-off.
+ */
+export function newLineFromExplorePath(folder: string): string {
+  const base = newLinePath(folder);
+  return `${base}${base.includes('?') ? '&' : '?'}from=explore`;
+}
+
+/**
+ * The explore screen, comparing against `folder` and everything below it.
+ *
+ * Explore is its own top-level section rather than a training route, but it is reached from the
+ * lines list and scoped by the same `?folder=` convention, so its URL is built here with the
+ * others — one place where folder scoping is spelled out.
+ */
+export function explorePath(folder: string): string {
+  return withFolder('/explore', folder);
+}
+
 /** The editor for an existing line; `folder` is only where "Back" returns to. */
 export function editLinePath(id: string, folder: string): string {
   return withFolder(`/training/${id}/edit`, folder);

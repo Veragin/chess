@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { drillLinePath, drillPath, editLinePath, linesPath, newLinePath } from './folderNav';
+import {
+  drillLinePath,
+  drillPath,
+  editLinePath,
+  explorePath,
+  linesPath,
+  newLineFromExplorePath,
+  newLinePath,
+} from './folderNav';
 
 describe('folder URLs', () => {
   it('spells the root as no parameter at all, so each folder has one URL', () => {
@@ -8,6 +16,7 @@ describe('folder URLs', () => {
     expect(linesPath('//')).toBe('/training');
     expect(drillPath('')).toBe('/training/drill');
     expect(newLinePath('')).toBe('/training/new');
+    expect(explorePath('')).toBe('/explore');
   });
 
   it('carries the folder as a query parameter', () => {
@@ -15,6 +24,15 @@ describe('folder URLs', () => {
     expect(drillPath('White')).toBe('/training/drill?folder=White');
     expect(newLinePath('White')).toBe('/training/new?folder=White');
     expect(editLinePath('abc', 'White')).toBe('/training/abc/edit?folder=White');
+    expect(explorePath('White')).toBe('/explore?folder=White');
+  });
+
+  it('marks the explore hand-off in the URL, with or without a folder', () => {
+    // The moves live in `state/newLine.ts`; only the intent travels in the URL.
+    expect(newLineFromExplorePath('')).toBe('/training/new?from=explore');
+    expect(newLineFromExplorePath('Black/Sicilian')).toBe(
+      '/training/new?folder=Black%2FSicilian&from=explore',
+    );
   });
 
   it('drills one line off the drill screen, keeping the folder for the way back', () => {
