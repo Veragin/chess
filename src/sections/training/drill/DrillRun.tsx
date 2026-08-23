@@ -41,7 +41,13 @@ export interface DrillRunProps {
   folder?: string;
   /** Where the exit links go — back to the folder the drill was started from. */
   exitTo?: string;
-  /** Serve the next line from the cycle. */
+  /**
+   * True when this is the last line of the drill — every other line in the pool has been served.
+   * Only changes the wording: `onNext` then lands on the end-of-drill screen. A count of what is
+   * left is deliberately not passed; that would narrow down how big the pool is mid-run.
+   */
+  last?: boolean;
+  /** Serve the next line from the cycle, or end the drill when this was the last one. */
   onNext: () => void;
 }
 
@@ -52,7 +58,13 @@ function colorName(color: Color): string {
 /** How long the hint button stays armed before it disarms itself. */
 const HINT_ARM_MS = 4000;
 
-export function DrillRun({ lineId, folder = '', exitTo = '/training', onNext }: DrillRunProps) {
+export function DrillRun({
+  lineId,
+  folder = '',
+  exitTo = '/training',
+  last = false,
+  onNext,
+}: DrillRunProps) {
   const { run, attempt, hint } = useDrillRun(lineId);
 
   /**
@@ -86,7 +98,7 @@ export function DrillRun({ lineId, folder = '', exitTo = '/training', onNext }: 
         </Notice>
         <Controls>
           <Button variant="primary" data-testid="drill-next" onClick={onNext}>
-            Next line
+            {last ? 'Finish drill' : 'Next line'}
           </Button>
         </Controls>
       </Wrap>
@@ -180,7 +192,7 @@ export function DrillRun({ lineId, folder = '', exitTo = '/training', onNext }: 
           )}
           <Controls>
             <Button size="lg" variant="primary" data-testid="drill-next" onClick={onNext}>
-              Next line
+              {last ? 'Finish drill' : 'Next line'}
             </Button>
             <ExitButton to={exitTo} data-testid="drill-exit">
               Exit

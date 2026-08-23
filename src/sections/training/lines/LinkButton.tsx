@@ -4,7 +4,7 @@ import styled, { css } from 'styled-components';
 /**
  * A router `Link` that looks like `ui/Button`.
  *
- * The list navigates with real anchors (`#/training/:id/play`, `#/training/drill`) rather than
+ * The list navigates with real anchors (`#/training/drill?line=…`, `#/training/drill`) rather than
  * `onClick` + `navigate`, so the targets are visible in the status bar, openable in a new tab,
  * and reachable by assistive tech as links. `ui/Button` is a plain `<button>` component and
  * cannot be re-tagged, hence this small sibling rather than a hack around it.

@@ -426,8 +426,8 @@ export function isSessionUserTurn(s: LineSession): boolean {
 
 /**
  * The SAN the app should auto-play right now, or `null` when there is nothing to auto-play
- * (the user's turn, or the line has ended). The line-play/drill screens run their delay timer
- * off exactly this value.
+ * (the user's turn, or the line has ended). The drill screen runs its delay timer off exactly
+ * this value.
  */
 export function pendingAutoMove(s: LineSession): string | null {
   if (isSessionComplete(s) || isSessionUserTurn(s)) return null;

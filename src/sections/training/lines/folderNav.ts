@@ -39,7 +39,15 @@ export function editLinePath(id: string, folder: string): string {
   return withFolder(`/training/${id}/edit`, folder);
 }
 
-/** Line play; `folder` is only where "Back" returns to. */
-export function playLinePath(id: string, folder: string): string {
-  return withFolder(`/training/${id}/play`, folder);
+/**
+ * Drill one specific line — the same screen as `drillPath`, with a pool of exactly one.
+ *
+ * `?line=` rather than a path of its own: a single-line drill *is* a drill with a narrower pool,
+ * so it shares the screen, the runner and the "one line at most once" rule. `folder` is still
+ * carried so "Exit drill" returns to the folder the line was picked from.
+ */
+export function drillLinePath(id: string, folder: string): string {
+  const base = `/training/drill?line=${encodeURIComponent(id)}`;
+  const normalised = normaliseFolderPath(folder);
+  return normalised.length === 0 ? base : `${base}&folder=${encodeURIComponent(normalised)}`;
 }

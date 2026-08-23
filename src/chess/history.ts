@@ -2,7 +2,7 @@
  * Linear move history with a cursor (README §7 Phase 2).
  *
  * Deliberately DOM-free and React-free: this is plain data plus pure transitions, so it is
- * unit-testable without a renderer and reusable by analyze / line-play / drill later on.
+ * unit-testable without a renderer and reusable by analyze / training later on.
  *
  * Model: a start position plus an ordered list of `{ san, fenAfter }` entries, and a cursor.
  * `cursor === -1` means "at the start position"; `cursor === entries.length - 1` means "at the
@@ -188,7 +188,7 @@ export function lastMoveOf(h: HistoryState): { from: Square; to: Square } | null
 
 /**
  * Builds a history from a start position and a SAN sequence, cursor at the end — used to hand a
- * saved `Line` to analyze / line play. Returns `null` if any move is illegal.
+ * saved `Line` to analyze. Returns `null` if any move is illegal.
  */
 export function historyFromSan(startFen: string, sanMoves: string[]): HistoryState | null {
   const base = createHistory(startFen);

@@ -10,8 +10,10 @@
  * folder" and the editor's Back button land where the user actually was.
  *
  * Every row shows what the spec asks for (name, start position, move count, trained-as colour,
- * updated date) and offers Edit / Play / Open in analyze / Delete. Export and import go straight
- * through `storage/lines.ts`; all this file does is turn the result into a `Blob` or a report.
+ * updated date) and offers Drill / Edit / Open in analyze / Delete. A row's Drill button is the
+ * same drill screen as the header's, with a pool of exactly that one line (see `drillLinePath`).
+ * Export and import go straight through `storage/lines.ts`; all this file does is turn the
+ * result into a `Blob` or a report.
  *
  * No logic worth testing lives here: filtering, folder arithmetic, labelling, the export filename
  * and the import wording are pure functions in `./lines/` and `storage/folders.ts` with their own
@@ -45,7 +47,7 @@ import { ConfirmDialog } from './lines/ConfirmDialog';
 import { LinkButton } from './lines/LinkButton';
 import { Notice, NoticeList, NoticeTitle } from './lines/Notice';
 import { downloadText, serialiseLinesFile } from './lines/download';
-import { drillPath, editLinePath, newLinePath, playLinePath } from './lines/folderNav';
+import { drillLinePath, drillPath, editLinePath, newLinePath } from './lines/folderNav';
 import { describeImport, describeSeed, type ImportReportView } from './lines/importReport';
 import {
   colorLabel,
@@ -314,7 +316,7 @@ export function LinesList() {
               <p>No lines saved yet.</p>
               <p>
                 A line is a starting position plus one ordered sequence of moves — the repertoire
-                you then practise in line play and drill. Give a line a folder (
+                you then practise in drill. Give a line a folder (
                 <code>Black/Sicilian</code>) to group it with the rest of that repertoire.
               </p>
               <Button
@@ -523,12 +525,12 @@ export function LinesList() {
 
         <Actions>
           <LinkButton
-            to={playLinePath(line.id, folder)}
+            to={drillLinePath(line.id, folder)}
             $variant="primary"
             $size="sm"
-            data-testid="line-play"
+            data-testid="line-drill"
           >
-            Play
+            Drill
           </LinkButton>
           <LinkButton to={editLinePath(line.id, folder)} $size="sm" data-testid="line-edit">
             Edit

@@ -10,8 +10,9 @@ at runtime.
   and the engine's top three lines. The user moves both colours; there is no engine opponent.
 - **Training** — a repertoire of linear lines (one start position, one ordered move list),
   organised in nested folders, stored in `localStorage` and exportable as a single `.json` file.
-  Play a line move by move, or drill the whole repertoire (or one folder) from a board that
-  shows nothing else. Files in `public/data/` ship as a starter repertoire — see
+  Drill one line, one folder or the whole repertoire from a board that shows nothing else —
+  random order, and every line comes up exactly once per drill. Files in `public/data/` ship as
+  a starter repertoire — see
   [Bundled lines](#bundled-lines-publicdata).
 - **Blind chess** — two players sharing one phone, board rendered empty, moves spoken in English
   algebraic ("e4", "knight f3", "bishop takes c6", "castles short"). Installable as a PWA and

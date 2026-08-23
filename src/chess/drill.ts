@@ -5,11 +5,11 @@
  * Two independent pieces of pure logic live here, both DOM-free and React-free so they can be
  * unit tested (README §1 "Testing"):
  *
- *  1. **The cycle** — which line to serve next. README: "Pick a line uniformly at random from
- *     the saved set, excluding lines already served in the current cycle; when every line has
- *     been served, reshuffle." That is a bag drawn *without replacement*, not independent
- *     random draws, and explicitly **not** spaced repetition (README §1 non-goals). Randomness
- *     is injected (`RandomInt`) so tests are deterministic.
+ *  1. **The cycle** — which line to serve next: uniformly at random from the pool, excluding
+ *     every line already served in this drill. That is a bag drawn *without replacement*, not
+ *     independent random draws, and explicitly **not** spaced repetition (README §1 non-goals).
+ *     The bag is never refilled mid-drill: each line comes up exactly once, and when the bag is
+ *     empty the drill is over. Randomness is injected (`RandomInt`) so tests are deterministic.
  *  2. **The state machine** — `awaiting-user → auto-reply → complete`, built on the shared
  *     `LineSession` in `./line.ts`. Line following (who moves, what matches, auto-play) is
  *     *not* reimplemented here; this module only adds what drill needs on top: per-ply
@@ -103,23 +103,25 @@ export function remainingInCycle(ids: readonly string[], cycle: DrillCycle): str
   return normaliseIds(ids).filter((id) => !served.has(id));
 }
 
-/** Outcome of one draw. `id` is `null` only when the pool is empty. */
+/** Outcome of one draw. `id` is `null` exactly when there was nothing left to serve. */
 export interface DrillPick {
   id: string | null;
   /** Cycle to carry into the next draw. Pruned to the ids that still exist. */
   cycle: DrillCycle;
-  /** True when this draw started a new pass because every line had been served. */
-  reshuffled: boolean;
+  /**
+   * True when the draw came up empty: the pool holds no lines, or every line in it has already
+   * been served. The caller decides what that means — drill ends the run and offers a restart.
+   */
+  exhausted: boolean;
 }
 
 /**
- * Draws the next line id: uniformly at random from the ids not yet served this cycle,
- * reshuffling (emptying the cycle) once every line has been served.
+ * Draws the next line id: uniformly at random from the ids not yet served this cycle.
  *
- * A cycle boundary may hand out the same line twice in a row — the last draw of one pass and
- * the first of the next are independent, exactly as the spec's "reshuffle" implies. That is
- * unavoidable for a single-line store and is not corrected for larger ones, because biasing
- * the first draw of a pass would stop it being uniform.
+ * One pass, and one pass only. A line is served **at most once per cycle**, and once every line
+ * has been served the draw returns `id: null` with `exhausted: true` rather than starting a new
+ * pass — a drill is over when the pool has run out. Starting again is `emptyCycle()`, which the
+ * caller does explicitly (a fresh run), never as a side effect of a draw.
  */
 export function pickNextLineId(
   ids: readonly string[],
@@ -127,25 +129,23 @@ export function pickNextLineId(
   rand: RandomInt = defaultRandomInt,
 ): DrillPick {
   const pool = normaliseIds(ids);
-  if (pool.length === 0) return { id: null, cycle: emptyCycle(), reshuffled: false };
+  if (pool.length === 0) return { id: null, cycle: emptyCycle(), exhausted: true };
 
   // Drop served ids that no longer exist, so a deleted line cannot hold the cycle open.
   const inPool = new Set(pool);
   const served = cycle.served.filter((id) => inPool.has(id));
+  const servedSet = new Set(served);
+  const candidates = pool.filter((id) => !servedSet.has(id));
 
-  const reshuffled = served.length >= pool.length;
-  const base = reshuffled ? [] : served;
-  const baseSet = new Set(base);
-  const candidates = pool.filter((id) => !baseSet.has(id));
+  if (candidates.length === 0) return { id: null, cycle: { served }, exhausted: true };
 
   const raw = rand(candidates.length);
   const index = Number.isInteger(raw) ? Math.min(Math.max(raw, 0), candidates.length - 1) : 0;
   const id = candidates[index];
-  // Unreachable: `candidates` is non-empty whenever the pool is, either because the cycle had
-  // room left or because reshuffling emptied it. Belt and braces rather than a `!`.
-  if (id === undefined) return { id: null, cycle: emptyCycle(), reshuffled };
+  // Unreachable: `index` is clamped into a non-empty `candidates`. Belt and braces rather than a `!`.
+  if (id === undefined) return { id: null, cycle: { served }, exhausted: true };
 
-  return { id, cycle: { served: [...base, id] }, reshuffled };
+  return { id, cycle: { served: [...served, id] }, exhausted: false };
 }
 
 /**
@@ -156,14 +156,14 @@ export function pickNextLine<T extends { id: string }>(
   items: readonly T[],
   cycle: DrillCycle,
   rand: RandomInt = defaultRandomInt,
-): { item: T | null; cycle: DrillCycle; reshuffled: boolean } {
+): { item: T | null; cycle: DrillCycle; exhausted: boolean } {
   const pick = pickNextLineId(
     items.map((item) => item.id),
     cycle,
     rand,
   );
   const item = pick.id === null ? null : (items.find((c) => c.id === pick.id) ?? null);
-  return { item, cycle: pick.cycle, reshuffled: pick.reshuffled };
+  return { item, cycle: pick.cycle, exhausted: pick.exhausted };
 }
 
 /* ------------------------------------------------------------------------------------- *

@@ -194,8 +194,8 @@ export function LineEditor() {
       return;
     }
     const input = toLineInput(draft);
-    // Persist the SAN exactly as chess.js normalises it, so drill/line-play comparisons are
-    // against canonical strings.
+    // Persist the SAN exactly as chess.js normalises it, so drill comparisons are against
+    // canonical strings.
     input.moves = validation.moves;
     if (status === 'edit' && id !== undefined) {
       if (updateLine(id, input) === null) {

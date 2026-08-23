@@ -91,17 +91,17 @@ function draw(
   count: number,
   rand: RandomInt,
   start: DrillCycle = emptyCycle(),
-): { ids: (string | null)[]; cycle: DrillCycle; reshuffles: number } {
+): { ids: (string | null)[]; cycle: DrillCycle; exhaustions: number } {
   let cycle = start;
-  let reshuffles = 0;
+  let exhaustions = 0;
   const out: (string | null)[] = [];
   for (let i = 0; i < count; i++) {
     const pick = pickNextLineId(ids, cycle, rand);
-    if (pick.reshuffled) reshuffles++;
+    if (pick.exhausted) exhaustions++;
     cycle = pick.cycle;
     out.push(pick.id);
   }
-  return { ids: out, cycle, reshuffles };
+  return { ids: out, cycle, exhaustions };
 }
 
 /**
@@ -126,29 +126,40 @@ function runCleanly(line: ResolvedLine): { phases: DrillPhase[]; state: DrillSta
 }
 
 /* ------------------------------------------------------------------------------------- *
- * 1. The cycle — uniform random, no repeats within a cycle (README §7 Phase 7)
+ * 1. The cycle — uniform random, every line at most once, then the drill is over
  * ------------------------------------------------------------------------------------- */
 
 describe('drill cycle', () => {
   const POOL = ['a', 'b', 'c', 'd', 'e'];
 
-  it('never repeats a line before all have been served', () => {
-    // Several seeds, several full cycles each: every window of `POOL.length` draws that starts
-    // on a cycle boundary must be a permutation of the whole set.
+  it('serves every line exactly once, in a random order', () => {
     for (const seed of [1, 7, 42, 1234, 99991]) {
-      const { ids } = draw(POOL, POOL.length * 4, seededRandomInt(seed));
-      for (let start = 0; start < ids.length; start += POOL.length) {
-        const cycleIds = ids.slice(start, start + POOL.length);
-        expect(new Set(cycleIds).size).toBe(POOL.length);
-        expect([...cycleIds].sort()).toEqual([...POOL].sort());
-      }
+      const { ids } = draw(POOL, POOL.length, seededRandomInt(seed));
+      expect(new Set(ids).size).toBe(POOL.length);
+      expect([...ids].sort()).toEqual([...POOL].sort());
     }
   });
 
-  it('reshuffles exactly once per completed pass', () => {
-    const { reshuffles } = draw(POOL, POOL.length * 3, seededRandomInt(5));
-    // The first draw of passes 2 and 3 reshuffles; the very first draw does not.
-    expect(reshuffles).toBe(2);
+  it('never repeats a line: once the pool is spent, every further draw is null', () => {
+    const { ids, exhaustions } = draw(POOL, POOL.length + 3, seededRandomInt(5));
+    expect(ids.slice(0, POOL.length)).not.toContain(null);
+    // No second pass — the drill is over, and stays over.
+    expect(ids.slice(POOL.length)).toEqual([null, null, null]);
+    expect(exhaustions).toBe(3);
+  });
+
+  it('keeps the served list when it runs out, so the caller can report what was drilled', () => {
+    const { cycle } = draw(POOL, POOL.length + 1, seededRandomInt(8));
+    expect([...cycle.served].sort()).toEqual([...POOL].sort());
+  });
+
+  it('starts over only when the caller asks, with every line in play again', () => {
+    const rand = seededRandomInt(13);
+    draw(POOL, POOL.length + 2, rand);
+    // A restart is `emptyCycle()`, not something a draw does by itself.
+    const again = draw(POOL, POOL.length, rand, emptyCycle());
+    expect([...again.ids].sort()).toEqual([...POOL].sort());
+    expect(again.exhaustions).toBe(0);
   });
 
   it('uses the injected index to choose, rather than always taking the first candidate', () => {
@@ -182,23 +193,23 @@ describe('drill cycle', () => {
     expect(remainingInCycle(POOL, { served: POOL })).toEqual([]);
   });
 
-  it('serves the single line of a one-line store over and over', () => {
+  it('serves the single line of a one-line pool once, then is done', () => {
     const rand = seededRandomInt(3);
-    const { ids, reshuffles } = draw(['only'], 4, rand);
-    expect(ids).toEqual(['only', 'only', 'only', 'only']);
-    expect(reshuffles).toBe(3);
+    const { ids, exhaustions } = draw(['only'], 3, rand);
+    expect(ids).toEqual(['only', null, null]);
+    expect(exhaustions).toBe(2);
   });
 
   it('returns null for an empty store and leaves the cycle empty', () => {
     const pick = pickNextLineId([], emptyCycle(), seededRandomInt(1));
     expect(pick.id).toBeNull();
     expect(pick.cycle.served).toEqual([]);
-    expect(pick.reshuffled).toBe(false);
+    expect(pick.exhausted).toBe(true);
   });
 
-  it('never serves a line deleted mid-cycle, and does not let it block the reshuffle', () => {
+  it('never serves a line deleted mid-cycle, and does not let it hold the drill open', () => {
     const rand = seededRandomInt(11);
-    // Serve two of three, then delete one of the two that are left.
+    // Serve two of three, then delete the one that is left.
     let cycle = emptyCycle();
     const served: (string | null)[] = [];
     for (let i = 0; i < 2; i++) {
@@ -209,16 +220,14 @@ describe('drill cycle', () => {
     const [survivor] = ['a', 'b', 'c'].filter((id) => !served.includes(id));
     if (survivor === undefined) throw new Error('expected exactly one unserved line');
 
-    // The store now loses the remaining unserved line: every survivor has been served, so the
-    // next draw must reshuffle and must only ever return an id that still exists.
+    // Every line the store still holds has been served, so the drill is over rather than stuck
+    // waiting for a line that no longer exists.
     const shrunk = ['a', 'b', 'c'].filter((id) => id !== survivor);
     const next = pickNextLineId(shrunk, cycle, rand);
-    expect(next.reshuffled).toBe(true);
-    expect(shrunk).toContain(next.id);
-
-    // And a line deleted while still unserved is simply never handed out.
-    const after = draw(shrunk, 20, rand, next.cycle);
-    expect(after.ids).not.toContain(survivor);
+    expect(next.exhausted).toBe(true);
+    expect(next.id).toBeNull();
+    // The pruned cycle reports only lines that still exist.
+    expect([...next.cycle.served].sort()).toEqual([...shrunk].sort());
   });
 
   it('lets a line added mid-cycle join the current cycle', () => {
@@ -229,14 +238,14 @@ describe('drill cycle', () => {
       ['a', 'b', 'c'].filter((id) => id !== first.id).sort(),
     );
     const rest = draw(['a', 'b', 'c'], 2, rand, cycle);
-    expect(rest.reshuffles).toBe(0);
+    expect(rest.exhaustions).toBe(0);
     expect(new Set([first.id, ...rest.ids]).size).toBe(3);
   });
 
   it('ignores duplicate ids in the pool', () => {
-    const { ids, reshuffles } = draw(['a', 'a', 'b'], 2, seededRandomInt(9));
+    const { ids, exhaustions } = draw(['a', 'a', 'b'], 2, seededRandomInt(9));
     expect(new Set(ids)).toEqual(new Set(['a', 'b']));
-    expect(reshuffles).toBe(0);
+    expect(exhaustions).toBe(0);
   });
 
   it('picks whole records via pickNextLine', () => {
@@ -247,6 +256,7 @@ describe('drill cycle', () => {
     expect(one.item).not.toBeNull();
     expect(two.item).not.toBeNull();
     expect(one.item).not.toBe(two.item);
+    expect(pickNextLine(items, two.cycle, rand)).toMatchObject({ item: null, exhausted: true });
     expect(pickNextLine([], emptyCycle(), rand).item).toBeNull();
   });
 });
