@@ -16,7 +16,8 @@
  * folder — the lines it could transpose with are its siblings, not whichever folder the list
  * happened to be showing.
  * Export and import go straight through `storage/lines.ts`; all this file does is turn the
- * result into a `Blob` or a report.
+ * result into a `Blob` or a report. Export follows the open folder — inside one it writes that
+ * folder and its subfolders (the Drill/Explore scope), at the root the whole repertoire.
  *
  * No logic worth testing lives here: filtering, folder arithmetic, labelling, the export filename
  * and the import wording are pure functions in `./lines/` and `storage/folders.ts` with their own
@@ -39,7 +40,7 @@ import {
 } from '../../storage/folders';
 import {
   deleteLine,
-  exportAll,
+  exportFolder,
   importFile,
   listLines,
   renameFolder,
@@ -139,13 +140,16 @@ export function LinesList() {
   );
 
   const onExport = useCallback(() => {
-    const file = exportAll();
-    const ok = downloadText(exportFileName(file.exportedAt), serialiseLinesFile(file));
+    // Scoped to the open folder — the same lines Drill and Explore would use from here, so the
+    // file holds what the screen is showing rather than the whole repertoire. At the root that
+    // is still everything.
+    const file = exportFolder(folder);
+    const ok = downloadText(exportFileName(file.exportedAt, folder), serialiseLinesFile(file));
     setWarning(storageWarning());
     if (!ok) {
       setReport({ tone: 'error', headline: 'The browser refused the download.', details: [] });
     }
-  }, []);
+  }, [folder]);
 
   const onImportPicked = useCallback(
     async (file: File) => {
@@ -270,8 +274,20 @@ export function LinesList() {
                 Rename folder…
               </Button>
             )}
-            <Button size="sm" data-testid="export-button" onClick={onExport} disabled={storeEmpty}>
-              Export…
+            <Button
+              size="sm"
+              data-testid="export-button"
+              onClick={onExport}
+              // Nothing in scope, nothing to write — at the root that means an empty store.
+              disabled={scope.length === 0}
+              title={
+                inFolder
+                  ? `Export the ${lineCountLabel(scope.length)} in ${folderName(folder)}, ` +
+                    `subfolders included`
+                  : 'Export every saved line'
+              }
+            >
+              {inFolder ? 'Export folder…' : 'Export…'}
             </Button>
             <Button
               size="sm"

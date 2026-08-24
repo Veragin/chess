@@ -17,7 +17,13 @@
  */
 
 import { replaySan, validateFenRules } from '../chess/game';
-import { folderRenameError, isWithinFolder, lineFolder, renameFolderPath } from './folders';
+import {
+  folderRenameError,
+  isWithinFolder,
+  lineFolder,
+  linesUnderFolder,
+  renameFolderPath,
+} from './folders';
 import {
   LINES_SCHEMA_VERSION,
   lineLabel,
@@ -311,11 +317,31 @@ export function moveLineToFolder(id: string, folder: string): Line | null {
 // Export / import
 // ---------------------------------------------------------------------------------------
 
+/**
+ * The whole repertoire, in the same shape as an export file on disk.
+ *
+ * Kept as its own name (rather than `exportFolder('')`) because "export everything" is what the
+ * round-trip tests and the bundled `public/data/*.json` files are about.
+ */
 export function exportAll(): LinesFile {
+  return exportFolder('');
+}
+
+/**
+ * One folder and everything below it — the same scope as "Drill folder" and Explore, so an
+ * export taken from inside a folder contains exactly the lines that folder was showing.
+ *
+ * Folder paths are exported **unchanged**, absolute rather than relative to `folder`: importing
+ * the file back rebuilds the tree where it came from, and an export of `Black/Sicilian` merged
+ * into another repertoire lands under the same path it had. The root exports everything.
+ */
+export function exportFolder(folder: string): LinesFile {
+  const scope = normaliseFolderPath(folder);
+  const lines = listLines();
   return {
     schemaVersion: LINES_SCHEMA_VERSION,
     exportedAt: Date.now(),
-    lines: listLines(),
+    lines: scope.length === 0 ? lines : linesUnderFolder(lines, scope),
   };
 }
 

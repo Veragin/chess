@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "exportedAt": 1787600518374,
+  "lines": [
+    {
+      "id": "c34574f4-7eab-4622-960a-e4fa02d22091",
+      "name": "Orangutan - center trade",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "moves": [
+        "b4",
+        "e5",
+        "Bb2",
+        "Bxb4",
+        "Bxe5",
+        "Nc6",
+        "Bxg7",
+        "Nf6",
+        "Bxh8"
+      ],
+      "userColor": "w",
+      "createdAt": 1787600514373,
+      "updatedAt": 1787600514373,
+      "folder": "Orangutan"
+    },
+    {
+      "id": "2623dd4e-d36f-4edf-a471-84ce785ecd1b",
+      "name": "Orangutan - knight trap",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "moves": [
+        "b4",
+        "e5",
+        "Bb2",
+        "Nc6",
+        "b5",
+        "Nb4",
+        "c4",
+        "Nf6",
+        "a3",
+        "d5",
+        "axb4",
+        "Bxb4",
+        "e3"
+      ],
+      "userColor": "w",
+      "createdAt": 1787600381532,
+      "updatedAt": 1787600412822,
+      "folder": "Orangutan"
+    }
+  ]
+}

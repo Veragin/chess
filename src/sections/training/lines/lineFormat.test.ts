@@ -131,6 +131,20 @@ describe('exportFileName', () => {
   it('dates the export file', () => {
     expect(exportFileName(new Date(2026, 0, 9, 3, 4).getTime())).toBe('chess-lines-2026-01-09.json');
   });
+
+  it('names the folder a scoped export came from', () => {
+    const ms = new Date(2026, 0, 9, 3, 4).getTime();
+    expect(exportFileName(ms, 'Black/Sicilian')).toBe('chess-lines-black-sicilian-2026-01-09.json');
+  });
+
+  it('keeps a folder name filesystem-safe', () => {
+    const ms = new Date(2026, 0, 9, 3, 4).getTime();
+    expect(exportFileName(ms, 'White/Ruy López: 6.d3!?')).toBe(
+      'chess-lines-white-ruy-l-pez-6-d3-2026-01-09.json',
+    );
+    // Nothing usable in the path — fall back to the plain, dated name.
+    expect(exportFileName(ms, '///')).toBe('chess-lines-2026-01-09.json');
+  });
 });
 
 describe('folder labels', () => {

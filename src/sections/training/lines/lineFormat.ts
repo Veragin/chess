@@ -81,10 +81,27 @@ export function formatTimestamp(ms: number): string {
   );
 }
 
-/** `chess-lines-2026-08-22.json` */
-export function exportFileName(ms: number): string {
+/**
+ * A folder path as a filename fragment: `Black/Sicilian` → `black-sicilian`. Anything that is
+ * not a letter or digit becomes a dash, so no path can produce a name the OS refuses. Returns
+ * the empty string for the root, and for a path with nothing usable left in it (e.g. `///`).
+ */
+function folderSlug(folder: string): string {
+  return folder
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * `chess-lines-2026-08-22.json`, or `chess-lines-black-sicilian-2026-08-22.json` when the
+ * export was taken inside a folder — the file says what is in it without being opened.
+ */
+export function exportFileName(ms: number, folder = ''): string {
   const d = new Date(Number.isFinite(ms) ? ms : 0);
-  return `chess-lines-${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}.json`;
+  const date = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const slug = folderSlug(folder);
+  return slug.length === 0 ? `chess-lines-${date}.json` : `chess-lines-${slug}-${date}.json`;
 }
 
 /** One-line summary of a line for the row's accessible label. */

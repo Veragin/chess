@@ -9,7 +9,8 @@ at runtime.
 - **Analyze** — free exploration from the start position or a custom FEN, with a live eval bar
   and the engine's top three lines. The user moves both colours; there is no engine opponent.
 - **Training** — a repertoire of linear lines (one start position, one ordered move list),
-  organised in nested folders, stored in `localStorage` and exportable as a single `.json` file.
+  organised in nested folders, stored in `localStorage` and exportable as a single `.json` file —
+  the whole repertoire from the top, or just the open folder and its subfolders from inside one.
   Drill one line, one folder or the whole repertoire from a board that shows nothing else —
   random order, and every line comes up exactly once per drill; when a line is done you can take
   the next one, replay that same line, or open it in Analyze. Files in `public/data/` ship as

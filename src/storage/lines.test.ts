@@ -687,6 +687,40 @@ describe('folders', () => {
     expect(lines.storageWarning()).toContain('folder');
   });
 
+  it('exports one folder and its subfolders, and nothing else', async () => {
+    const lines = await load();
+    lines.createLine({ ...ITALIAN, name: 'Italian', folder: 'White/Italian' });
+    lines.createLine({ ...ITALIAN, name: 'Giuoco', folder: 'White/Italian/Giuoco' });
+    lines.createLine({ ...ITALIAN, name: 'Ruy', folder: 'White/Ruy' });
+    lines.createLine({ ...FRENCH, name: 'Loose', folder: '' });
+
+    const file = lines.exportFolder('White/Italian');
+    expect(file.schemaVersion).toBe(LINES_SCHEMA_VERSION);
+    expect(file.exportedAt).toBeGreaterThan(0);
+    // Folder paths stay absolute, so re-importing rebuilds the tree it came from.
+    expect(file.lines.map((l) => l.folder).sort()).toEqual([
+      'White/Italian',
+      'White/Italian/Giuoco',
+    ]);
+  });
+
+  it('exports everything from the root, like exportAll', async () => {
+    const lines = await load();
+    lines.createLine({ ...ITALIAN, folder: 'White/Italian' });
+    lines.createLine({ ...FRENCH, folder: '' });
+
+    expect(lines.exportFolder('').lines).toEqual(lines.exportAll().lines);
+    expect(lines.exportFolder('').lines).toHaveLength(2);
+  });
+
+  it('exports nothing for a folder no line names', async () => {
+    const lines = await load();
+    lines.createLine({ ...ITALIAN, folder: 'White/Italian' });
+
+    // `Italian` is a *segment*, not a folder — scoping is segment-aware from the top.
+    expect(lines.exportFolder('Italian').lines).toEqual([]);
+  });
+
   it('carries folders through export and import', async () => {
     const first = await load();
     first.createLine({ ...ITALIAN, folder: 'White/Italian' });

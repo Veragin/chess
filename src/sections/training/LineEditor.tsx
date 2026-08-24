@@ -1,8 +1,14 @@
 /**
  * `#/training/new` and `#/training/:id/edit` — the line editor (README §7 Phase 5).
  *
- * Fields: name, trained-as colour, starting position, notes, and the move list itself, entered
- * by playing moves on the board.
+ * Fields: name, folder, trained-as colour, starting position, notes, and the move list itself,
+ * entered by playing moves on the board.
+ *
+ * The folder is **picked, not typed**: a select of every folder the repertoire already has, with
+ * the folder this line came from (`?folder=`, or the line's own on an edit) already selected — so
+ * "New line" inside a folder files it there with nothing to choose. Folders are still implicit
+ * (`storage/folders.ts`), so the last option, "New folder…", swaps in the free-text field that
+ * creates one on save.
  *
  * What this file deliberately does NOT own:
  *  - the starting position editor — that is Phase 4's `components/PositionEditor`, reused as the
@@ -60,6 +66,12 @@ import {
   type LineDraft,
 } from './lines/draft';
 import { colorLabel, isStandardStart, moveCountLabel } from './lines/lineFormat';
+
+/**
+ * Sentinel value of the folder picker's last option. Not a legal folder path — `/` is the path
+ * separator, so `normaliseFolderPath` can never produce this string from anything typed.
+ */
+const NEW_FOLDER = '/new-folder/';
 
 interface EditorState {
   /** The `:id` this state was built for; used to re-seed when the route changes in place. */
@@ -136,8 +148,10 @@ export function LineEditor() {
   const staged = params.get('from') === 'explore' ? peekStagedLine() : null;
 
   const [state, setState] = useState<EditorState>(() => seedState(id, fromFolder, staged));
-  /** Existing folder paths, for the field's autocomplete. Read once — the editor is the writer. */
+  /** Existing folder paths, for the folder picker. Read once — the editor is the writer. */
   const knownFolders = useMemo(() => allFolderPaths(listLines()), []);
+  /** True while the folder is being typed rather than picked (a folder that does not exist yet). */
+  const [typingFolder, setTypingFolder] = useState(false);
   const [orientation, setOrientation] = useState<Orientation>(() =>
     seedOrientation(state.draft.userColor),
   );
@@ -155,6 +169,7 @@ export function LineEditor() {
     const next = seedState(id, fromFolder, staged);
     setState(next);
     setOrientation(seedOrientation(next.draft.userColor));
+    setTypingFolder(false);
     setEditingPosition(false);
     setError(null);
     setPositionNotice(null);
@@ -180,6 +195,18 @@ export function LineEditor() {
     },
     [navigate],
   );
+
+  /** The draft's folder as it will be stored — also what the picker shows as selected. */
+  const selectedFolder = normaliseFolderPath(draft.folder);
+  /**
+   * What the picker offers: every folder some line already names, plus this line's own folder.
+   * The latter matters for a line filed somewhere that no longer exists (its last sibling was
+   * moved away) — the option has to be there or the select would silently show something else.
+   */
+  const folderOptions = useMemo(() => {
+    if (selectedFolder.length === 0 || knownFolders.includes(selectedFolder)) return knownFolders;
+    return [...knownFolders, selectedFolder].sort((a, b) => a.localeCompare(b));
+  }, [knownFolders, selectedFolder]);
 
   const dirty = useMemo(() => isDirty(draft, baseline), [draft, baseline]);
   const moves = sansOf(history);
@@ -409,27 +436,60 @@ export function LineEditor() {
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="line-folder">Folder (optional)</FieldLabel>
-                <TextInput
-                  id="line-folder"
-                  value={draft.folder}
-                  placeholder="e.g. Black/Sicilian"
-                  autoComplete="off"
-                  list="line-folder-options"
-                  data-testid="folder-input"
-                  onChange={(event) => patch({ folder: event.target.value })}
-                />
-                {/* Folders are implicit: typing a path that does not exist yet creates it on
-                    save, and the last line to leave a folder removes it. */}
-                <datalist id="line-folder-options">
-                  {knownFolders.map((path) => (
-                    <option key={path} value={path} />
-                  ))}
-                </datalist>
+                <FieldLabel htmlFor="line-folder">Folder</FieldLabel>
+                {typingFolder ? (
+                  <>
+                    <TextInput
+                      id="line-folder"
+                      autoFocus
+                      value={draft.folder}
+                      placeholder="e.g. Black/Sicilian"
+                      autoComplete="off"
+                      list="line-folder-options"
+                      data-testid="folder-input"
+                      onChange={(event) => patch({ folder: event.target.value })}
+                    />
+                    {/* Folders are implicit: typing a path that does not exist yet creates it on
+                        save, and the last line to leave a folder removes it. */}
+                    <datalist id="line-folder-options">
+                      {knownFolders.map((path) => (
+                        <option key={path} value={path} />
+                      ))}
+                    </datalist>
+                    <ButtonRow>
+                      <Button
+                        data-testid="folder-pick-existing"
+                        onClick={() => setTypingFolder(false)}
+                      >
+                        Pick an existing folder
+                      </Button>
+                    </ButtonRow>
+                  </>
+                ) : (
+                  /* Pre-selected to the folder the line came from, so "New line" inside a folder
+                     files it there with nothing to choose or retype. */
+                  <FolderSelect
+                    id="line-folder"
+                    value={selectedFolder}
+                    data-testid="folder-select"
+                    onChange={(event) => {
+                      if (event.target.value === NEW_FOLDER) setTypingFolder(true);
+                      else patch({ folder: event.target.value });
+                    }}
+                  >
+                    <option value="">{folderLabel('')}</option>
+                    {folderOptions.map((path) => (
+                      <option key={path} value={path}>
+                        {path}
+                      </option>
+                    ))}
+                    <option value={NEW_FOLDER}>New folder…</option>
+                  </FolderSelect>
+                )}
                 <Hint data-testid="folder-hint">
-                  {normaliseFolderPath(draft.folder).length === 0
-                    ? `Leave blank to keep this line in ${folderLabel('')}.`
-                    : `Filed under ${normaliseFolderPath(draft.folder)}. Use “/” to nest.`}
+                  {selectedFolder.length === 0
+                    ? `This line stays in ${folderLabel('')}.`
+                    : `Filed under ${selectedFolder}. Use “/” to nest.`}
                 </Hint>
               </Field>
 
@@ -638,6 +698,24 @@ const Hint = styled.p`
 `;
 
 const TextInput = styled.input`
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 ${(p) => p.theme.space.sm};
+  background: ${(p) => p.theme.color.bg};
+  color: ${(p) => p.theme.color.text};
+  border: 1px solid ${(p) => p.theme.color.border};
+  border-radius: ${(p) => p.theme.radius.md};
+  font-family: inherit;
+  font-size: ${(p) => p.theme.font.size.md};
+
+  &:focus-visible {
+    outline: 2px solid ${(p) => p.theme.color.focus};
+    outline-offset: 1px;
+  }
+`;
+
+const FolderSelect = styled.select`
   width: 100%;
   min-width: 0;
   min-height: 44px;
