@@ -281,6 +281,16 @@ export function loadBlindGame(): BlindGameRecord | null {
   return parsed.record;
 }
 
+/**
+ * Whether anything is stored under this key — including a payload too corrupt to resume from.
+ * Deliberately not `loadBlindGame() !== null`: "clear data" has to mention a record it is about
+ * to delete even when that record can no longer be played, and asking must not raise the
+ * "could not be read" warning about a game the user never tried to resume.
+ */
+export function hasStoredBlindGame(): boolean {
+  return readRaw() !== null;
+}
+
 /** Forgets the saved game. Returns false when only the in-memory copy could be cleared. */
 export function clearBlindGame(): boolean {
   const cleared = removeRaw();

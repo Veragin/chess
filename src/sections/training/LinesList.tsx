@@ -18,6 +18,9 @@
  * Export and import go straight through `storage/lines.ts`; all this file does is turn the
  * result into a `Blob` or a report. Export follows the open folder — inside one it writes that
  * folder and its subfolders (the Drill/Explore scope), at the root the whole repertoire.
+ * "Clear data…" is the one action that ignores the open folder: it empties every key the app
+ * stores (`storage/reset.ts`), so its confirmation counts the lines no bundled file could put
+ * back — the only part of the store the reset destroys for good.
  *
  * No logic worth testing lives here: filtering, folder arithmetic, labelling, the export filename
  * and the import wording are pure functions in `./lines/` and `storage/folders.ts` with their own
@@ -46,6 +49,7 @@ import {
   renameFolder,
   storageWarning,
 } from '../../storage/lines';
+import { clearAll, resetSummary, type ResetSummary } from '../../storage/reset';
 import { normaliseFolderPath, type Line } from '../../storage/schema';
 import { seedReport } from '../../storage/seed';
 import { ConfirmDialog } from './lines/ConfirmDialog';
@@ -59,7 +63,12 @@ import {
   explorePath,
   newLinePath,
 } from './lines/folderNav';
-import { describeImport, describeSeed, type ImportReportView } from './lines/importReport';
+import {
+  describeImport,
+  describeReset,
+  describeSeed,
+  type ImportReportView,
+} from './lines/importReport';
 import {
   colorLabel,
   describeLine,
@@ -84,6 +93,12 @@ export function LinesList() {
   const [warning, setWarning] = useState<string | null>(() => storageWarning());
   const [query, setQuery] = useState('');
   const [pendingDelete, setPendingDelete] = useState<Line | null>(null);
+  /**
+   * Non-null while the "clear data" dialog is open, holding what the reset would destroy. Counted
+   * when the dialog opens rather than on every render: it validates every bundled file to work
+   * out which stored lines are the user's own (see `storage/reset.ts`).
+   */
+  const [pendingReset, setPendingReset] = useState<ResetSummary | null>(null);
   /** Non-null while the rename dialog is open; holds the name being typed. */
   const [renameTo, setRenameTo] = useState<string | null>(null);
   const [renameError, setRenameError] = useState<string | null>(null);
@@ -177,6 +192,19 @@ export function LinesList() {
     setPendingDelete(null);
     refresh();
   }, [pendingDelete, refresh]);
+
+  const confirmReset = useCallback(() => {
+    if (pendingReset === null) return;
+    const result = clearAll();
+    setPendingReset(null);
+    setReport(describeReset(pendingReset, result));
+    // The store is empty and any degraded-session warning went with it, so the list and the
+    // storage notice are both re-read from scratch.
+    refresh();
+    // Back to the root: the folder in `?folder=` no longer contains anything.
+    setQuery('');
+    setParams({});
+  }, [pendingReset, refresh, setParams]);
 
   const confirmRename = useCallback(() => {
     if (renameTo === null) return;
@@ -295,6 +323,17 @@ export function LinesList() {
               onClick={() => fileInputRef.current?.click()}
             >
               Import…
+            </Button>
+            {/* Not scoped to the open folder like Export is: this empties every key the app
+                stores, so offering it "for this folder" would be a lie. */}
+            <Button
+              variant="danger"
+              size="sm"
+              data-testid="clear-storage-button"
+              onClick={() => setPendingReset(resetSummary())}
+              title="Delete everything this app has stored in the browser"
+            >
+              Clear data…
             </Button>
             <HiddenFileInput
               ref={fileInputRef}
@@ -471,6 +510,39 @@ export function LinesList() {
           </strong>{' '}
           ({moveCountLabel(pendingDelete.moves.length)}) will be removed. This cannot be undone —
           export first if you want a copy.
+        </ConfirmDialog>
+      )}
+
+      {pendingReset !== null && (
+        <ConfirmDialog
+          title="Clear stored data?"
+          confirmLabel="Clear data"
+          onCancel={() => setPendingReset(null)}
+          onConfirm={confirmReset}
+        >
+          <ResetBody>
+            <p>
+              Everything this app keeps in the browser will be deleted:{' '}
+              <strong data-testid="reset-total">{lineCountLabel(pendingReset.total)}</strong>
+              {pendingReset.blindGame && ' and the saved blind game'}.
+            </p>
+            <p>
+              {pendingReset.custom === 0 ? (
+                <>
+                  None of them is your own — every stored line comes from the bundled repertoires
+                  and is added again the next time the app loads.
+                </>
+              ) : (
+                <>
+                  <strong data-testid="reset-custom">{lineCountLabel(pendingReset.custom)}</strong>{' '}
+                  {pendingReset.custom === 1 ? 'was' : 'were'} created, imported or edited by you
+                  and cannot be recovered. The rest come from the bundled repertoires and are added
+                  again the next time the app loads.
+                </>
+              )}
+            </p>
+            {pendingReset.custom > 0 && <p>Export first if you want a copy.</p>}
+          </ResetBody>
         </ConfirmDialog>
       )}
 
@@ -750,6 +822,17 @@ const DialogField = styled.div`
   label {
     font-weight: 600;
     color: ${(p) => p.theme.color.text};
+  }
+`;
+
+const ResetBody = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${(p) => p.theme.space.sm};
+  min-width: 0;
+
+  p {
+    margin: 0;
   }
 `;
 

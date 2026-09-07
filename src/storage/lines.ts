@@ -258,6 +258,32 @@ export function deleteLine(id: string): boolean {
   return true;
 }
 
+/**
+ * Removes the whole repertoire from storage — the "clear data" escape hatch, not an operation
+ * any normal edit reaches.
+ *
+ * The in-memory fallback and its warning are dropped too: a session that had degraded must not
+ * keep serving the copy that is now meant to be gone. Returns false when the on-disk payload
+ * could not be removed (storage blocked or revoked); the session is empty either way, so the
+ * caller reports it rather than retrying.
+ */
+export function clearLines(): boolean {
+  usingMemory = false;
+  memoryValue = null;
+  warning = null;
+  const store = localStore();
+  if (store !== null) {
+    try {
+      store.removeItem(STORAGE_KEY);
+      return true;
+    } catch {
+      // Storage revoked mid-session, or no `removeItem` at all.
+    }
+  }
+  degrade(UNAVAILABLE, null);
+  return false;
+}
+
 // ---------------------------------------------------------------------------------------
 // Folders
 //

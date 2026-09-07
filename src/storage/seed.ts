@@ -129,6 +129,57 @@ function lineSignature(line: Line): string {
   ].join('|');
 }
 
+/**
+ * Forgets which lines have been handed over, so the next load seeds every bundled line again.
+ * Only ever right together with clearing the repertoire itself (`storage/reset.ts`): on its own
+ * it would offer every bundled line a second time, and only the signature guard above would keep
+ * the duplicates out. Returns false when the record could not be removed from disk.
+ */
+export function clearSeedRecord(): boolean {
+  const store = localStore();
+  if (store === null) return false;
+  try {
+    store.removeItem(SEED_KEY);
+    lastReport = null;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------------------
+// Seeded vs. custom
+// ---------------------------------------------------------------------------------------
+
+/**
+ * The signatures of every line the bundled files can produce — the same validated, SAN-normalised
+ * form the seeder stores, so a seeded line and its source file always match.
+ */
+function bundledSignatures(files: SeedFile[]): Set<string> {
+  const signatures = new Set<string>();
+  for (const file of files) {
+    const payload = parseLinesFilePayload(file.payload);
+    if (!payload.ok) continue;
+    for (const candidate of validateImportLines(payload.rawLines)) {
+      if (candidate.line !== null) signatures.add(lineSignature(candidate.line));
+    }
+  }
+  return signatures;
+}
+
+/**
+ * The stored lines that no bundled file could put back: everything the user wrote or imported,
+ * plus any seeded line they have since edited — an edit changes the signature, and the edit is
+ * exactly what a reset would destroy for good.
+ *
+ * Content-based rather than record-based on purpose. Stored lines are given fresh ids on the way
+ * in (see `addLines`), so the seed record's `file::id` keys cannot identify them afterwards.
+ */
+export function customLines(lines: readonly Line[], files: SeedFile[]): Line[] {
+  const bundled = bundledSignatures(files);
+  return lines.filter((line) => !bundled.has(lineSignature(line)));
+}
+
 // ---------------------------------------------------------------------------------------
 // Seeding
 // ---------------------------------------------------------------------------------------

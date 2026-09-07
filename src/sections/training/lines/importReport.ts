@@ -8,6 +8,7 @@
  */
 
 import type { ImportResult } from '../../../storage/lines';
+import type { ResetResult, ResetSummary } from '../../../storage/reset';
 import type { SeedReport } from '../../../storage/seed';
 
 export type ReportTone = 'ok' | 'warn' | 'error';
@@ -56,6 +57,31 @@ export function describeImport(result: ImportResult): ImportReportView {
     return { tone: 'warn', headline: counts, details: [result.error, ...details] };
   }
   return { tone: skipped > 0 ? 'warn' : 'ok', headline: counts, details };
+}
+
+/**
+ * What "Clear data" did, in the same notice the import uses. The custom count is the part worth
+ * repeating afterwards: the bundled lines are coming back on the next load, those were not.
+ */
+export function describeReset(summary: ResetSummary, result: ResetResult): ImportReportView {
+  const details: string[] = [];
+  if (summary.blindGame) details.push('The saved blind game was deleted.');
+  details.push('The bundled lines are added again the next time the app loads.');
+
+  if (!result.ok) {
+    return {
+      tone: 'error',
+      headline: 'Browser storage could not be fully cleared.',
+      details: result.error === undefined ? details : [result.error, ...details],
+    };
+  }
+
+  const headline =
+    summary.custom === 0
+      ? `Cleared ${summary.total} stored line(s). Nothing of your own was lost.`
+      : `Cleared ${summary.total} stored line(s), ${summary.custom} of them your own. ` +
+        'That cannot be undone.';
+  return { tone: summary.custom === 0 ? 'ok' : 'warn', headline, details };
 }
 
 /**

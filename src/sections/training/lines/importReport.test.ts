@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { ImportResult } from '../../../storage/lines';
 import type { SeedReport } from '../../../storage/seed';
-import { describeImport, describeSeed } from './importReport';
+import type { ResetSummary } from '../../../storage/reset';
+import { describeImport, describeReset, describeSeed } from './importReport';
 
 function result(partial: Partial<ImportResult>): ImportResult {
   return { added: 0, skipped: 0, rejections: [], ...partial };
+}
+
+function summary(partial: Partial<ResetSummary> = {}): ResetSummary {
+  return { total: 0, custom: 0, blindGame: false, ...partial };
 }
 
 describe('describeImport', () => {
@@ -122,5 +127,44 @@ describe('describeSeed', () => {
       }),
     );
     expect(view?.details).toEqual(['storage full']);
+  });
+});
+
+describe('describeReset', () => {
+  it('says nothing of the user’s own was lost when every line was bundled', () => {
+    const view = describeReset(summary({ total: 12 }), { ok: true });
+    expect(view.tone).toBe('ok');
+    expect(view.headline).toContain('12');
+    expect(view.headline).toMatch(/nothing of your own/i);
+    expect(view.details).toEqual([
+      'The bundled lines are added again the next time the app loads.',
+    ]);
+  });
+
+  it('warns, and repeats the custom count, when the user lost their own lines', () => {
+    const view = describeReset(summary({ total: 12, custom: 5 }), { ok: true });
+    expect(view.tone).toBe('warn');
+    expect(view.headline).toContain('12');
+    expect(view.headline).toContain('5');
+    expect(view.headline).toMatch(/cannot be undone/i);
+  });
+
+  it('mentions the blind game only when there was one', () => {
+    expect(describeReset(summary({ blindGame: true }), { ok: true }).details).toContain(
+      'The saved blind game was deleted.',
+    );
+    expect(describeReset(summary(), { ok: true }).details).not.toContain(
+      'The saved blind game was deleted.',
+    );
+  });
+
+  it('leads with the reason when the store could not be fully cleared', () => {
+    const view = describeReset(summary({ total: 3, custom: 3 }), {
+      ok: false,
+      error: 'Browser storage is unavailable',
+    });
+    expect(view.tone).toBe('error');
+    expect(view.headline).toMatch(/could not be fully cleared/i);
+    expect(view.details[0]).toBe('Browser storage is unavailable');
   });
 });

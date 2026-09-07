@@ -284,3 +284,78 @@ describe('seeding bundled files', () => {
     expect(store.map.has(SEED_KEY)).toBe(false);
   });
 });
+
+describe('customLines', () => {
+  const files = [{ name: 'stafford.json', payload: file(rawLine('a', 'One'), rawLine('b', 'Two')) }];
+
+  it('counts nothing when every stored line came from a bundled file', async () => {
+    const { seed, lines } = await load();
+    seed.seedFromFiles(files);
+
+    expect(seed.customLines(lines.listLines(), files)).toEqual([]);
+  });
+
+  it('counts what the user wrote or imported', async () => {
+    const { seed, lines } = await load();
+    seed.seedFromFiles(files);
+    lines.createLine({
+      name: 'Mine',
+      startFen: START_FEN,
+      moves: ['d4'],
+      userColor: 'w',
+    });
+
+    expect(seed.customLines(lines.listLines(), files).map((l) => l.name)).toEqual(['Mine']);
+  });
+
+  it('counts an edited seeded line — the edit is what a reset would destroy', async () => {
+    const { seed, lines } = await load();
+    seed.seedFromFiles(files);
+    const [line] = lines.listLines();
+    lines.updateLine((line as { id: string }).id, { name: 'Renamed' });
+
+    expect(seed.customLines(lines.listLines(), files).map((l) => l.name)).toEqual(['Renamed']);
+  });
+
+  it('ignores ids, timestamps and unreadable files', async () => {
+    const { seed, lines } = await load();
+    seed.seedFromFiles(files);
+    // Fresh ids and a later `updatedAt` are what any seeded line has; neither makes it custom.
+    const [line] = lines.listLines();
+    lines.updateLine((line as { id: string }).id, { updatedAt: 9_999_999_999_999 });
+
+    expect(
+      seed.customLines(lines.listLines(), [...files, { name: 'broken.json', payload: 'not json' }]),
+    ).toEqual([]);
+  });
+});
+
+describe('clearSeedRecord', () => {
+  it('lets the next load seed every bundled line again', async () => {
+    const first = await load();
+    const payload = file(rawLine('a', 'One'));
+    first.seed.seedFromFiles([{ name: 'stafford.json', payload }]);
+
+    // What "clear data" does: the repertoire and the record of what was handed over.
+    expect(first.lines.clearLines()).toBe(true);
+    expect(first.seed.clearSeedRecord()).toBe(true);
+    expect(store.map.has(SEED_KEY)).toBe(false);
+    expect(first.seed.seedReport()).toBeNull();
+
+    vi.resetModules();
+    const second = await load();
+    const report = second.seed.seedFromFiles([{ name: 'stafford.json', payload }]);
+    expect(report.added).toBe(1);
+    expect(second.lines.listLines().map((l) => l.name)).toEqual(['One']);
+  });
+
+  it('reports failure when storage is unavailable', async () => {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+    const { seed } = await load();
+    expect(seed.clearSeedRecord()).toBe(false);
+  });
+});

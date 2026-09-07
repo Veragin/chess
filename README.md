@@ -82,6 +82,14 @@ Rules the seeder (`src/storage/seed.ts`) keeps:
 Fresh ids are assigned on the way in (as for any import), so a seed can never overwrite an
 existing line; an identical-content guard keeps duplicates away even if the record is lost.
 
+**Clear data…** (Training, beside Export / Import) empties every key the app owns: the
+repertoire, the seed record and the blind-game resume record. Clearing the seed record along with
+the lines is what makes it a reset rather than a deletion — the next load seeds every bundled
+line again — so the only permanent loss is the lines no bundled file can produce: the ones
+written, imported or edited by hand. The confirmation counts exactly those (`storage/reset.ts`
+compares stored lines against the bundled files by content, because stored lines carry fresh ids
+that the seed record cannot match), and the notice afterwards repeats the count.
+
 ---
 
 ## Explore

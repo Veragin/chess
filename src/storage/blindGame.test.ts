@@ -180,6 +180,31 @@ describe('save / load round-trip', () => {
   });
 });
 
+describe('hasStoredBlindGame', () => {
+  it('is false on an empty store and true once a game is saved', async () => {
+    const m = await load();
+    expect(m.hasStoredBlindGame()).toBe(false);
+    m.saveBlindGame({ startFen: START_FEN, moves: ['e4'], revealed: false, updatedAt: 1 });
+    expect(m.hasStoredBlindGame()).toBe(true);
+    m.clearBlindGame();
+    expect(m.hasStoredBlindGame()).toBe(false);
+  });
+
+  it('is true for a record too corrupt to resume — "clear data" still deletes it', async () => {
+    store.map.set(STORAGE_KEY, '{not json');
+    const m = await load();
+    expect(m.hasStoredBlindGame()).toBe(true);
+    expect(m.loadBlindGame()).toBeNull();
+  });
+
+  it('does not raise a warning about a game the user never tried to resume', async () => {
+    store.map.set(STORAGE_KEY, '{not json');
+    const m = await load();
+    m.hasStoredBlindGame();
+    expect(m.blindStorageWarning()).toBeNull();
+  });
+});
+
 describe('clearBlindGame', () => {
   it('removes the record so nothing is offered afterwards', async () => {
     const m = await load();

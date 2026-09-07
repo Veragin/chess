@@ -198,6 +198,59 @@ describe('listLines ordering', () => {
   });
 });
 
+describe('clearLines', () => {
+  it('removes the stored payload and empties the list', async () => {
+    const lines = await load();
+    lines.createLine(ITALIAN);
+    lines.createLine(FRENCH);
+
+    expect(lines.clearLines()).toBe(true);
+    expect(storedRaw()).toBeNull();
+    expect(lines.listLines()).toEqual([]);
+    expect(lines.storageWarning()).toBeNull();
+  });
+
+  it('leaves nothing behind for the next load', async () => {
+    const first = await load();
+    first.createLine(ITALIAN);
+    first.clearLines();
+
+    vi.resetModules();
+    const second = await load();
+    expect(second.listLines()).toEqual([]);
+  });
+
+  it('drops an in-memory copy a failed write had left behind', async () => {
+    const lines = await load();
+    store.throwOnSet = true;
+    lines.createLine(ITALIAN);
+    expect(lines.listLines()).toHaveLength(1);
+    expect(lines.storageWarning()).toContain('full');
+
+    store.throwOnSet = false;
+    expect(lines.clearLines()).toBe(true);
+    // The session must not keep serving the copy the user has just deleted.
+    expect(lines.listLines()).toEqual([]);
+    expect(lines.storageWarning()).toBeNull();
+  });
+
+  it('reports failure, and still empties the session, when storage is unavailable', async () => {
+    uninstall();
+    const lines = await load();
+    lines.createLine(ITALIAN);
+
+    expect(lines.clearLines()).toBe(false);
+    expect(lines.listLines()).toEqual([]);
+    expect(lines.storageWarning()).toContain('unavailable');
+  });
+
+  it('is a no-op on an empty store', async () => {
+    const lines = await load();
+    expect(lines.clearLines()).toBe(true);
+    expect(lines.listLines()).toEqual([]);
+  });
+});
+
 describe('export / import', () => {
   it('exportAll stamps the current schema version and an exportedAt', async () => {
     const lines = await load();
