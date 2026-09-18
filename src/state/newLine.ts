@@ -1,15 +1,15 @@
 /**
  * A new line handed from one screen to the editor.
  *
- * Explore's "Save as new line" has a start position and a move list but no name, folder, colour
- * or notes — exactly the four things `LineEditor` already asks for and validates. Rather than
- * grow a second, poorer save form on the explore screen, the moves are staged here and the
- * editor opens on them.
+ * The "Save as new line" buttons on explore and analyse have a start position and a move list but
+ * no name, folder, colour or notes — exactly the four things `LineEditor` already asks for and
+ * validates. Rather than grow a second, poorer save form on those screens, the moves are staged
+ * here and the editor opens on them.
  *
  * Why a module store and not the URL: a move list does not belong in a query string (it is
  * unbounded, and a truncated one would silently save a shorter line). The URL still carries the
- * *intent* — `#/training/new?from=explore` — so a plain "New line" can never pick up a draft
- * left behind by an earlier hand-off.
+ * *intent* — `#/training/new?from=explore`, `?from=analyze` — so a plain "New line" can never pick
+ * up a draft left behind by an earlier hand-off.
  *
  * Read with `peekStagedLine`, which is side-effect-free and therefore safe to call while
  * rendering (React's StrictMode runs initialisers twice). The editor clears it on the way out.

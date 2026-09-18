@@ -34,16 +34,29 @@ export function newLinePath(folder: string): string {
   return withFolder('/training/new', folder);
 }
 
+/** Screens that can hand a played-out move list to the editor (`state/newLine.ts`). */
+export type LineHandoff = 'explore' | 'analyze';
+
 /**
- * The editor for a new line whose moves explore has staged (`state/newLine.ts`).
+ * The editor for a new line whose moves another screen has staged (`state/newLine.ts`).
  *
  * The moves themselves are not in the URL — a move list is unbounded, and a truncated one would
- * silently save a shorter line. `from=explore` is the *intent*, which is what stops a plain
- * "New line" from picking up a draft left behind by an earlier hand-off.
+ * silently save a shorter line. `from=` is the *intent*, which is what stops a plain "New line"
+ * from picking up a draft left behind by an earlier hand-off.
  */
-export function newLineFromExplorePath(folder: string): string {
+export function newLineFromPath(folder: string, from: LineHandoff): string {
   const base = newLinePath(folder);
-  return `${base}${base.includes('?') ? '&' : '?'}from=explore`;
+  return `${base}${base.includes('?') ? '&' : '?'}from=${from}`;
+}
+
+/** The editor for a new line whose moves explore has staged. */
+export function newLineFromExplorePath(folder: string): string {
+  return newLineFromPath(folder, 'explore');
+}
+
+/** The editor for a new line whose moves the analyse board has staged. */
+export function newLineFromAnalyzePath(folder: string): string {
+  return newLineFromPath(folder, 'analyze');
 }
 
 /**

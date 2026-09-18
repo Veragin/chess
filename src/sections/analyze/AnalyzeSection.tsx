@@ -7,12 +7,17 @@
  * engine in `engine/useEngine.ts`.
  *
  * Layout is mobile-first with the single 900px breakpoint (README §6):
- *  - narrow: thin horizontal eval strip, board full width, engine lines + move list in one panel
- *    below;
- *  - wide: vertical eval strip left of the board, engine lines above the move list on the right.
+ *  - narrow: thin horizontal eval strip, board full width, engine lines then the move history
+ *    stacked below;
+ *  - wide: vertical eval strip left of the board, engine lines above the move history on the
+ *    right.
+ *
+ * "Save as new line" hands the moves up to the cursor to `LineEditor` through
+ * `state/newLine.ts` — the same hand-off explore uses, rather than a second save form here.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import styled from 'styled-components';
 import { EngineLines } from '../../components/EngineLines';
 import { EvalBar } from '../../components/EvalBar';
@@ -33,9 +38,22 @@ import {
 import { flipOrientation, START_FEN, type Orientation } from '../../chess/position';
 import { useEngine } from '../../engine/useEngine';
 import { useAnalysis } from '../../state/analysis';
+import { stageNewLine } from '../../state/newLine';
+import { folderLabel } from '../../storage/folders';
+import { draftMoves } from '../training/lines/draft';
+import { newLineFromAnalyzePath } from '../training/lines/folderNav';
+import { moveCountLabel } from '../training/lines/lineFormat';
 import { useIsWideLayout } from './useIsWideLayout';
 
+/**
+ * Analysis is not scoped to a folder the way explore is (there is no repertoire question on this
+ * screen), so a line saved from here is filed at the root — and the editor still lets the user
+ * move it before saving.
+ */
+const SAVE_FOLDER = '';
+
 export function AnalyzeSection() {
+  const navigate = useNavigate();
   const { history, setHistory, loadPosition } = useAnalysis();
   const [orientation, setOrientation] = useState<Orientation>('white');
   const [editing, setEditing] = useState(false);
@@ -81,6 +99,23 @@ export function AnalyzeSection() {
     [loadPosition],
   );
 
+  /**
+   * Hands the moves up to the cursor to the line editor, exactly as explore does (see
+   * `state/newLine.ts`) — the analysis itself is left untouched, so coming back finds it intact.
+   */
+  const saveAsLine = useCallback(() => {
+    stageNewLine({
+      startFen: history.startFen,
+      moves: draftMoves(history),
+      folder: SAVE_FOLDER,
+      // The side that moves first from the start position is the likelier side to train; the
+      // editor shows it as a choice either way.
+      userColor: startColor(history),
+    });
+    navigate(newLineFromAnalyzePath(SAVE_FOLDER));
+  }, [history, navigate]);
+
+  const savable = draftMoves(history).length;
   const caption = useMemo(() => describePosition(fen), [fen]);
 
   // Only lines produced for the position on screen may drive the eval bar (README §8.4) —
@@ -152,6 +187,33 @@ export function AnalyzeSection() {
       startMoveNumber={startMoveNumber(history)}
     />
   );
+  /** The move list plus the hand-off to the line editor — the same offer explore makes. */
+  const moveHistory = (
+    <Panel
+      title="Move history"
+      actions={
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={savable === 0}
+          data-testid="analyze-save-line"
+          onClick={saveAsLine}
+        >
+          Save as new line
+        </Button>
+      }
+      padded={false}
+    >
+      <HistoryBody>
+        {moveList}
+        <Hint data-testid="analyze-save-hint">
+          {savable === 0
+            ? 'Play the moves you want to keep, then save them as a line.'
+            : `Saves ${moveCountLabel(savable)} up to the cursor into ${folderLabel(SAVE_FOLDER)}.`}
+        </Hint>
+      </HistoryBody>
+    </Panel>
+  );
 
   return (
     <Section data-testid="analyze-section">
@@ -168,19 +230,15 @@ export function AnalyzeSection() {
           </BoardArea>
           <SideColumn>
             {engineLines}
-            {moveList}
+            {moveHistory}
           </SideColumn>
         </WideGrid>
       ) : (
         <>
           <EvalBar cp={top?.cp ?? null} mate={top?.mate ?? null} orientation={orientation} layout="horizontal" />
           {board}
-          <Panel title="Analysis" padded={false}>
-            <NarrowPanelBody>
-              {engineLines}
-              {moveList}
-            </NarrowPanelBody>
-          </Panel>
+          {engineLines}
+          {moveHistory}
         </>
       )}
     </Section>
@@ -288,10 +346,16 @@ const SideColumn = styled.div`
   min-width: 0;
 `;
 
-const NarrowPanelBody = styled.div`
+const HistoryBody = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${(p) => p.theme.space.sm};
   padding: ${(p) => p.theme.space.sm};
   min-width: 0;
+`;
+
+const Hint = styled.p`
+  margin: 0;
+  color: ${(p) => p.theme.color.textFaint};
+  font-size: ${(p) => p.theme.font.size.sm};
 `;

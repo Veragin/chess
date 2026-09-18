@@ -96,8 +96,9 @@ function seedState(
     if (staged === null) {
       return { routeId: null, status: 'new', draft, baseline: draft, loadNotice: null };
     }
-    // Moves handed over by explore. Rebased rather than trusted: the staged list came from a
-    // live board, but the editor re-derives every position it shows from the start FEN anyway.
+    // Moves handed over by explore or analyse. Rebased rather than trusted: the staged list came
+    // from a live board, but the editor re-derives every position it shows from the start FEN
+    // anyway.
     const rebased = rebaseHistory(staged.startFen, staged.moves);
     const seeded: LineDraft = {
       ...draft,
@@ -113,7 +114,7 @@ function seedState(
       baseline: draft,
       loadNotice:
         rebased.dropped > 0
-          ? `${rebased.dropped} move(s) from explore could not be replayed and were dropped.`
+          ? `${rebased.dropped} handed-over move(s) could not be replayed and were dropped.`
           : null,
     };
   }
@@ -145,7 +146,8 @@ export function LineEditor() {
   const backTo = linesPath(fromFolder);
   // Only a hand-off that says so may claim the staged moves (see `state/newLine.ts`); peeking is
   // side-effect-free, so it is safe here and under StrictMode's double-invoked initialisers.
-  const staged = params.get('from') === 'explore' ? peekStagedLine() : null;
+  const handoff = params.get('from');
+  const staged = handoff === 'explore' || handoff === 'analyze' ? peekStagedLine() : null;
 
   const [state, setState] = useState<EditorState>(() => seedState(id, fromFolder, staged));
   /** Existing folder paths, for the folder picker. Read once — the editor is the writer. */

@@ -5,6 +5,7 @@ import {
   editLinePath,
   explorePath,
   linesPath,
+  newLineFromAnalyzePath,
   newLineFromExplorePath,
   newLinePath,
 } from './folderNav';
@@ -32,6 +33,14 @@ describe('folder URLs', () => {
     expect(newLineFromExplorePath('')).toBe('/training/new?from=explore');
     expect(newLineFromExplorePath('Black/Sicilian')).toBe(
       '/training/new?folder=Black%2FSicilian&from=explore',
+    );
+  });
+
+  it('marks the analyse hand-off with its own intent', () => {
+    // Analysis has no folder scope, so it always hands over at the root.
+    expect(newLineFromAnalyzePath('')).toBe('/training/new?from=analyze');
+    expect(newLineFromAnalyzePath('Black/Sicilian')).toBe(
+      '/training/new?folder=Black%2FSicilian&from=analyze',
     );
   });
 
