@@ -1,6 +1,11 @@
 resume ?=
 COMPOSE = docker compose
 
+# Resolved version of the Claude CLI baked into the image. `make start` looks up
+# the latest published version and writes it here; the Dockerfile installs that
+# exact version, so the layer stays cached until a new release appears.
+CLAUDE_VERSION_FILE = .claude-code-version
+
 # Git author for commits made inside the container. Read from the host's git
 # config unless already set in the environment.
 GIT_USER_NAME ?= $(shell git config user.name)
@@ -51,10 +56,26 @@ define LAUNCH_CLAUDE
 	@$(COMPOSE) exec $(AGENT_ENV_ARGS) $(1) bash -c '$(CLAUDE_INIT)'
 endef
 
-.PHONY: start stop bash destroy ai build
+.PHONY: start stop bash destroy ai build claude-version
 
-start: stop
-	$(COMPOSE) up -d --build --remove-orphans
+# Resolve the latest published Claude CLI version and pin it to a file. Falls
+# back to the previously pinned version (or "latest") when npm is unreachable.
+claude-version:
+	@V=$$(npm view @anthropic-ai/claude-code version 2>/dev/null | tr -d '[:space:]'); \
+	if [ -z "$$V" ]; then \
+		V=$$(cat $(CLAUDE_VERSION_FILE) 2>/dev/null | tr -d '[:space:]'); \
+		if [ -n "$$V" ]; then \
+			printf "\033[0;33mCould not reach npm, keeping pinned claude-code %s\033[0m\n" "$$V"; \
+		else \
+			V=latest; \
+			printf "\033[0;33mCould not reach npm and no pin found, using claude-code 'latest'\033[0m\n"; \
+		fi; \
+	fi; \
+	echo "$$V" > $(CLAUDE_VERSION_FILE); \
+	printf "claude-code pinned to %s\n" "$$V"
+
+start: stop claude-version
+	CLAUDE_CODE_VERSION=$$(cat $(CLAUDE_VERSION_FILE)) $(COMPOSE) up -d --build --remove-orphans
 
 stop:
 	$(COMPOSE) down

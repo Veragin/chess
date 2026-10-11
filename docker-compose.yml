@@ -8,6 +8,8 @@ services:
         build:
             context: .
             dockerfile: docker/Dockerfile.dev
+            args:
+                CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION:-latest}
         volumes:
             - .:/app
             - ~/.gitconfig:/home/node/.gitconfig-host:ro

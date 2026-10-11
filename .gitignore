@@ -1,4 +1,5 @@
 .docker-build-checksum
+.claude-code-version
 
 **/.yarn/*
 !**/.yarn/cache
