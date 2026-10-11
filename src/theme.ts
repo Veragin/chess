@@ -37,6 +37,8 @@ export const theme = {
     error: 'rgba(217, 107, 107, 0.6)',
     success: 'rgba(103, 178, 111, 0.55)',
     coordinate: 'rgba(20, 24, 29, 0.65)',
+    /** Move arrows drawn over the board (e.g. the repertoire's known moves). */
+    arrow: 'rgb(56, 142, 60)',
   },
   space: {
     xs: '4px',

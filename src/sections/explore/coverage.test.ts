@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { fenAfter } from '../../chess/game';
 import { START_FEN } from '../../chess/position';
 import type { Line } from '../../storage/schema';
-import { arrivalComments, buildCoverageIndex, coverageAt, positionKey } from './coverage';
+import {
+  arrivalComments,
+  buildCoverageIndex,
+  coverageArrows,
+  coverageAt,
+  EMPTY_COVERAGE,
+  positionKey,
+} from './coverage';
 import { treeFromMoves, type MoveNode, type MoveTree } from '../../chess/tree';
 
 function line(name: string, moves: string[], overrides: Partial<Line> = {}): Line {
@@ -268,5 +275,33 @@ describe('coverage of a branched line', () => {
     // Another move into the same position is not this move.
     expect(arrivalComments(index, fen, { san: 'Bc4', fenBefore: START_FEN })).toEqual([]);
     expect(arrivalComments(index, fen, null)).toEqual([]);
+  });
+});
+
+describe('coverageArrows', () => {
+  const index = buildCoverageIndex([
+    line('Italian', ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4']),
+    line('Spanish', ['e4', 'e5', 'Nf3', 'Nc6', 'Bb5']),
+    line('French', ['e4', 'e6', 'd4']),
+    line('London', ['d4', 'd5', 'Bf4']),
+  ]);
+
+  it('turns each continuation into squares, weighted by its share of the most-played move', () => {
+    const arrows = coverageArrows(coverageAt(index, START_FEN), START_FEN);
+    expect(arrows).toEqual([
+      { san: 'e4', from: 'e2', to: 'e4', weight: 1 },
+      { san: 'd4', from: 'd2', to: 'd4', weight: 1 / 3 },
+    ]);
+  });
+
+  it('draws castling as the king move', () => {
+    const castled = line('Castle', ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5', 'O-O']);
+    const fen = after(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5']);
+    const arrows = coverageArrows(coverageAt(buildCoverageIndex([castled]), fen), fen);
+    expect(arrows).toEqual([{ san: 'O-O', from: 'e1', to: 'g1', weight: 1 }]);
+  });
+
+  it('is empty where the repertoire says nothing', () => {
+    expect(coverageArrows(EMPTY_COVERAGE, START_FEN)).toEqual([]);
   });
 });

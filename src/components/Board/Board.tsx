@@ -16,6 +16,7 @@ import {
   type Orientation,
   type Square as SquareName,
 } from '../../chess/position';
+import { Arrows, type BoardArrow } from './Arrows';
 import { Piece, pieceName } from './Piece';
 import { PromotionDialog } from './PromotionDialog';
 import { Square, type DestinationMarker, type ExtraHighlight } from './Square';
@@ -33,6 +34,8 @@ export interface BoardProps {
   showCoordinates?: boolean;
   /** Extra square highlights, e.g. a hint or an error flash. */
   highlights?: Partial<Record<SquareName, 'error' | 'hint' | 'success'>>;
+  /** Arrows drawn over the board, e.g. known continuations. Presentation only. */
+  arrows?: readonly BoardArrow[];
 }
 
 const ROWS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
@@ -119,6 +122,7 @@ export function Board({
   hidePieces = false,
   showCoordinates = true,
   highlights,
+  arrows,
 }: BoardProps) {
   const gridRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragRecord | null>(null);
@@ -411,6 +415,10 @@ export function Board({
           </GridRow>
         ))}
       </Grid>
+
+      {/* Over the grid but under the drag ghost; hidden with the pieces, since an arrow's origin
+          gives away where a piece stands. */}
+      {!hidePieces && arrows !== undefined && <Arrows arrows={arrows} orientation={orientation} />}
 
       {/* Floating dragged piece. Lives outside the (overflow-hidden) grid so it stays visible
           when the drag leaves the board. Presentation only — hidden with `hidePieces`. */}

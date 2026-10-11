@@ -31,7 +31,7 @@
  */
 
 
-import { createGame } from '../../chess/game';
+import { createGame, sanToUci } from '../../chess/game';
 import { replayTree, type MoveNode, type NodePath } from '../../chess/tree';
 import type { Line } from '../../storage/schema';
 
@@ -423,6 +423,35 @@ export function arrivalComments(
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({ line: reach.line, text: arrival.comment });
+  }
+  return out;
+}
+
+/** A continuation drawn on the board: squares from the move, prominence from its line count. */
+export interface CoverageArrow {
+  san: string;
+  from: string;
+  to: string;
+  /** Lines playing this move relative to the most-played continuation, in (0, 1]. */
+  weight: number;
+}
+
+/**
+ * The repertoire's continuations from `fen` as board arrows, most-played first. A SAN that does
+ * not play from `fen` (cannot happen for an index built from the same position) is skipped.
+ */
+export function coverageArrows(coverage: Coverage, fen: string): CoverageArrow[] {
+  const most = coverage.moves.reduce((max, move) => Math.max(max, move.lines.length), 0);
+  const out: CoverageArrow[] = [];
+  for (const move of coverage.moves) {
+    const uci = sanToUci(fen, move.san);
+    if (uci === null) continue;
+    out.push({
+      san: move.san,
+      from: uci.slice(0, 2),
+      to: uci.slice(2, 4),
+      weight: most === 0 ? 1 : move.lines.length / most,
+    });
   }
   return out;
 }

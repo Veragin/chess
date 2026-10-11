@@ -1,3 +1,5 @@
+export { Arrows } from './Arrows';
+export type { ArrowsProps, BoardArrow } from './Arrows';
 export { Board } from './Board';
 export type { BoardProps } from './Board';
 export { Piece, pieceAssetUrl, pieceName } from './Piece';
