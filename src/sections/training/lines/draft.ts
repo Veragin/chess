@@ -9,9 +9,9 @@
  * Editing semantics, stated once so the component does not have to decide:
  *   - playing a move at the cursor follows an existing continuation, or adds a new branch from
  *     there — nothing is ever truncated;
- *   - "Back" moves the cursor to the parent move, it does NOT delete anything;
+ *   - "New branch" moves the cursor to the parent move, it does NOT delete anything;
  *   - **the saved line is the whole tree**, wherever the cursor happens to be. Removing moves is
- *     an explicit action ("Delete from here", "Clear moves").
+ *     an explicit action ("Delete from here").
  */
 
 import { validateFenRules, type Color } from '../../../chess/game';

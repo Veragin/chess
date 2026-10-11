@@ -19,8 +19,8 @@
  *  - the tree view — `components/MoveTree`;
  *  - validation, dirty-tracking and the draft→`Line` mapping — `./lines/draft.ts`, unit-tested.
  *
- * Editing semantics are documented in `./lines/draft.ts`: nothing is ever truncated, "Back" only
- * moves the cursor, and the saved line is the whole tree.
+ * Editing semantics are documented in `./lines/draft.ts`: nothing is ever truncated, "New branch"
+ * only moves the cursor, and the saved line is the whole tree.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -32,11 +32,10 @@ import { PositionEditor } from '../../components/PositionEditor';
 import { Button, Panel, RotateButton } from '../../components/ui';
 import { createGame, type Color, type MoveInput } from '../../chess/game';
 import { flipOrientation, type Orientation } from '../../chess/position';
-import { countMoves, type NodePath } from '../../chess/tree';
+import type { NodePath } from '../../chess/tree';
 import {
   applyMoveAt,
   canPromote,
-  clearTree,
   commentAt,
   deleteFromCursor,
   fenAt,
@@ -89,12 +88,11 @@ interface EditorState {
   loadNotice: string | null;
 }
 
-/** A destructive move-tree edit waiting for confirmation. */
+/** A "Delete from here" waiting for confirmation. */
 interface PendingRemoval {
-  kind: 'delete' | 'clear';
   /** How many moves it removes. */
   count: number;
-  /** `12…Nf3` for a delete, for the dialog text. */
+  /** `12…Nf3`, for the dialog text. */
   label: string | null;
 }
 
@@ -176,8 +174,10 @@ export function LineEditor() {
   const [positionNotice, setPositionNotice] = useState<string | null>(null);
   /** Non-null while the "discard unsaved changes?" dialog is open; holds where to go next. */
   const [pendingLeave, setPendingLeave] = useState<string | null>(null);
-  /** Non-null while "Delete from here" / "Clear moves" waits for confirmation. */
+  /** Non-null while "Delete from here" waits for confirmation. */
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null);
+  /** After "New branch": the move (`12…Nf3`) the next move played becomes an alternative to. */
+  const [branchOf, setBranchOf] = useState<string | null>(null);
 
   // `Routes` renders `<LineEditor />` at the same position for both /new and /:id/edit, so the
   // component instance can survive an id change. Re-seed during render (React's documented
@@ -193,6 +193,7 @@ export function LineEditor() {
     setPositionNotice(null);
     setPendingLeave(null);
     setPendingRemoval(null);
+    setBranchOf(null);
   }
 
   const { draft, baseline, status } = state;
@@ -228,7 +229,6 @@ export function LineEditor() {
   }, [knownFolders, selectedFolder]);
 
   const dirty = useMemo(() => isDirty(draft, baseline), [draft, baseline]);
-  const totalMoves = countMoves(history.tree);
   const fen = useMemo(() => fenAt(history), [history]);
   const lastMove = useMemo(() => lastMoveAt(history), [history]);
   const cursorLabel = moveLabelAt(history, history.cursor);
@@ -236,6 +236,7 @@ export function LineEditor() {
   const onMove = useCallback(
     (move: MoveInput) => {
       setError(null);
+      setBranchOf(null);
       setState((prev) => {
         const next = applyMoveAt(prev.draft.history, move);
         if (next === null) return prev;
@@ -252,6 +253,7 @@ export function LineEditor() {
 
   /** Pure navigation: never clears a save error, since nothing that is saved changed. */
   const onSelect = useCallback((path: NodePath) => {
+    setBranchOf(null);
     setState((prev) => ({
       ...prev,
       draft: { ...prev.draft, history: jumpTo(prev.draft.history, path) },
@@ -263,21 +265,25 @@ export function LineEditor() {
     const count = movesFromCursor(history);
     if (count === 0) return;
     if (count === 1) setHistory(deleteFromCursor);
-    else setPendingRemoval({ kind: 'delete', count, label: moveLabelAt(history, history.cursor) });
+    else setPendingRemoval({ count, label: moveLabelAt(history, history.cursor) });
   }, [history, setHistory]);
-
-  const onClearMoves = useCallback(() => {
-    if (totalMoves === 0) return;
-    if (totalMoves === 1) setHistory(clearTree);
-    else setPendingRemoval({ kind: 'clear', count: totalMoves, label: null });
-  }, [setHistory, totalMoves]);
 
   const onConfirmRemoval = useCallback(() => {
     const removal = pendingRemoval;
     setPendingRemoval(null);
     if (removal === null) return;
-    setHistory(removal.kind === 'delete' ? deleteFromCursor : clearTree);
+    setHistory(deleteFromCursor);
   }, [pendingRemoval, setHistory]);
+
+  /**
+   * "New branch": go back to the selected move's parent, so the next move played on the board
+   * becomes an alternative to it rather than a continuation. Deletes nothing.
+   */
+  const onNewBranch = useCallback(() => {
+    if (isAtStart(history)) return;
+    setBranchOf(moveLabelAt(history, history.cursor));
+    setHistory(stepBack);
+  }, [history, setHistory]);
 
   const onChooseColor = useCallback(
     (color: Color) => {
@@ -429,19 +435,12 @@ export function LineEditor() {
               </BoardCell>
               <ButtonRow>
                 <Button
-                  data-testid="step-back"
+                  data-testid="new-branch"
                   disabled={atStart}
-                  onClick={() => setHistory(stepBack)}
+                  title="Play an alternative to this move"
+                  onClick={onNewBranch}
                 >
-                  Back
-                </Button>
-                <Button
-                  data-testid="delete-from-here"
-                  disabled={atStart}
-                  title="Remove this move and everything after it"
-                  onClick={onDeleteFromHere}
-                >
-                  Delete from here
+                  New branch
                 </Button>
                 <Button
                   data-testid="make-main-line"
@@ -453,13 +452,19 @@ export function LineEditor() {
                 </Button>
                 <Button
                   variant="danger"
-                  data-testid="clear-moves"
-                  disabled={totalMoves === 0}
-                  onClick={onClearMoves}
+                  data-testid="delete-from-here"
+                  disabled={atStart}
+                  title="Remove this move and everything after it"
+                  onClick={onDeleteFromHere}
                 >
-                  Clear moves
+                  Delete from here
                 </Button>
               </ButtonRow>
+              {branchOf !== null && (
+                <Hint data-testid="branch-hint">
+                  Play an alternative to <MoveRef>{branchOf}</MoveRef> on the board.
+                </Hint>
+              )}
               <MoveTree
                 tree={history.tree}
                 cursor={history.cursor}
@@ -636,16 +641,13 @@ export function LineEditor() {
 
       {pendingRemoval !== null && (
         <ConfirmDialog
-          title={pendingRemoval.kind === 'delete' ? 'Delete these moves?' : 'Clear every move?'}
-          confirmLabel={pendingRemoval.kind === 'delete' ? 'Delete' : 'Clear moves'}
+          title="Delete these moves?"
+          confirmLabel="Delete"
           onCancel={() => setPendingRemoval(null)}
           onConfirm={onConfirmRemoval}
         >
-          {pendingRemoval.kind === 'delete'
-            ? `This removes ${pendingRemoval.label ?? 'this move'} and everything after it — ` +
-              `${moveCountLabel(pendingRemoval.count)} in all, comments included.`
-            : `This removes all ${moveCountLabel(pendingRemoval.count)} of this line, every ` +
-              `branch and comment included.`}{' '}
+          {`This removes ${pendingRemoval.label ?? 'this move'} and everything after it — ` +
+            `${moveCountLabel(pendingRemoval.count)} in all, comments included.`}{' '}
           Nothing is saved until you press Save.
         </ConfirmDialog>
       )}

@@ -91,10 +91,11 @@ they were.
   tree wherever the cursor is (`src/chess/treeHistory.ts`, `src/sections/training/lines/draft.ts`).
   The move view (`src/components/MoveTree`) shows the main line inline and each variation as an
   indented `( … )` block; click a move to go there, or use the arrow keys — ←/→ for the previous
-  / next move along the main continuation, ↑/↓ to switch between alternatives. **Back** moves the
-  cursor to the previous move (it deletes nothing), **Delete from here** removes the selected
-  move and everything after it (confirmed when that is more than one move), **Make main line**
-  promotes the selected move's branch, **Clear moves** empties the tree. The **comment** field
+  / next move along the main continuation, ↑/↓ to switch between alternatives. **New branch** moves
+  the cursor back to the selected move's parent so the next move played becomes an alternative
+  to it (it deletes nothing), **Make main line** promotes the selected move's branch, **Delete
+  from here** removes the selected move and everything after it (confirmed when that is more
+  than one move). The **comment** field
   under the tree edits the comment on the selected move ("Comment on 12…Nf3"); moves with a
   comment get a marker in the tree. Changing the start position keeps every move, branch and
   comment still legal and reports how many were dropped.
