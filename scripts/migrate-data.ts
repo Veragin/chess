@@ -24,8 +24,12 @@
  *  6. Write the current schema through `serialiseLinesFile` (PGN-like stored tree, compact
  *     layout); ids are derived from the join key, so re-running on its own output reproduces
  *     the same files byte for byte.
+ *  7. Write `public/seed-aliases.json`: for each output line, the seed keys (`file::id`) of the
+ *     lines it replaces. The app's seeder (`src/storage/seed.ts`) uses it so a user who was
+ *     seeded from the old files is not given every rewritten line a second time. Entries from
+ *     earlier runs are kept, so chains across several runs still resolve.
  *
- * Afterwards the written files are read back and checked: they load through `migrate()` without
+ * Before anything is written, the output is checked: it loads through `migrate()` without
  * refusals, every tree replays, and every source line's moves are still a path in some output
  * line — from its root, or from a node reaching the source's start position (a grafted line).
  * `duplicities.md` (trained-side positions with more than one repertoire move) is regenerated
@@ -70,6 +74,8 @@ function sourceDir(): string {
   return resolve(dir);
 }
 const DUPLICITIES_FILE = join(ROOT, 'duplicities.md');
+/** Outside `public/data`: everything in there is seeded as a lines file. */
+const ALIASES_FILE = join(ROOT, 'public', 'seed-aliases.json');
 
 /** Plies of the main line that identify a joined line (and appear in its name). */
 const JOIN_PLIES = 5;
@@ -399,6 +405,40 @@ function writeIfChanged(path: string, text: string, dryRun: boolean): boolean {
   return true;
 }
 
+/** The key `src/storage/seed.ts` records for a bundled line. */
+const seedKey = (file: string, line: Line): string => `${file}::${line.id}`;
+
+function readAliases(): Record<string, string[]> {
+  if (!existsSync(ALIASES_FILE)) return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(ALIASES_FILE, 'utf8'));
+  } catch (err) {
+    fail(`${basename(ALIASES_FILE)}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    fail(`${basename(ALIASES_FILE)}: expected an object`);
+  }
+  return parsed as Record<string, string[]>;
+}
+
+/**
+ * Each output line's key → the keys of the source lines now inside it (itself excluded). Earlier
+ * entries are kept: a source that was itself an output of an earlier run is only listed by its
+ * own key, and the seeder follows the chain from there.
+ */
+function seedAliases(groups: Group[], existing: Record<string, string[]>): Record<string, string[]> {
+  const aliases: Record<string, string[]> = { ...existing };
+  for (const group of groups) {
+    const key = seedKey(group.target.file, group.line);
+    const previous = [...new Set(group.members.map((m) => seedKey(m.file, m.line)))]
+      .filter((k) => k !== key)
+      .sort();
+    if (previous.length > 0) aliases[key] = previous;
+  }
+  return Object.fromEntries(Object.entries(aliases).sort(([a], [b]) => a.localeCompare(b)));
+}
+
 /* ------------------------------------------------------------------------------------- *
  * Report
  * ------------------------------------------------------------------------------------- */
@@ -675,12 +715,16 @@ interface Written {
   starts: Map<string, MoveTree[]>;
 }
 
-function verify(files: Map<string, LinesFile>, sources: Source[], dryRun: boolean): string[] {
+/** Checks the serialised output (`texts`, by file) before any of it reaches the disk. */
+function verify(
+  files: Map<string, LinesFile>,
+  texts: Map<string, string>,
+  sources: Source[],
+): string[] {
   const problems: string[] = [];
   const written: Written[] = [];
   for (const [file, expected] of files) {
-    const text = dryRun ? serialiseLinesFile(expected) : readFileSync(join(DATA_DIR, file), 'utf8');
-    const result = migrate(text);
+    const result = migrate(texts.get(file));
     if (result.error !== undefined) problems.push(`${file}: ${result.error}`);
     if (result.changed) problems.push(`${file}: migrate() reports changes on read`);
     if (result.file.lines.length !== expected.lines.length) {
@@ -751,12 +795,22 @@ function main(): void {
   const sources = loadSources(source, inputFiles);
   const { groups, grafts } = joinAll(sources);
   const files = outputFiles(groups);
+  const texts = new Map([...files].map(([file, content]) => [file, serialiseLinesFile(content, true)]));
+  const aliases = seedAliases(groups, readAliases());
+
+  // Everything below writes, so the output is checked first: a failed check leaves the disk as
+  // it was.
+  const problems = verify(files, texts, sources);
+  if (problems.length > 0) {
+    printReport(source, inputFiles, sources, files, groups, grafts);
+    console.error(`\nverification FAILED (${problems.length}), nothing written:`);
+    for (const p of problems) console.error(`  ${p}`);
+    process.exit(1);
+  }
 
   const changed: string[] = [];
-  for (const [file, content] of files) {
-    if (writeIfChanged(join(DATA_DIR, file), serialiseLinesFile(content, true), dryRun)) {
-      changed.push(file);
-    }
+  for (const [file, text] of texts) {
+    if (writeIfChanged(join(DATA_DIR, file), text, dryRun)) changed.push(file);
   }
   const untouched: string[] = [];
   for (const file of jsonFiles(DATA_DIR)) {
@@ -769,6 +823,9 @@ function main(): void {
     }
     if (!dryRun) unlinkSync(join(DATA_DIR, file));
     changed.push(`${file} (removed: no lines left)`);
+  }
+  if (writeIfChanged(ALIASES_FILE, `${JSON.stringify(aliases, null, 2)}\n`, dryRun)) {
+    changed.push(basename(ALIASES_FILE));
   }
   // Regenerated when the data changes (§11) or on request. A re-run on already-migrated data
   // would only lose the original line names the report names as sources.
@@ -797,13 +854,6 @@ function main(): void {
       ? `\n${dryRun ? 'would change' : 'changed'}: ${changed.join(', ')}`
       : '\nnothing to change',
   );
-
-  const problems = verify(files, sources, dryRun);
-  if (problems.length > 0) {
-    console.error(`\nverification FAILED (${problems.length}):`);
-    for (const p of problems) console.error(`  ${p}`);
-    process.exit(1);
-  }
   console.log(
     `verified: ${files.size} files load through migrate(), every tree replays, ` +
       `every source line is a path of an output line (from its root or from its start position)`,

@@ -303,6 +303,69 @@ describe('seeding bundled files', () => {
     expect(second.lines.listLines()).toHaveLength(1);
   });
 
+  describe('rewritten files (seed aliases)', () => {
+    const joined = [{ san: 'e4', next: [{ san: 'e5', next: [] }, { san: 'c5', next: [] }] }];
+    const v1 = (): unknown =>
+      file(
+        rawLine('a', 'One'),
+        rawLine('b', 'Two', { tree: treeFromMoves(['e4', 'c5']) }),
+      );
+    const v2 = (): unknown => file(rawLine('n', 'Joined', { tree: joined }));
+
+    it('does not offer a joined line again when every line it replaces was handed over', async () => {
+      const first = await load();
+      first.seed.seedFromFiles([{ name: 'stafford.json', payload: v1() }]);
+
+      vi.resetModules();
+      const second = await load();
+      const report = second.seed.seedFromFiles([{ name: 'stafford.json', payload: v2() }], {
+        'stafford.json::n': ['stafford.json::a', 'stafford.json::b'],
+      });
+      expect(report.added).toBe(0);
+      expect(second.lines.listLines().map((l) => l.name).sort()).toEqual(['One', 'Two']);
+      // Recorded under its own key, so it stays handed over without the aliases too.
+      expect(seededKeys()).toContain('stafford.json::n');
+    });
+
+    it('offers it when only some of the lines it replaces were handed over', async () => {
+      const first = await load();
+      first.seed.seedFromFiles([{ name: 'stafford.json', payload: file(rawLine('a', 'One')) }]);
+
+      vi.resetModules();
+      const second = await load();
+      const report = second.seed.seedFromFiles([{ name: 'stafford.json', payload: v2() }], {
+        'stafford.json::n': ['stafford.json::a', 'stafford.json::b'],
+      });
+      expect(report.added).toBe(1);
+    });
+
+    it('follows aliases across several rewrites', async () => {
+      const first = await load();
+      first.seed.seedFromFiles([{ name: 'stafford.json', payload: v1() }]);
+
+      vi.resetModules();
+      const second = await load();
+      const report = second.seed.seedFromFiles(
+        [{ name: 'other.json', payload: file(rawLine('m', 'Moved', { tree: joined })) }],
+        {
+          'other.json::m': ['stafford.json::n'],
+          'stafford.json::n': ['stafford.json::a', 'stafford.json::b'],
+        },
+      );
+      expect(report.added).toBe(0);
+    });
+
+    it('seeds a new user normally, and survives an alias cycle', async () => {
+      const { seed, lines } = await load();
+      const report = seed.seedFromFiles([{ name: 'stafford.json', payload: v2() }], {
+        'stafford.json::n': ['stafford.json::x'],
+        'stafford.json::x': ['stafford.json::n'],
+      });
+      expect(report.added).toBe(1);
+      expect(lines.listLines().map((l) => l.name)).toEqual(['Joined']);
+    });
+  });
+
   it('writes no seed record when storage is unavailable', async () => {
     Object.defineProperty(globalThis, 'localStorage', {
       value: undefined,

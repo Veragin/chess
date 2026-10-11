@@ -14,12 +14,29 @@
  * than against whatever happens to be in `public/data/` today.
  */
 
-import { seedFromFiles, type SeedFile, type SeedReport } from './seed';
+import { seedFromFiles, type SeedAliases, type SeedFile, type SeedReport } from './seed';
 
 const modules = import.meta.glob('../../public/data/*.json', {
   eager: true,
   import: 'default',
 });
+
+/**
+ * Which old seed keys each rewritten line replaces (written by `scripts/migrate-data.ts`). A glob
+ * rather than an import so a checkout without the file still builds; it lives outside
+ * `public/data/` because everything in there is read as a lines file.
+ */
+const aliasModules = import.meta.glob('../../public/seed-aliases.json', {
+  eager: true,
+  import: 'default',
+});
+
+function bundledSeedAliases(): SeedAliases {
+  const [aliases] = Object.values(aliasModules);
+  return typeof aliases === 'object' && aliases !== null && !Array.isArray(aliases)
+    ? (aliases as SeedAliases)
+    : {};
+}
 
 /** Every bundled file, in a stable (file-name) order so seeding is reproducible. */
 export function bundledSeedFiles(): SeedFile[] {
@@ -30,5 +47,5 @@ export function bundledSeedFiles(): SeedFile[] {
 
 /** Called once at startup, before the first render (`src/main.tsx`). */
 export function seedBundledLines(): SeedReport {
-  return seedFromFiles(bundledSeedFiles());
+  return seedFromFiles(bundledSeedFiles(), bundledSeedAliases());
 }

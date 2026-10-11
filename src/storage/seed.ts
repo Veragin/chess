@@ -13,7 +13,13 @@
  * 3. **A broken line is retried.** Rejections are *not* recorded as seeded: fix the file and
  *    the line arrives next time. This is the one thing a content-blind key cannot do on its
  *    own, and it is why rejections are reported to the UI instead of being swallowed.
- * 4. **Never write twice.** All files are validated first and added in a single write, and the
+ * 4. **Renamed lines are not new lines.** When `scripts/migrate-data.ts` rewrites the bundled
+ *    files, their lines get new ids (and are often several old lines joined into one tree), so
+ *    their keys are new too. The script records which old keys each new one replaces
+ *    (`SeedAliases`); a new key whose old keys were *all* handed over counts as handed over
+ *    itself, so an existing user is not given the whole repertoire a second time. If only some
+ *    of them were, the line is offered: it holds material the user never received.
+ * 5. **Never write twice.** All files are validated first and added in a single write, and the
  *    seed record is only persisted if that write actually reached disk — otherwise a
  *    memory-only session would mark lines as delivered that no later session can see.
  *
@@ -34,6 +40,12 @@ export interface SeedFile {
   name: string;
   payload: unknown;
 }
+
+/**
+ * Seed key (`file::id`) of a bundled line → the keys of the lines it directly replaces, as written
+ * by `scripts/migrate-data.ts` to `public/seed-aliases.json`. Chains are followed.
+ */
+export type SeedAliases = Readonly<Record<string, readonly string[]>>;
 
 export interface SeedFileReport {
   file: string;
@@ -116,6 +128,26 @@ function seedKey(file: string, raw: unknown, index: number): string {
 }
 
 /**
+ * True when `key` was handed over, or replaces earlier lines that all were — following
+ * `aliases` through repeated rewrites (v1 → v2 → …). A cycle counts as not delivered.
+ */
+function delivered(
+  key: string,
+  aliases: SeedAliases,
+  known: Set<string>,
+  visiting: Set<string> = new Set(),
+): boolean {
+  if (known.has(key)) return true;
+  if (visiting.has(key) || !Object.prototype.hasOwnProperty.call(aliases, key)) return false;
+  const previous = aliases[key];
+  if (!Array.isArray(previous) || previous.length === 0) return false;
+  visiting.add(key);
+  const all = previous.every((k) => typeof k === 'string' && delivered(k, aliases, known, visiting));
+  visiting.delete(key);
+  return all;
+}
+
+/**
  * A safety net independent of the seed record: two lines with the same name, folder, colour,
  * start position and moves are the same line — moves compared by `treeKey`, so sibling order
  * and comments do not matter. It keeps a lost or cleared record from adding a second copy of
@@ -195,9 +227,10 @@ export function seedReport(): SeedReport | null {
 
 /**
  * Adds every not-yet-seeded line from `files` to the repertoire. Idempotent: running it
- * again adds nothing, and a line the user has since deleted stays deleted.
+ * again adds nothing, and a line the user has since deleted stays deleted. `aliases` maps a
+ * line's key to the keys of the lines it replaces (rule 4 above).
  */
-export function seedFromFiles(files: SeedFile[]): SeedReport {
+export function seedFromFiles(files: SeedFile[], aliases: SeedAliases = {}): SeedReport {
   const known = new Set(readSeenKeys());
   const seenBefore = known.size;
   const signatures = new Set(listLines().map(lineSignature));
@@ -223,6 +256,10 @@ export function seedFromFiles(files: SeedFile[]): SeedReport {
       if (candidate.line === null) {
         // Deliberately not marked as seen: a fixed file gets another chance.
         rejections.push({ name: candidate.name, reason: candidate.reason ?? 'invalid line' });
+        continue;
+      }
+      if (delivered(key, aliases, known)) {
+        known.add(key); // handed over before the files were rewritten
         continue;
       }
 
