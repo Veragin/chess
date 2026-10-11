@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { treeFromMoves } from '../chess/tree';
 
 /**
  * The one test that runs against the *real* `public/data/*.json` files (through
@@ -72,7 +73,7 @@ describe('resetSummary against the bundled files', () => {
     lines.createLine({
       name: 'Mine',
       startFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-      moves: ['d4'],
+      tree: treeFromMoves(['d4']),
       userColor: 'w',
     });
 
@@ -87,7 +88,7 @@ describe('clearAll', () => {
     first.lines.createLine({
       name: 'Mine',
       startFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-      moves: ['d4'],
+      tree: treeFromMoves(['d4']),
       userColor: 'w',
     });
 

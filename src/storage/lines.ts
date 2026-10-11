@@ -16,7 +16,8 @@
  * so the module works in a DOM-less environment and can be tested with a stub.
  */
 
-import { replaySan, validateFenRules } from '../chess/game';
+import { validateFenRules } from '../chess/game';
+import { branchIndexOf, cloneTree, countBranches, dedupeSiblings, replayTree } from '../chess/tree';
 import {
   folderRenameError,
   isWithinFolder,
@@ -30,6 +31,7 @@ import {
   migrate,
   normaliseFolderPath,
   parseLinesFilePayload,
+  serialiseLinesFile,
   toLine,
   validateLineShape,
   type Line,
@@ -150,7 +152,7 @@ function saveFile(lines: Line[]): boolean {
   };
   let json: string;
   try {
-    json = JSON.stringify(file);
+    json = serialiseLinesFile(file);
   } catch {
     warning = 'Lines could not be serialised for storage.';
     return false;
@@ -199,7 +201,7 @@ export function createLine(input: Omit<Line, 'id' | 'createdAt' | 'updatedAt'>):
     id: newId(),
     name: input.name,
     startFen: input.startFen,
-    moves: [...input.moves],
+    tree: cloneTree(input.tree),
     userColor: input.userColor,
     createdAt: now,
     updatedAt: now,
@@ -229,7 +231,7 @@ export function updateLine(
     ...current,
     name: patch.name ?? current.name,
     startFen: patch.startFen ?? current.startFen,
-    moves: patch.moves === undefined ? current.moves : [...patch.moves],
+    tree: patch.tree === undefined ? current.tree : cloneTree(patch.tree),
     userColor: patch.userColor ?? current.userColor,
     updatedAt: patch.updatedAt ?? Date.now(),
   };
@@ -394,14 +396,14 @@ export interface LineCandidate {
   reason?: string;
 }
 
-function validateCandidate(raw: unknown, index: number): LineCandidate {
+function validateCandidate(raw: unknown, index: number, schemaVersion: number): LineCandidate {
   const name = lineLabel(raw, index);
 
-  const shape = validateLineShape(raw);
+  const shape = validateLineShape(raw, schemaVersion);
   if (!shape.valid) {
     return { index, name, line: null, reason: shape.error ?? 'invalid line' };
   }
-  const line = toLine(raw);
+  const line = toLine(raw, schemaVersion);
   if (line === null) {
     return { index, name, line: null, reason: 'invalid line' };
   }
@@ -416,21 +418,25 @@ function validateCandidate(raw: unknown, index: number): LineCandidate {
     };
   }
 
-  const replay = replaySan(line.startFen, line.moves);
-  if (!replay.ok) {
-    const ply = replay.failedAtPly ?? 0;
-    const san = line.moves[ply] ?? '(missing)';
+  const replay = replayTree(line.startFen, line.tree);
+  if (replay.broken !== null) {
+    const { path, san } = replay.broken;
+    const ply = path.length - 1;
+    // "move 7 in branch 3": the first branch through the broken move, numbered from 1.
+    const where =
+      countBranches(line.tree) > 1
+        ? `move ${ply + 1} in branch ${branchIndexOf(line.tree, path) + 1}`
+        : `move ${ply + 1}`;
     return {
       index,
       name,
       line: null,
-      reason: `illegal move "${san}" at ply ${ply} (move ${Math.floor(ply / 2) + 1}, ${
-        ply % 2 === 0 ? 'first' : 'second'
-      } side to move)`,
+      reason: `illegal move "${san.length > 0 ? san : '(missing)'}" at ply ${ply} (${where})`,
     };
   }
 
-  return { index, name, line: { ...line, moves: replay.sans } };
+  // SANs as chess.js writes them; two spellings of one move become one continuation.
+  return { index, name, line: { ...line, tree: dedupeSiblings(replay.tree) } };
 }
 
 /**
@@ -438,8 +444,11 @@ function validateCandidate(raw: unknown, index: number): LineCandidate {
  * without writing anything. Shared by `importFile` and by the startup seeder (`seed.ts`),
  * which needs to know *which* lines were accepted, not just how many.
  */
-export function validateImportLines(rawLines: unknown[]): LineCandidate[] {
-  return rawLines.map((raw, index) => validateCandidate(raw, index));
+export function validateImportLines(
+  rawLines: unknown[],
+  schemaVersion: number = LINES_SCHEMA_VERSION,
+): LineCandidate[] {
+  return rawLines.map((raw, index) => validateCandidate(raw, index, schemaVersion));
 }
 
 /**
@@ -473,7 +482,7 @@ export function importFile(json: string): ImportResult {
     return { added: 0, skipped: 0, rejections: [], error: payload.error };
   }
 
-  const candidates = validateImportLines(payload.rawLines);
+  const candidates = validateImportLines(payload.rawLines, payload.schemaVersion);
   const accepted = candidates
     .map((c) => c.line)
     .filter((line): line is Line => line !== null);

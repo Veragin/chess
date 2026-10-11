@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { START_FEN } from '../../../chess/position';
 import { LINES_SCHEMA_VERSION, type Line } from '../../../storage/schema';
+import { treeFromMoves } from '../../../chess/tree';
+import { encodeTree } from '../../../storage/treeFormat';
 
 /**
  * `pool.ts` reads storage, and storage reads `localStorage` lazily, so the store is stubbed the
@@ -18,11 +20,11 @@ function seed(lines: Partial<Line>[]): void {
       id: `id-${i}`,
       name: `Line ${i}`,
       startFen: START_FEN,
-      moves: ['e4', 'e5'],
       userColor: 'w',
       createdAt: 1,
       updatedAt: lines.length - i, // keeps listLines' order the seeded order
       ...partial,
+      tree: encodeTree(partial.tree ?? treeFromMoves(['e4', 'e5'])),
     })),
   };
   store.set(STORAGE_KEY, JSON.stringify(payload));
@@ -85,9 +87,73 @@ describe('drillablePool', () => {
 
   it('still drops lines that cannot be replayed, inside a folder as well as outside', async () => {
     seed([
-      { folder: 'White', moves: ['e4', 'Qh9'] },
-      { folder: 'White', moves: ['d4'] },
+      { folder: 'White', tree: treeFromMoves(['e4', 'Qh9']) },
+      { folder: 'White', tree: treeFromMoves(['d4']) },
     ]);
     expect(await pool('White')).toEqual(['id-1']);
+  });
+});
+
+describe('drillableBranchPool / drillPoolEntry', () => {
+  const twoBranches = [
+    {
+      san: 'e4',
+      next: [
+        { san: 'e5', next: [] },
+        { san: 'c5', next: [] },
+      ],
+    },
+  ];
+
+  it('carries each line’s branch count', async () => {
+    seed([{ tree: twoBranches }, {}, { tree: [] }]);
+    const { drillableBranchPool } = await import('./pool');
+    expect(drillableBranchPool()).toEqual([
+      { id: 'id-0', branches: 2 },
+      { id: 'id-1', branches: 1 },
+      { id: 'id-2', branches: 1 },
+    ]);
+  });
+
+  it('describes a single line, even one that no longer exists', async () => {
+    seed([{ tree: twoBranches }]);
+    const { drillPoolEntry } = await import('./pool');
+    expect(drillPoolEntry('id-0')).toEqual({ id: 'id-0', branches: 2 });
+    expect(drillPoolEntry('gone')).toEqual({ id: 'gone', branches: 1 });
+  });
+});
+
+describe('loadDrillLine', () => {
+  const branched = [
+    {
+      san: 'e4',
+      next: [
+        { san: 'e5', next: [{ san: 'Nf3', comment: 'develop', next: [] }] },
+        { san: 'c5', next: [] },
+      ],
+    },
+  ];
+
+  it('loads the requested branch, comments included', async () => {
+    seed([{ tree: branched }]);
+    const { loadDrillLine } = await import('./pool');
+
+    const main = loadDrillLine('id-0');
+    expect(main.status).toBe('ready');
+    if (main.status === 'ready') {
+      expect(main.line.sans).toEqual(['e4', 'e5', 'Nf3']);
+      expect(main.line.comments).toEqual([undefined, undefined, 'develop']);
+    }
+    // The whole tree comes along, so the run can follow another repertoire move.
+    expect(main.status === 'ready' && main.tree).toEqual(branched);
+    const second = loadDrillLine('id-0', 1);
+    expect(second.status === 'ready' && second.line.sans).toEqual(['e4', 'c5']);
+  });
+
+  it('reports a branch that does not exist as missing', async () => {
+    seed([{ tree: branched }]);
+    const { loadDrillLine } = await import('./pool');
+    expect(loadDrillLine('id-0', 2)).toEqual({ status: 'missing' });
+    expect(loadDrillLine('nope')).toEqual({ status: 'missing' });
   });
 });

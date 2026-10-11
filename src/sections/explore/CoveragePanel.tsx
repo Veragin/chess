@@ -5,6 +5,10 @@
  * user picked. Every continuation is a button, so checking coverage is a walk down the tree
  * rather than a hunt through the lines list; each line name links to its editor, because the
  * usual next step after finding a gap is to go and fix the line that has it.
+ *
+ * Comments travel with the lines: under each continuation, what each line says about it (the
+ * first comment on each branch from that move on), and above them the comment on the move that
+ * brought the board here, when a reaching line played that same move.
  */
 
 import styled from 'styled-components';
@@ -12,7 +16,7 @@ import { Link } from 'react-router';
 import { Panel } from '../../components/ui';
 import { editLinePath } from '../training/lines/folderNav';
 import { lineCountLabel } from '../training/lines/lineFormat';
-import type { Coverage, LineReach } from './coverage';
+import type { Coverage, CoverageComment, LineReach } from './coverage';
 import type { Line } from '../../storage/schema';
 
 export interface CoveragePanelProps {
@@ -25,15 +29,23 @@ export interface CoveragePanelProps {
   onPlay: (san: string) => void;
   /** Lines in scope that could not be replayed in full, so partial coverage is never silent. */
   brokenCount: number;
+  /** Comments on the board's last move, from the lines that played it (see `arrivalComments`). */
+  arrival?: readonly { line: Line; text: string }[];
 }
 
 function lineTitle(line: Line): string {
   return line.name.trim().length === 0 ? 'Untitled line' : line.name;
 }
 
-/** "after 6 of 14 moves" — where in its own move list this line sits right now. */
+/** "after 6 moves, Qxd8 cannot be played" — where in its own tree this line sits right now. */
 function reachLabel(reach: LineReach): string {
-  return `${lineTitle(reach.line)} — after ${reach.ply} of ${reach.total} moves`;
+  const moves = `after ${reach.ply} ${reach.ply === 1 ? 'move' : 'moves'}`;
+  const failed = reach.brokenSan === undefined ? '' : `, ${reach.brokenSan} cannot be played`;
+  return `${lineTitle(reach.line)} — ${moves}${failed}`;
+}
+
+function commentKey(comment: CoverageComment): string {
+  return `${comment.line.id}:${comment.path.join('.')}`;
 }
 
 export function CoveragePanel({
@@ -42,6 +54,7 @@ export function CoveragePanel({
   folder,
   onPlay,
   brokenCount,
+  arrival = [],
 }: CoveragePanelProps) {
   const reaching = coverage.lines.length;
   const summary =
@@ -56,6 +69,20 @@ export function CoveragePanel({
     <Panel title="Repertoire from here" padded={false}>
       <Body>
         <Summary data-testid="coverage-summary">{summary}</Summary>
+
+        {arrival.length > 0 && (
+          <Comments data-testid="coverage-arrival" aria-label="Comments on the last move">
+            {arrival.map((comment) => (
+              <Comment
+                key={`${comment.line.id}:${comment.text}`}
+                data-testid="coverage-arrival-comment"
+              >
+                <CommentSource>{lineTitle(comment.line)}:</CommentSource>{' '}
+                <CommentText>{comment.text}</CommentText>
+              </Comment>
+            ))}
+          </Comments>
+        )}
 
         {coverage.moves.length > 0 && (
           <Moves data-testid="coverage-moves">
@@ -83,6 +110,18 @@ export function CoveragePanel({
                       </NameLink>
                     ))}
                   </Names>
+                  {move.comments.length > 0 && (
+                    <Comments data-testid="coverage-comments">
+                      {move.comments.map((comment) => (
+                        <Comment key={commentKey(comment)} data-testid="coverage-comment">
+                          <CommentSource>
+                            {lineTitle(comment.line)} – <Sans>{comment.moves.join(' ')}</Sans>:
+                          </CommentSource>{' '}
+                          <CommentText>{comment.text}</CommentText>
+                        </Comment>
+                      ))}
+                    </Comments>
+                  )}
                 </MoveBody>
               </MoveRow>
             ))}
@@ -242,6 +281,35 @@ const NameLink = styled(Link)`
     outline: 2px solid ${(p) => p.theme.color.focus};
     outline-offset: 2px;
   }
+`;
+
+const Comments = styled.ul`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+`;
+
+const Comment = styled.li`
+  color: ${(p) => p.theme.color.textMuted};
+  font-size: ${(p) => p.theme.font.size.sm};
+  overflow-wrap: anywhere;
+`;
+
+const CommentSource = styled.span`
+  color: ${(p) => p.theme.color.textFaint};
+`;
+
+const Sans = styled.span`
+  font-family: ${(p) => p.theme.font.mono};
+`;
+
+const CommentText = styled.em`
+  color: ${(p) => p.theme.color.text};
+  white-space: pre-wrap;
 `;
 
 const Group = styled.div`

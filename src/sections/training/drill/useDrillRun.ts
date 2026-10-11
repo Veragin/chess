@@ -39,6 +39,7 @@ import {
   drillPhase,
   drillPly,
   drillRejected,
+  drillRevealedComment,
   drillRevealedSan,
   drillRevealedSquares,
   drillSummary,
@@ -77,6 +78,8 @@ export interface DrillView {
   lastMove: PlySquares | null;
   /** Non-null only after the user asks for a hint; cleared when the position changes. */
   hint: DrillMoveMark | null;
+  /** The line's comment on the hinted move; non-null only alongside `hint`, if it has one. */
+  hintComment: string | null;
   /** The refused move, for the error flash. Carries no hint of what was expected. */
   wrong: DrillMoveMark | null;
   /** 1-based index of the user's current move. No total — that would narrow down the line. */
@@ -85,6 +88,12 @@ export interface DrillView {
   ply: number;
   /** Only rendered once `phase === 'complete'`. */
   summary: DrillSummary;
+  /**
+   * Branch being played (index into the line's branches). Changes mid-run when the user plays
+   * another repertoire move (D6) — the screen reports that to the cycle; it never renders it
+   * before the line is over (the summary carries it for that).
+   */
+  branch: number;
   canHint: boolean;
 }
 
@@ -123,10 +132,13 @@ function handleFor(entry: RunEntry): RunHandle {
   return handle;
 }
 
-function openRun(lineId: string): RunHandle {
-  const loaded = loadDrillLine(lineId);
+function openRun(lineId: string, branch: number, served: readonly number[]): RunHandle {
+  const loaded = loadDrillLine(lineId, branch);
   return loaded.status === 'ready'
-    ? handleFor({ state: createDrill(loaded.line), failure: null })
+    ? handleFor({
+        state: createDrill(loaded.line, { tree: loaded.tree, branch, served }),
+        failure: null,
+      })
     : handleFor({ state: null, failure: loaded.status });
 }
 
@@ -156,10 +168,12 @@ function viewOf(state: DrillState): DrillView {
       revealedSan === null || revealedSquares === null
         ? null
         : { san: revealedSan, from: revealedSquares.from, to: revealedSquares.to },
+    hintComment: revealedSan === null ? null : drillRevealedComment(state),
     wrong: rejected,
     moveNumber: drillUserMoveNumber(state),
     ply: drillPly(state),
     summary: drillSummary(state),
+    branch: state.branch,
     canHint: phase === 'awaiting-user' && revealedSan === null,
   };
 }
@@ -176,12 +190,18 @@ function runOf(handle: RunHandle): DrillRun {
  * ------------------------------------------------------------------------------------- */
 
 /**
- * Opens `lineId` and drives it to the end of the line. Mount one per run (the caller keys on
- * the line id plus a run counter, so serving the same line twice really restarts it) — there is
- * no "new line arrived" effect to get wrong.
+ * Opens branch `branch` of `lineId` and drives it to the end of the line. `served` lists the
+ * line's branches already served this cycle, so a switch onto another repertoire move prefers a
+ * fresh branch. All three are read once, on mount: mount one per run (the caller keys on the
+ * line id plus a run counter, so serving the same line twice really restarts it) — there is no
+ * "new line arrived" effect to get wrong.
  */
-export function useDrillRun(lineId: string): DrillRunController {
-  const [handle, setHandle] = useState<RunHandle>(() => openRun(lineId));
+export function useDrillRun(
+  lineId: string,
+  branch = 0,
+  served: readonly number[] = [],
+): DrillRunController {
+  const [handle, setHandle] = useState<RunHandle>(() => openRun(lineId, branch, served));
 
   const run = useMemo(() => runOf(handle), [handle]);
   const phase = run.status === 'ready' ? run.view.phase : null;

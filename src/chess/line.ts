@@ -30,10 +30,11 @@
 import { createGame, type Color, type MoveInput } from './game';
 import { plyColor } from './history';
 import type { Orientation, Square } from './position';
+import { branchComments, branchesOf, branchMoves, type MoveTree } from './tree';
 
 /**
- * The parts of a stored `Line` this module needs. `storage/schema.ts`'s `Line` is structurally
- * assignable to it, so callers pass their `Line` straight in; tests can use a literal.
+ * One linear line — for a stored (tree-shaped) `Line`, one of its branches, which `branchSpec`
+ * cuts out. Tests can use a literal.
  */
 export interface LineSpec {
   startFen: string;
@@ -41,6 +42,30 @@ export interface LineSpec {
   moves: string[];
   /** Side the user trains as. */
   userColor: Color;
+  /** Per-move comments, parallel to `moves`. Absent ⇒ no move has one. */
+  comments?: (string | undefined)[];
+}
+
+/** A branch of a stored line, as a linear `LineSpec` that always carries its comments. */
+export type BranchSpec = LineSpec & { comments: (string | undefined)[] };
+
+/**
+ * Branch `branchIndex` (an index into `branchesOf(line.tree)`, 0 = main line) of a stored line,
+ * as a linear spec. `null` when the line has no such branch. An empty tree has one empty branch,
+ * so branch 0 always exists.
+ */
+export function branchSpec(
+  line: { startFen: string; tree: MoveTree; userColor: Color },
+  branchIndex: number,
+): BranchSpec | null {
+  const path = branchesOf(line.tree)[branchIndex];
+  if (path === undefined) return null;
+  return {
+    startFen: line.startFen,
+    moves: branchMoves(line.tree, path),
+    userColor: line.userColor,
+    comments: branchComments(line.tree, path),
+  };
 }
 
 /** From/to squares of one ply, for the Board's `lastMove`/`highlights` props. */
@@ -64,6 +89,8 @@ export interface ResolvedLine {
   fens: string[];
   /** `squares[i]` is the from/to of ply `i`; parallel to `sans`. */
   squares: PlySquares[];
+  /** `comments[i]` is the comment on ply `i` (`undefined` when it has none); parallel to `sans`. */
+  comments: (string | undefined)[];
 }
 
 /** A stored line we refuse to run, with enough detail to tell the user where it breaks. */
@@ -173,7 +200,14 @@ export function resolveLine(spec: LineSpec): LineModel {
     sans: replayed.sans,
     fens: replayed.fens,
     squares: replayed.squares,
+    comments: replayed.sans.map((_, i) => commentOf(spec, i)),
   };
+}
+
+/** The spec's comment on ply `i`, or `undefined` (also for a malformed `comments` array). */
+function commentOf(spec: LineSpec, i: number): string | undefined {
+  const comment: unknown = Array.isArray(spec.comments) ? spec.comments[i] : undefined;
+  return typeof comment === 'string' && comment.length > 0 ? comment : undefined;
 }
 
 /* ------------------------------------------------------------------------------------- *
@@ -403,6 +437,12 @@ export function sessionLastMove(s: LineSession): PlySquares | null {
 /** The line's move at the current ply, or `null` at the end of the line. */
 export function sessionExpectedSan(s: LineSession): string | null {
   return s.line.sans[s.ply] ?? null;
+}
+
+/** Comment on the line's move at the current ply, or `null` when it has none (or the line ended). */
+export function sessionExpectedComment(s: LineSession): string | null {
+  if (isSessionComplete(s)) return null;
+  return s.line.comments[s.ply] ?? null;
 }
 
 /** Squares of the move at the current ply, or `null` at the end of the line. */

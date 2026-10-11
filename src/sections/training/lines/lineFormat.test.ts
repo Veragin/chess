@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { START_FEN } from '../../../chess/position';
+import { mergeTrees, treeFromMoves } from '../../../chess/tree';
 import type { Line } from '../../../storage/schema';
 import {
+  branchCountLabel,
   colorLabel,
   describeLine,
   exportFileName,
@@ -10,6 +12,7 @@ import {
   formatTimestamp,
   isStandardStart,
   lineCountLabel,
+  lineSizeLabel,
   moveCountLabel,
   normaliseQuery,
   startPositionLabel,
@@ -21,7 +24,7 @@ function line(partial: Partial<Line>): Line {
     id: 'x',
     name: 'Line',
     startFen: START_FEN,
-    moves: ['e4'],
+    tree: treeFromMoves(['e4']),
     userColor: 'w',
     createdAt: 1,
     updatedAt: 1,
@@ -105,9 +108,17 @@ describe('labels', () => {
   });
 
   it('summarises a line for a screen reader', () => {
-    expect(describeLine(line({ name: 'Najdorf', moves: ['e4', 'c5'], userColor: 'b' }))).toBe(
-      'Najdorf, 2 moves, trained as Black',
-    );
+    expect(
+      describeLine(line({ name: 'Najdorf', tree: treeFromMoves(['e4', 'c5']), userColor: 'b' })),
+    ).toBe('Najdorf, 2 moves, 1 branch, trained as Black');
+  });
+
+  it('labels the size of a move tree', () => {
+    const branched = mergeTrees(treeFromMoves(['e4', 'e5', 'Nf3']), treeFromMoves(['e4', 'c5']));
+    expect(lineSizeLabel(branched)).toBe('4 moves · 2 branches');
+    expect(lineSizeLabel(treeFromMoves(['d4']))).toBe('1 move · 1 branch');
+    expect(lineSizeLabel([])).toBe('no moves');
+    expect(branchCountLabel(0)).toBe('0 branches');
   });
 
   it('falls back to "Untitled line" for a blank name', () => {

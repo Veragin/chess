@@ -30,6 +30,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import styled from 'styled-components';
+import { branchSpec } from '../../chess/line';
 import { Button, Panel } from '../../components/ui';
 import { loadPosition } from '../../state/analysis';
 import { loadExploration } from '../../state/explore';
@@ -78,7 +79,7 @@ import {
     formatTimestamp,
     isStandardStart,
     lineCountLabel,
-    moveCountLabel,
+    lineSizeLabel,
     normaliseQuery,
     startPositionLabel,
     subfolderCountLabel,
@@ -138,7 +139,8 @@ export function LinesList() {
         (line: Line) => {
             // `state/analysis.ts` is the hand-off point: load first, then navigate, so the section
             // has the line already in place on its first paint.
-            loadPosition(line.startFen, line.moves);
+            // The main line (branch 0); its variations are the line editor's business.
+            loadPosition(line.startFen, branchSpec(line, 0)?.moves ?? []);
             navigate('/analyze');
         },
         [navigate],
@@ -148,7 +150,7 @@ export function LinesList() {
         (line: Line) => {
             // Same hand-off as "Open in analyze", into explore's own store: the board opens at the end
             // of the line, and its move list is how the user walks back to where it branches.
-            loadExploration(line.startFen, line.moves);
+            loadExploration(line.startFen, branchSpec(line, 0)?.moves ?? []);
             navigate(explorePath(lineFolder(line)));
         },
         [navigate],
@@ -532,7 +534,7 @@ export function LinesList() {
                             ? 'Untitled line'
                             : pendingDelete.name}
                     </strong>{' '}
-                    ({moveCountLabel(pendingDelete.moves.length)}) will be removed. This cannot be
+                    ({lineSizeLabel(pendingDelete.tree)}) will be removed. This cannot be
                     undone — export first if you want a copy.
                 </ConfirmDialog>
             )}
@@ -642,7 +644,7 @@ export function LinesList() {
                 </RowHead>
 
                 <Meta>
-                    <span data-testid="line-moves">{moveCountLabel(line.moves.length)}</span>
+                    <span data-testid="line-moves">{lineSizeLabel(line.tree)}</span>
                     <MetaSep>·</MetaSep>
                     <span data-testid="line-updated">
                         updated {formatTimestamp(line.updatedAt)}

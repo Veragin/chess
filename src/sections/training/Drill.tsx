@@ -1,18 +1,20 @@
 /**
- * `#/training/drill` — Phase 7. Owns the *cycle*: which line to serve next.
+ * `#/training/drill` — Phase 7. Owns the *cycle*: which branch of which line to serve next.
  *
- * One drill is one pass over its pool: a line is picked uniformly at random from those not yet
- * served and **never comes up twice in the same drill**. When the pool runs out the drill is
- * over — the screen says so and offers to start again, rather than silently reshuffling into
- * another lap. The algorithm itself is `chess/drill.ts`'s `pickNextLineId`; this component just
- * holds the cycle and the currently served id. Deliberately **not** spaced repetition (README §1
- * non-goals) and nothing about a run is persisted.
+ * One drill is one pass over every **branch** of every line in its pool: a line is picked at
+ * random, then its unserved branches are served one after another (in random order), and only
+ * then does the drill move on to another random line. No branch comes up twice in the same
+ * drill. When the pool runs out the drill is over — the screen says so and offers to start
+ * again, rather than silently reshuffling into another lap. The algorithm itself is
+ * `chess/drill.ts`'s `pickNextBranch`; this component just holds the cycle and the currently
+ * served branch. Deliberately **not** spaced repetition (README §1 non-goals) and nothing about
+ * a run is persisted.
  *
  * Two pools, one screen:
  *
  *  - `?folder=` scopes it to a folder and its subfolders (the whole repertoire when absent);
  *  - `?line=` drills exactly that one line — the list's per-row Drill button. A pool of one, so
- *    it is over after that line, which is precisely what the button promises.
+ *    it is over once every branch of that line has come up, which is what the button promises.
  *
  * The pool is ids only (see `drill/pool.ts`) so no line name or move ever reaches this
  * component's state, and the run itself lives outside React (see `drill/useDrillRun.ts`).
@@ -21,21 +23,34 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import styled from 'styled-components';
-import { emptyCycle, pickNextLineId, remainingInCycle, type DrillCycle } from '../../chess/drill';
+import {
+  emptyCycle,
+  markServed,
+  parseDrillItemKey,
+  pickNextBranch,
+  remainingBranches,
+  servedBranchesOf,
+  type DrillCycle,
+  type DrillItem,
+  type DrillPoolEntry,
+} from '../../chess/drill';
 import { Button } from '../../components/ui';
 import { folderLabel } from '../../storage/folders';
 import { storageWarning } from '../../storage/lines';
 import { normaliseFolderPath } from '../../storage/schema';
 import { DrillRun } from './drill/DrillRun';
-import { drillablePool } from './drill/pool';
+import { drillableBranchPool, drillPoolEntry } from './drill/pool';
 import { linesPath } from './lines/folderNav';
 import { lineCountLabel } from './lines/lineFormat';
 
 interface Served {
   /** The pool this cycle was drawn from; a change of scope starts the cycle over. */
   scope: string;
-  /** Id of the line being drilled, or `null` once the pool has run out. */
-  id: string | null;
+  /**
+   * Branch being drilled, or `null` once the pool has run out. `branch` follows a mid-run switch
+   * onto another repertoire move (D6), so a restart replays what was actually played.
+   */
+  item: DrillItem | null;
   cycle: DrillCycle;
   /**
    * Increments on every draw. Part of the child's `key`, so drilling the same line again after
@@ -49,9 +64,13 @@ function scopeKey(folder: string, lineId: string): string {
   return `${lineId}@${folder}`;
 }
 
-function firstServe(pool: string[], scope: string, run = 0): Served {
-  const pick = pickNextLineId(pool, emptyCycle());
-  return { scope, id: pick.id, cycle: pick.cycle, run };
+function firstServe(pool: DrillPoolEntry[], scope: string, run = 0): Served {
+  const pick = pickNextBranch(pool, emptyCycle());
+  return { scope, item: pick.item, cycle: pick.cycle, run };
+}
+
+function branchCountLabel(count: number): string {
+  return count === 1 ? '1 branch' : `${count} branches`;
 }
 
 export function Drill() {
@@ -68,7 +87,10 @@ export function Drill() {
   // storage mid-cycle would let a rename or edit change the pool under the current cycle.
   // A `?line=` pool is not filtered here — if that one line is gone or broken, the runner says
   // so, which is more use than an empty-pool screen that cannot explain itself.
-  const pool = useMemo(() => (single ? [lineId] : drillablePool(folder)), [folder, lineId, single]);
+  const pool = useMemo(
+    () => (single ? [drillPoolEntry(lineId)] : drillableBranchPool(folder)),
+    [folder, lineId, single],
+  );
 
   const [served, setServed] = useState<Served>(() => firstServe(pool, scope));
 
@@ -80,10 +102,23 @@ export function Drill() {
 
   const next = useCallback(() => {
     setServed((previous) => {
-      const pick = pickNextLineId(pool, previous.cycle);
-      return { scope, id: pick.id, cycle: pick.cycle, run: previous.run + 1 };
+      const pick = pickNextBranch(pool, previous.cycle, previous.item?.lineId);
+      return { scope, item: pick.item, cycle: pick.cycle, run: previous.run + 1 };
     });
   }, [pool, scope]);
+
+  /**
+   * The run switched onto another branch (the user played another repertoire move). That branch
+   * is spent too; the one originally served stays spent, so a user who always prefers the same
+   * move cannot keep the drill open forever.
+   */
+  const branched = useCallback((branch: number) => {
+    setServed((previous) => {
+      if (previous.item === null || previous.item.branch === branch) return previous;
+      const item = { lineId: previous.item.lineId, branch };
+      return { ...previous, item, cycle: markServed(previous.cycle, item) };
+    });
+  }, []);
 
   // A restart is a brand-new cycle, not a reshuffle of the old one: every line is in play again.
   const restart = useCallback(() => {
@@ -91,15 +126,15 @@ export function Drill() {
   }, [pool, scope]);
 
   /**
-   * Play the served line again from the start ("Restart line" in the summary). Only `run` moves:
-   * the cycle is untouched, so the line stays spent and the drill still advances to a *new* line
-   * when the user presses Next — a replay is practice, not another draw.
+   * Play the served branch again from the start ("Restart" in the summary). Only `run` moves:
+   * the cycle is untouched, so the branch stays spent and the drill still advances to a *new*
+   * branch when the user presses Next — a replay is practice, not another draw.
    */
   const replay = useCallback(() => {
     setServed((previous) => ({ ...previous, run: previous.run + 1 }));
   }, []);
 
-  if (served.id === null) {
+  if (served.item === null) {
     // Nothing was ever served: the pool itself is empty.
     if (served.cycle.served.length === 0) {
       const warning = storageWarning();
@@ -132,16 +167,23 @@ export function Drill() {
       );
     }
 
-    // The pool ran out: every line in scope has been drilled once.
-    const done = served.cycle.served.length;
+    // The pool ran out: every branch in scope has been drilled once.
+    const doneBranches = served.cycle.served.length;
+    const doneLines = new Set(
+      served.cycle.served.map((key) => parseDrillItemKey(key)?.lineId ?? key),
+    ).size;
     return (
       <Empty data-testid="drill-done">
         <Title>Drill complete</Title>
         {single ? (
-          <p>That line is done. Every line comes up once per drill, so this one is over.</p>
+          <p>
+            That line is done{doneBranches > 1 ? ` — all ${branchCountLabel(doneBranches)}` : ''}.
+            Every branch comes up once per drill, so this one is over.
+          </p>
         ) : (
           <p>
-            {lineCountLabel(done)} drilled
+            {lineCountLabel(doneLines)}
+            {doneBranches > doneLines ? ` (${branchCountLabel(doneBranches)})` : ''} drilled
             {folder.length > 0 ? (
               <>
                 {' '}
@@ -150,7 +192,7 @@ export function Drill() {
             ) : (
               ''
             )}{' '}
-            — every line in scope came up once. Start again for a new random order.
+            — every branch of every line in scope came up once. Start again for a new random order.
           </p>
         )}
         <Controls>
@@ -165,14 +207,23 @@ export function Drill() {
     );
   }
 
-  // Whether `next` has anything left to serve, so the runner can label its button honestly.
-  const last = remainingInCycle(pool, served.cycle).length === 0;
+  // What `next` will serve, so the runner can label its button honestly: nothing (last), another
+  // branch of this line, or a new line.
+  const remaining = remainingBranches(pool, served.cycle);
+  const last = remaining.length === 0;
+  const { lineId: servedLine, branch } = served.item;
+  const moreInLine = remaining.some((item) => item.lineId === servedLine);
 
-  // Keyed so each served line mounts a fresh run rather than mutating the previous one.
+  // Keyed so each draw mounts a fresh run rather than mutating the previous one. The branch is
+  // deliberately not in the key: a mid-run switch (`branched`) must not remount the run.
   return (
     <DrillRun
-      key={`${scope}:${served.id}:${served.run}`}
-      lineId={served.id}
+      key={`${scope}:${servedLine}:${served.run}`}
+      lineId={servedLine}
+      branch={branch}
+      servedBranches={servedBranchesOf(served.cycle, servedLine)}
+      onBranch={branched}
+      moreInLine={moreInLine}
       folder={folder}
       exitTo={exitTo}
       last={last}

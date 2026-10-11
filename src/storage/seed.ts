@@ -22,6 +22,7 @@
  * unplayable move.
  */
 
+import { treeKey } from '../chess/tree';
 import { addLines, listLines, validateImportLines, type ImportRejection } from './lines';
 import { parseLinesFilePayload, type Line } from './schema';
 
@@ -116,8 +117,9 @@ function seedKey(file: string, raw: unknown, index: number): string {
 
 /**
  * A safety net independent of the seed record: two lines with the same name, folder, colour,
- * start position and moves are the same line. It keeps a lost or cleared record from adding
- * a second copy of everything.
+ * start position and moves are the same line — moves compared by `treeKey`, so sibling order
+ * and comments do not matter. It keeps a lost or cleared record from adding a second copy of
+ * everything.
  */
 function lineSignature(line: Line): string {
   return [
@@ -125,7 +127,7 @@ function lineSignature(line: Line): string {
     line.name.trim(),
     line.userColor,
     line.startFen,
-    line.moves.join(' '),
+    treeKey(line.tree),
   ].join('|');
 }
 
@@ -160,7 +162,7 @@ function bundledSignatures(files: SeedFile[]): Set<string> {
   for (const file of files) {
     const payload = parseLinesFilePayload(file.payload);
     if (!payload.ok) continue;
-    for (const candidate of validateImportLines(payload.rawLines)) {
+    for (const candidate of validateImportLines(payload.rawLines, payload.schemaVersion)) {
       if (candidate.line !== null) signatures.add(lineSignature(candidate.line));
     }
   }
@@ -213,7 +215,7 @@ export function seedFromFiles(files: SeedFile[]): SeedReport {
     const rejections: ImportRejection[] = [];
     let added = 0;
 
-    for (const candidate of validateImportLines(payload.rawLines)) {
+    for (const candidate of validateImportLines(payload.rawLines, payload.schemaVersion)) {
       const raw = payload.rawLines[candidate.index];
       const key = seedKey(file.name, raw, candidate.index);
       if (known.has(key)) continue; // handed over on an earlier visit

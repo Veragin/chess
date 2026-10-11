@@ -18,9 +18,14 @@
  * The run itself is held outside React by `useDrillRun`; this component only ever sees a
  * `DrillView`.
  *
+ * A run is one **branch** of a line. If the user plays another of the line's moves for their
+ * side, the run follows that branch instead (`chess/drill.ts`, D6) and tells the drill via
+ * `onBranch`, so the cycle counts the branch actually played. A hint shows the line's comment
+ * on the revealed move, under it — the comment describes the answer, so it waits for the hint.
+ *
  * Once the line is complete the summary is where the run can be left in more than one direction:
- * on to the next line, the same line again from the start, or into Analyze with the whole line on
- * the board. All three are only offered *after* the last move — before it, none of them could be
+ * on to the next branch or line, the same branch again from the start, or into Analyze with the
+ * whole branch on the board. All three are only offered *after* the last move — before it, none of them could be
  * shown without handing over the answer.
  */
 
@@ -31,7 +36,7 @@ import type { Color } from '../../../chess/game';
 import type { Square } from '../../../chess/position';
 import { Board } from '../../../components/Board';
 import { Button } from '../../../components/ui';
-import { drillSummaryLabel } from '../../../chess/drill';
+import { drillBranchLabel, drillSummaryLabel } from '../../../chess/drill';
 import { folderName } from '../../../storage/folders';
 import { loadLineIntoAnalysis } from './analyzeHandoff';
 import { useDrillRun } from './useDrillRun';
@@ -39,6 +44,20 @@ import { useDrillRun } from './useDrillRun';
 export interface DrillRunProps {
   /** Which line to serve. Opaque to the screen — never rendered. */
   lineId: string;
+  /** Which branch of it (index into the line's branches; 0 = main line). Read on mount. */
+  branch?: number;
+  /** Branches of this line already served in the drill, so a D6 switch prefers a fresh one. */
+  servedBranches?: readonly number[];
+  /**
+   * Called with the branch actually being played whenever it differs from `branch` — after the
+   * user picked another repertoire move. The drill marks it served.
+   */
+  onBranch?: (branch: number) => void;
+  /**
+   * True when `onNext` serves another branch of this same line (not a new line), which only
+   * changes the button's wording.
+   */
+  moreInLine?: boolean;
   /**
    * Folder the pool was scoped to, or `''` for the whole repertoire. Safe to render, unlike
    * anything else about the line: it is the scope the user just chose, so it tells them nothing
@@ -53,7 +72,7 @@ export interface DrillRunProps {
    * left is deliberately not passed; that would narrow down how big the pool is mid-run.
    */
   last?: boolean;
-  /** Serve the next line from the cycle, or end the drill when this was the last one. */
+  /** Serve the next branch from the cycle, or end the drill when this was the last one. */
   onNext: () => void;
   /**
    * Play this same line again from the start. Offered only in the end-of-line summary: the answer
@@ -72,6 +91,10 @@ const HINT_ARM_MS = 4000;
 
 export function DrillRun({
   lineId,
+  branch = 0,
+  servedBranches,
+  onBranch,
+  moreInLine = false,
   folder = '',
   exitTo = '/training',
   last = false,
@@ -79,7 +102,9 @@ export function DrillRun({
   onReplay,
 }: DrillRunProps) {
   const navigate = useNavigate();
-  const { run, attempt, hint } = useDrillRun(lineId);
+  const { run, attempt, hint } = useDrillRun(lineId, branch, servedBranches);
+  const playedBranch = run.status === 'ready' ? run.view.branch : branch;
+  const nextLabel = last ? 'Finish drill' : moreInLine ? 'Next branch' : 'Next line';
   /** Set only if the line has been deleted since the run started (see `loadLineIntoAnalysis`). */
   const [gone, setGone] = useState(false);
 
@@ -100,9 +125,15 @@ export function DrillRun({
    * into the analysis store — this screen never holds it (see `./analyzeHandoff`).
    */
   const openInAnalyze = () => {
-    if (loadLineIntoAnalysis(lineId)) navigate('/analyze');
+    if (loadLineIntoAnalysis(lineId, playedBranch)) navigate('/analyze');
     else setGone(true);
   };
+
+  // Report a D6 branch switch to the cycle. The parent then passes the new branch back down as
+  // `branch`, which settles this.
+  useEffect(() => {
+    if (playedBranch !== branch) onBranch?.(playedBranch);
+  }, [playedBranch, branch, onBranch]);
 
   useEffect(() => {
     if (!armed) return;
@@ -123,7 +154,7 @@ export function DrillRun({
         </Notice>
         <Controls>
           <Button variant="primary" data-testid="drill-next" onClick={onNext}>
-            {last ? 'Finish drill' : 'Next line'}
+            {nextLabel}
           </Button>
         </Controls>
       </Wrap>
@@ -134,6 +165,7 @@ export function DrillRun({
   const you = colorName(view.userColor);
   const opponent = colorName(view.userColor === 'w' ? 'b' : 'w');
   const complete = view.phase === 'complete';
+  const branchLabel = drillBranchLabel(view.summary);
 
   // The refused move wins where the two overlap: it is the more urgent feedback.
   const highlights: Partial<Record<Square, 'error' | 'hint' | 'success'>> = {};
@@ -200,12 +232,18 @@ export function DrillRun({
       {view.hint !== null && view.wrong === null && (
         <Notice $tone="hint" role="status" data-testid="drill-hint">
           The line plays <strong>{view.hint.san}</strong>. This counts as a miss.
+          {view.hintComment !== null && (
+            <HintComment data-testid="drill-hint-comment">{view.hintComment}</HintComment>
+          )}
         </Notice>
       )}
 
       {complete ? (
         <Summary data-testid="drill-summary" role="status">
           <SummaryHead>{view.summary.perfect ? 'Clean run' : 'Line complete'}</SummaryHead>
+          {branchLabel !== null && (
+            <SummaryMuted data-testid="drill-summary-branch">{branchLabel}</SummaryMuted>
+          )}
           <SummaryLine data-testid="drill-summary-score">
             {drillSummaryLabel(view.summary)}
           </SummaryLine>
@@ -222,13 +260,13 @@ export function DrillRun({
           )}
           <Controls>
             <Button size="lg" variant="primary" data-testid="drill-next" onClick={onNext}>
-              {last ? 'Finish drill' : 'Next line'}
+              {nextLabel}
             </Button>
             {/* The line has just been played out in full, so replaying it reveals nothing the
                 user has not already seen — and it is the natural thing to want after a miss. */}
             {onReplay !== undefined && (
               <Button size="lg" data-testid="drill-replay" onClick={onReplay}>
-                Restart line
+                {view.summary.branchCount > 1 ? 'Restart branch' : 'Restart line'}
               </Button>
             )}
             <Button size="lg" data-testid="drill-analyze" onClick={openInAnalyze}>
@@ -361,6 +399,14 @@ const BoardCell = styled.div`
   flex: 1 1 auto;
   min-width: 0;
   max-width: min(520px, calc(100dvh - 360px));
+`;
+
+/** The line's comment on the hinted move, on its own line under the move. */
+const HintComment = styled.span`
+  display: block;
+  margin-top: ${(p) => p.theme.space.xs};
+  color: ${(p) => p.theme.color.textMuted};
+  white-space: pre-wrap;
 `;
 
 const Notice = styled.p<{ $tone: 'error' | 'hint' }>`

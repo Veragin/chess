@@ -7,6 +7,7 @@
 
 import type { Color } from '../../../chess/game';
 import { START_FEN } from '../../../chess/position';
+import { countBranches, countMoves, type MoveTree } from '../../../chess/tree';
 import type { Line } from '../../../storage/schema';
 
 /** Lowercased, whitespace-collapsed search text. Empty string ⇒ "no filter". */
@@ -46,6 +47,20 @@ export function startPositionLabel(fen: string): string {
 export function moveCountLabel(count: number): string {
   if (count <= 0) return 'no moves';
   return count === 1 ? '1 move' : `${count} moves`;
+}
+
+export function branchCountLabel(count: number): string {
+  return count === 1 ? '1 branch' : `${Math.max(count, 0)} branches`;
+}
+
+/**
+ * Size of a line's move tree: `12 moves · 3 branches`. A line with no moves is just `no moves` —
+ * its one empty branch is not worth a word. `separator` lets an accessible label use a comma.
+ */
+export function lineSizeLabel(tree: MoveTree, separator = ' · '): string {
+  const moves = countMoves(tree);
+  if (moves === 0) return moveCountLabel(0);
+  return `${moveCountLabel(moves)}${separator}${branchCountLabel(countBranches(tree))}`;
 }
 
 export function lineCountLabel(count: number): string {
@@ -108,6 +123,6 @@ export function exportFileName(ms: number, folder = ''): string {
 export function describeLine(line: Line): string {
   return (
     `${line.name.trim().length === 0 ? 'Untitled line' : line.name}, ` +
-    `${moveCountLabel(line.moves.length)}, trained as ${colorLabel(line.userColor)}`
+    `${lineSizeLabel(line.tree, ', ')}, trained as ${colorLabel(line.userColor)}`
   );
 }

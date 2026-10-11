@@ -2,22 +2,37 @@
  * The line-editor's draft model and its validation (README §7 Phase 5).
  *
  * Everything here is pure and DOM-free so `LineEditor.tsx` stays wiring only (README §9).
- * The move list is a `HistoryState` from `chess/history.ts` rather than a bare `string[]`,
- * which is what gives the editor undo/redo, mid-history truncation and cursor navigation for
- * free — none of that is reimplemented here.
+ * The moves are a `TreeHistoryState` from `chess/treeHistory.ts` — a move tree with a cursor —
+ * so the editor gets branching, cursor navigation and per-move comments without reimplementing
+ * any of it here.
  *
- * Undo/redo semantics, stated once so the component does not have to decide:
- *   - "undo"  = move the cursor back one ply (`stepBack`), the move is NOT deleted;
- *   - "redo"  = move the cursor forward one ply (`stepForward`);
- *   - playing a *different* move while the cursor is behind the end truncates the future
- *     (`applyMove`'s documented behaviour);
- *   - **the saved line is the moves up to the cursor.** Anything after it has been undone, so
- *     it is not part of the line. `pendingRedoCount` lets the UI say so out loud.
+ * Editing semantics, stated once so the component does not have to decide:
+ *   - playing a move at the cursor follows an existing continuation, or adds a new branch from
+ *     there — nothing is ever truncated;
+ *   - "Back" moves the cursor to the parent move, it does NOT delete anything;
+ *   - **the saved line is the whole tree**, wherever the cursor happens to be. Removing moves is
+ *     an explicit action ("Delete from here", "Clear moves").
  */
 
-import { replaySan, validateFenRules, type Color } from '../../../chess/game';
-import { createHistory, sansOf, type HistoryState } from '../../../chess/history';
+import { validateFenRules, type Color } from '../../../chess/game';
+import { sansOf, type HistoryState } from '../../../chess/history';
 import { START_FEN } from '../../../chess/position';
+import {
+  branchIndexOf,
+  cloneTree,
+  countBranches,
+  dedupeSiblings,
+  replayTree,
+  treeFromMoves,
+  type MoveTree,
+} from '../../../chess/tree';
+import {
+  createTreeHistory,
+  endOfLine,
+  normaliseComments,
+  treeContentKey,
+  type TreeHistoryState,
+} from '../../../chess/treeHistory';
 import { normaliseFolderPath, type Line } from '../../../storage/schema';
 
 export interface LineDraft {
@@ -31,7 +46,8 @@ export interface LineDraft {
   folder: string;
   /** Always a string in the draft; written as `undefined` when blank. */
   notes: string;
-  history: HistoryState;
+  /** The move tree, its start position and the cursor. Comments are held as typed. */
+  history: TreeHistoryState;
 }
 
 /** A brand-new line: standard start position, White, nothing played, at the root. */
@@ -41,62 +57,60 @@ export function emptyDraft(folder = ''): LineDraft {
     userColor: 'w',
     folder: normaliseFolderPath(folder),
     notes: '',
-    history: createHistory(START_FEN),
+    history: createTreeHistory(START_FEN),
   };
 }
 
-/** SAN moves that would be saved: everything up to and including the cursor. */
+/**
+ * SAN moves up to the cursor of a *linear* history (`chess/history.ts`). Not used by the editor
+ * any more — Analyze and Explore use it for their "Save as new line" hand-off, which stages a
+ * linear move list (`state/newLine.ts`).
+ */
 export function draftMoves(history: HistoryState): string[] {
   const all = sansOf(history);
   const cursor = history.cursor < -1 ? -1 : Math.min(history.cursor, all.length - 1);
   return all.slice(0, cursor + 1);
 }
 
-/** How many moves sit after the cursor, i.e. have been undone and will not be saved. */
-export function pendingRedoCount(history: HistoryState): number {
-  return Math.max(0, sansOf(history).length - draftMoves(history).length);
-}
-
-export interface RebaseResult {
-  history: HistoryState;
-  /** Moves that could not be replayed from the new start position and were dropped. */
+export interface LoadedTree {
+  /** The playable part of the tree, SANs normalised, cursor at the end of the main line. */
+  history: TreeHistoryState;
+  /** Moves that could not be replayed from the start position and were dropped. */
   dropped: number;
 }
 
 /**
- * Rebuilds a history on a (possibly different) start position, keeping the longest legal
- * prefix of `sans`. Used when the user edits the starting position with moves already entered,
- * and when opening a stored line whose moves no longer replay — the editor must open and
- * explain, never throw.
+ * Builds the editor's tree state from a stored (or handed-over) tree. Unplayable moves are cut
+ * with their subtrees and counted, never thrown — the editor must open and explain. Siblings
+ * that only became equal through SAN normalisation are merged.
  */
-export function rebaseHistory(startFen: string, sans: string[]): RebaseResult {
-  const base = createHistory(startFen);
-  if (sans.length === 0) return { history: base, dropped: 0 };
-
-  const replay = replaySan(base.startFen, sans);
-  const kept = replay.sans.length;
-  const entries = replay.sans.map((san, i) => ({
-    san,
-    fenAfter: replay.fens[i] ?? base.startFen,
-  }));
+export function loadTree(startFen: string, tree: MoveTree): LoadedTree {
+  const base = createTreeHistory(startFen);
+  const replay = replayTree(base.startFen, tree);
+  const kept = dedupeSiblings(replay.tree);
   return {
-    history: { startFen: base.startFen, entries, cursor: entries.length - 1 },
-    dropped: sans.length - kept,
+    history: { ...base, tree: kept, cursor: endOfLine(kept, []) },
+    dropped: replay.dropped,
   };
 }
 
-/** Loads a stored line into a draft. Illegal trailing moves are dropped, never thrown. */
+/** Loads a linear move list (Explore / Analyze hand-off) as a single-branch tree. */
+export function loadMoves(startFen: string, sans: string[]): LoadedTree {
+  return loadTree(startFen, treeFromMoves(sans));
+}
+
+/** Loads a stored line into a draft, every branch and comment included. */
 export function draftFromLine(line: Line): { draft: LineDraft; dropped: number } {
-  const rebased = rebaseHistory(line.startFen, line.moves);
+  const loaded = loadTree(line.startFen, line.tree);
   return {
     draft: {
       name: line.name,
       userColor: line.userColor,
       folder: normaliseFolderPath(line.folder),
       notes: line.notes ?? '',
-      history: rebased.history,
+      history: loaded.history,
     },
-    dropped: rebased.dropped,
+    dropped: loaded.dropped,
   };
 }
 
@@ -104,20 +118,23 @@ export interface DraftValidation {
   ok: boolean;
   /** Why the draft cannot be saved. Present exactly when `ok` is false. */
   error?: string;
-  /** SAN as normalised by chess.js — what should actually be written. */
-  moves: string[];
+  /**
+   * What should actually be written: SANs normalised by chess.js, duplicate siblings merged,
+   * comments trimmed. When `ok` is false, the draft's tree with comments trimmed.
+   */
+  tree: MoveTree;
 }
 
 /**
- * Save-time validation. Refuses an empty name and an empty move list with a clear reason, and
- * re-checks that **every** move is legal from `startFen` (README Phase 5) rather than trusting
- * the history the UI accumulated.
+ * Save-time validation. Refuses an empty name and an empty tree with a clear reason, and
+ * re-checks that **every** move of every branch is legal from `startFen` (README Phase 5) rather
+ * than trusting the tree the UI accumulated.
  */
 export function validateDraft(draft: LineDraft): DraftValidation {
-  const moves = draftMoves(draft.history);
+  const tree = normaliseComments(draft.history.tree);
 
   if (draft.name.trim().length === 0) {
-    return { ok: false, error: 'Give the line a name before saving.', moves };
+    return { ok: false, error: 'Give the line a name before saving.', tree };
   }
 
   const fen = validateFenRules(draft.history.startFen);
@@ -125,39 +142,47 @@ export function validateDraft(draft: LineDraft): DraftValidation {
     return {
       ok: false,
       error: `The starting position is not legal: ${fen.error ?? 'invalid FEN'}.`,
-      moves,
+      tree,
     };
   }
 
-  if (moves.length === 0) {
+  if (tree.length === 0) {
     return {
       ok: false,
       error: 'A line needs at least one move — play it on the board below.',
-      moves,
+      tree,
     };
   }
 
-  const replay = replaySan(draft.history.startFen, moves);
-  if (!replay.ok) {
-    const ply = replay.failedAtPly ?? 0;
-    const san = moves[ply] ?? '(missing)';
+  const replay = replayTree(draft.history.startFen, tree);
+  if (replay.broken !== null) {
+    const { path, san } = replay.broken;
+    const branch =
+      countBranches(tree) > 1 ? ` in branch ${branchIndexOf(tree, path) + 1}` : '';
     return {
       ok: false,
-      error: `Move ${ply + 1} ("${san}") is not legal from the starting position.`,
-      moves,
+      error: `Move ${path.length} ("${san}")${branch} is not legal from the starting position.`,
+      tree,
     };
   }
 
-  return { ok: true, moves: replay.sans };
+  return { ok: true, tree: dedupeSiblings(replay.tree) };
 }
 
-/** The payload for `createLine` / `updateLine`. Call only after `validateDraft` succeeds. */
-export function toLineInput(draft: LineDraft): Omit<Line, 'id' | 'createdAt' | 'updatedAt'> {
+/**
+ * The payload for `createLine` / `updateLine`. Call only after `validateDraft` succeeds, and pass
+ * its `tree` so the normalised moves are what gets stored; without it the draft's tree is used
+ * with comments trimmed. The tree is a deep copy — storage never shares structure with state.
+ */
+export function toLineInput(
+  draft: LineDraft,
+  tree: MoveTree = normaliseComments(draft.history.tree),
+): Omit<Line, 'id' | 'createdAt' | 'updatedAt'> {
   const notes = draft.notes.trim();
   const input: Omit<Line, 'id' | 'createdAt' | 'updatedAt'> = {
     name: draft.name.trim(),
     startFen: draft.history.startFen,
-    moves: draftMoves(draft.history),
+    tree: cloneTree(tree),
     userColor: draft.userColor,
     // Always present, including as `''`: on an update this is what moves a line back to the
     // root, and `updateLine` reads a missing key as "leave the folder alone".
@@ -168,8 +193,8 @@ export function toLineInput(draft: LineDraft): Omit<Line, 'id' | 'createdAt' | '
 }
 
 /**
- * Has anything the user would lose changed? Compares only what gets persisted, so pure cursor
- * navigation (undo then redo back to where it was) is correctly *not* a change.
+ * Has anything the user would lose changed? Compares only what gets persisted — moves, sibling
+ * order (the main line), trimmed comments — so cursor navigation is correctly *not* a change.
  */
 export function isDirty(draft: LineDraft, baseline: LineDraft): boolean {
   if (draft.name !== baseline.name) return true;
@@ -177,8 +202,6 @@ export function isDirty(draft: LineDraft, baseline: LineDraft): boolean {
   if (normaliseFolderPath(draft.folder) !== normaliseFolderPath(baseline.folder)) return true;
   if (draft.notes.trim() !== baseline.notes.trim()) return true;
   if (draft.history.startFen !== baseline.history.startFen) return true;
-  const a = draftMoves(draft.history);
-  const b = draftMoves(baseline.history);
-  if (a.length !== b.length) return true;
-  return a.some((san, i) => san !== b[i]);
+  if (draft.history.tree === baseline.history.tree) return false;
+  return treeContentKey(draft.history.tree) !== treeContentKey(baseline.history.tree);
 }

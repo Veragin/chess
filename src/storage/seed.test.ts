@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { START_FEN } from '../chess/position';
 import { LINES_SCHEMA_VERSION } from './schema';
+import { treeFromMoves, type MoveTree } from '../chess/tree';
+import { encodeTree } from './treeFormat';
 
 /**
  * Same setup as `lines.test.ts`: vitest runs in the `node` environment, so `localStorage` is a
@@ -55,15 +57,21 @@ interface RawLine {
   id?: unknown;
   name?: unknown;
   startFen?: unknown;
+  /** Schema v1 only. */
   moves?: unknown;
+  tree?: unknown;
   userColor?: unknown;
   folder?: unknown;
   createdAt?: unknown;
   updatedAt?: unknown;
 }
 
+/** A current-version file; trees are given in memory and stored as the schema writes them. */
 function file(...lines: RawLine[]): unknown {
-  return { schemaVersion: LINES_SCHEMA_VERSION, exportedAt: 1_700_000_000_000, lines };
+  const stored = lines.map((line) =>
+    Array.isArray(line.tree) ? { ...line, tree: encodeTree(line.tree as MoveTree) } : line,
+  );
+  return { schemaVersion: LINES_SCHEMA_VERSION, exportedAt: 1_700_000_000_000, lines: stored };
 }
 
 function rawLine(id: string, name: string, overrides: RawLine = {}): RawLine {
@@ -71,7 +79,7 @@ function rawLine(id: string, name: string, overrides: RawLine = {}): RawLine {
     id,
     name,
     startFen: START_FEN,
-    moves: ['e4', 'e5'],
+    tree: treeFromMoves(['e4', 'e5']),
     userColor: 'w',
     folder: 'Stafford',
     createdAt: 1_700_000_000_000,
@@ -212,7 +220,7 @@ describe('seeding bundled files', () => {
 
   it('rejects an unplayable line, seeds its healthy siblings, and retries it once fixed', async () => {
     const first = await load();
-    const broken = rawLine('bad', 'Broken', { moves: ['e4', 'e5', 'Qxh8'] });
+    const broken = rawLine('bad', 'Broken', { tree: treeFromMoves(['e4', 'e5', 'Qxh8']) });
     const report = first.seed.seedFromFiles([
       { name: 'stafford.json', payload: file(rawLine('a', 'One'), broken) },
     ]);
@@ -237,7 +245,7 @@ describe('seeding bundled files', () => {
   it('rejects an illegal start position', async () => {
     const { seed, lines } = await load();
     const report = seed.seedFromFiles([
-      { name: 'x.json', payload: file(rawLine('a', 'Bad FEN', { startFen: 'not a fen', moves: [] })) },
+      { name: 'x.json', payload: file(rawLine('a', 'Bad FEN', { startFen: 'not a fen', tree: treeFromMoves([]) })) },
     ]);
     expect(report.added).toBe(0);
     expect(report.files[0]?.rejections[0]?.reason).toMatch(/illegal start position/);
@@ -259,6 +267,40 @@ describe('seeding bundled files', () => {
     expect(second.lines.listLines()).toHaveLength(1);
     // The record is rebuilt, so the signature guard is not load-bearing next time either.
     expect(seededKeys()).toEqual(['stafford.json::a']);
+  });
+
+  it('seeds a schema v1 file as single-branch trees', async () => {
+    const { seed, lines } = await load();
+    const v1 = { ...rawLine('a', 'Old'), tree: undefined, moves: ['e4', 'e5', 'Ng1f3'] };
+    const report = seed.seedFromFiles([
+      { name: 'old.json', payload: { schemaVersion: 1, exportedAt: 1, lines: [v1] } },
+    ]);
+    expect(report.added).toBe(1);
+    expect(lines.listLines()[0]?.tree).toEqual(treeFromMoves(['e4', 'e5', 'Nf3']));
+  });
+
+  it('compares content by tree, ignoring sibling order and comments', async () => {
+    const first = await load();
+    const tree = [
+      {
+        san: 'e4',
+        next: [
+          { san: 'e5', comment: 'a', next: [] },
+          { san: 'c5', next: [] },
+        ],
+      },
+    ];
+    first.seed.seedFromFiles([{ name: 'a.json', payload: file(rawLine('a', 'One', { tree })) }]);
+
+    store.map.delete(SEED_KEY);
+    vi.resetModules();
+    const second = await load();
+    const reordered = [{ san: 'e4', next: [{ san: 'c5', next: [] }, { san: 'e5', next: [] }] }];
+    const report = second.seed.seedFromFiles([
+      { name: 'a.json', payload: file(rawLine('a', 'One', { tree: reordered })) },
+    ]);
+    expect(report.added).toBe(0);
+    expect(second.lines.listLines()).toHaveLength(1);
   });
 
   it('writes no seed record when storage is unavailable', async () => {
@@ -301,7 +343,7 @@ describe('customLines', () => {
     lines.createLine({
       name: 'Mine',
       startFen: START_FEN,
-      moves: ['d4'],
+      tree: treeFromMoves(['d4']),
       userColor: 'w',
     });
 

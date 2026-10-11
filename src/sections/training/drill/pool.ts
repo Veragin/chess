@@ -14,7 +14,9 @@
  * Nothing here writes: drill is practice, not editing.
  */
 
-import { resolveLine, type ResolvedLine } from '../../../chess/line';
+import type { DrillPoolEntry } from '../../../chess/drill';
+import { branchSpec, resolveLine, type ResolvedLine } from '../../../chess/line';
+import { countBranches, replayTree, type MoveTree } from '../../../chess/tree';
 import { linesUnderFolder } from '../../../storage/folders';
 import { getLine, listLines } from '../../../storage/lines';
 
@@ -26,25 +28,50 @@ import { getLine, listLines } from '../../../storage/lines';
  * is every line, so an unscoped drill behaves exactly as before folders existed.
  */
 export function drillablePool(folder = ''): string[] {
+  return drillableBranchPool(folder).map((entry) => entry.id);
+}
+
+/**
+ * `drillablePool` with each line's branch count — the pool `pickNextBranch` draws from. A branch
+ * count is as opaque as an id: it says how big a line is, not what it plays.
+ */
+export function drillableBranchPool(folder = ''): DrillPoolEntry[] {
   return linesUnderFolder(listLines(), folder)
-    .filter((line) => resolveLine(line).ok)
-    .map((line) => line.id);
+    .filter((line) => replayTree(line.startFen, line.tree).ok)
+    .map((line) => ({ id: line.id, branches: countBranches(line.tree) }));
+}
+
+/**
+ * Pool entry for the one line a `?line=` drill serves. Not filtered: a missing or broken line
+ * still gets an entry (one branch), so the runner can say what is wrong with it.
+ */
+export function drillPoolEntry(id: string): DrillPoolEntry {
+  const stored = id.length === 0 ? null : getLine(id);
+  return { id, branches: stored === null ? 1 : countBranches(stored.tree) };
 }
 
 export type LoadedDrillLine =
-  | { status: 'ready'; line: ResolvedLine }
+  | {
+      status: 'ready';
+      line: ResolvedLine;
+      /** The stored line's whole tree, so the run can switch branch on another repertoire move. */
+      tree: MoveTree;
+    }
   /** The line was deleted between building the pool and serving it. */
   | { status: 'missing' }
   /** The line no longer replays (hand-edited storage). */
   | { status: 'broken' };
 
 /**
- * Loads one line for a drill run. Returns the replayed model only — the caller never sees the
- * stored record, so the name and notes cannot reach the screen by accident.
+ * Loads one branch of a line for a drill run (`branch` indexes `branchesOf(line.tree)`; 0 is the
+ * main line). Returns the replayed model only — the caller never sees the stored record, so the
+ * name and notes cannot reach the screen by accident.
  */
-export function loadDrillLine(id: string): LoadedDrillLine {
+export function loadDrillLine(id: string, branch = 0): LoadedDrillLine {
   const stored = id.length === 0 ? null : getLine(id);
   if (stored === null) return { status: 'missing' };
-  const model = resolveLine(stored);
-  return model.ok ? { status: 'ready', line: model } : { status: 'broken' };
+  const spec = branchSpec(stored, branch);
+  if (spec === null) return { status: 'missing' };
+  const model = resolveLine(spec);
+  return model.ok ? { status: 'ready', line: model, tree: stored.tree } : { status: 'broken' };
 }

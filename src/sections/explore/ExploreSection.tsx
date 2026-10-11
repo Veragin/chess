@@ -58,7 +58,7 @@ import { draftMoves } from '../training/lines/draft';
 import { linesPath, newLineFromExplorePath } from '../training/lines/folderNav';
 import { moveCountLabel } from '../training/lines/lineFormat';
 import { CoveragePanel } from './CoveragePanel';
-import { buildCoverageIndex, coverageAt } from './coverage';
+import { arrivalComments, buildCoverageIndex, coverageAt } from './coverage';
 
 export function ExploreSection() {
   const navigate = useNavigate();
@@ -83,6 +83,14 @@ export function ExploreSection() {
   // Built from the scope, not from the position: one replay of each line, then a lookup per move.
   const index = useMemo(() => buildCoverageIndex(scope), [scope]);
   const coverage = useMemo(() => coverageAt(index, fen), [index, fen]);
+  // The board's last move, matched against the reaching lines' nodes for its comment.
+  const arrival = useMemo(() => {
+    const entry = history.cursor >= 0 ? history.entries[history.cursor] : undefined;
+    if (entry === undefined) return [];
+    const previous = history.cursor === 0 ? undefined : history.entries[history.cursor - 1];
+    const fenBefore = previous?.fenAfter ?? history.startFen;
+    return arrivalComments(index, fen, { san: entry.san, fenBefore });
+  }, [index, fen, history]);
 
   const onMove = useCallback(
     (move: MoveInput | string) => {
@@ -186,6 +194,7 @@ export function ExploreSection() {
       folder={folder}
       onPlay={onMove}
       brokenCount={index.broken.length}
+      arrival={arrival}
     />
   );
 

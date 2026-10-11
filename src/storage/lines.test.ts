@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LINES_SCHEMA_VERSION, type Line, type LinesFile } from './schema';
+import { LINES_SCHEMA_VERSION, serialiseLinesFile, type Line, type LinesFile } from './schema';
 import { START_FEN } from '../chess/position';
+import { countMoves, treeFromMoves, type MoveTree } from '../chess/tree';
+import { encodeTree } from './treeFormat';
 
 /**
  * Vitest runs in the `node` environment (see `vite.config.ts`), so there is no DOM and no
@@ -86,13 +88,13 @@ beforeEach(() => {
 const ITALIAN = {
   name: 'Italian',
   startFen: START_FEN,
-  moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'],
+  tree: treeFromMoves(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4']),
   userColor: 'w' as const,
 };
 const FRENCH = {
   name: 'French',
   startFen: START_FEN,
-  moves: ['e4', 'e6'],
+  tree: treeFromMoves(['e4', 'e6']),
   userColor: 'b' as const,
   notes: 'as Black',
 };
@@ -132,13 +134,13 @@ describe('CRUD round-trip', () => {
 
     const updated = lines.updateLine(created.id, {
       name: 'Italian Game',
-      moves: [...ITALIAN.moves, 'Bc5'],
+      tree: treeFromMoves(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5']),
       notes: 'giuoco piano',
       updatedAt: created.updatedAt + 1000,
     });
     expect(updated).not.toBeNull();
     expect(updated?.name).toBe('Italian Game');
-    expect(updated?.moves).toHaveLength(6);
+    expect(countMoves(updated?.tree ?? [])).toBe(6);
     expect(updated?.notes).toBe('giuoco piano');
     expect(updated?.createdAt).toBe(created.createdAt);
     expect(updated?.updatedAt).toBeGreaterThan(created.updatedAt);
@@ -266,7 +268,7 @@ describe('export / import', () => {
     first.createLine(ITALIAN);
     first.createLine(FRENCH);
     const exported = first.exportAll();
-    const json = JSON.stringify(exported);
+    const json = serialiseLinesFile(exported);
 
     // Simulate a wiped browser: empty store, fresh module.
     store.clear();
@@ -288,7 +290,7 @@ describe('export / import', () => {
   it('gives imported lines fresh ids so an import never clobbers an existing line', async () => {
     const lines = await load();
     const existing = lines.createLine(ITALIAN);
-    const json = JSON.stringify(lines.exportAll());
+    const json = serialiseLinesFile(lines.exportAll());
 
     const result = lines.importFile(json);
     expect(result.added).toBe(1);
@@ -309,7 +311,7 @@ describe('export / import', () => {
       exportedAt: Date.now(),
       lines: [{ ...existing, name: 'Copy' }],
     };
-    expect(lines.importFile(JSON.stringify(file)).added).toBe(1);
+    expect(lines.importFile(serialiseLinesFile(file)).added).toBe(1);
     expect(lines.getLine(existing.id)?.name).toBe('Italian');
     expect(lines.listLines()).toHaveLength(2);
   });
@@ -324,8 +326,17 @@ describe('import validation', () => {
     return { lines, before: lines.listLines(), raw: storedRaw() as string };
   }
 
+  /** Trees in `rawLines` are given in memory; a current-version file stores them as the schema does. */
   function file(rawLines: unknown[], schemaVersion = LINES_SCHEMA_VERSION): string {
-    return JSON.stringify({ schemaVersion, exportedAt: 123, lines: rawLines });
+    const stored = rawLines.map((raw) =>
+      schemaVersion === LINES_SCHEMA_VERSION &&
+      typeof raw === 'object' &&
+      raw !== null &&
+      Array.isArray((raw as { tree?: unknown }).tree)
+        ? { ...raw, tree: encodeTree((raw as { tree: MoveTree }).tree) }
+        : raw,
+    );
+    return JSON.stringify({ schemaVersion, exportedAt: 123, lines: stored });
   }
 
   function goodRaw(over: Record<string, unknown> = {}): Record<string, unknown> {
@@ -333,7 +344,7 @@ describe('import validation', () => {
       id: 'imported-1',
       name: 'Imported',
       startFen: START_FEN,
-      moves: ['e4', 'e5'],
+      tree: treeFromMoves(['e4', 'e5']),
       userColor: 'w',
       createdAt: 10,
       updatedAt: 20,
@@ -393,7 +404,7 @@ describe('import validation', () => {
   it('rejects a structurally valid but illegal start position', async () => {
     const { lines } = await withExisting();
     const result = lines.importFile(
-      file([goodRaw({ name: 'No kings', startFen: '8/8/8/8/8/8/8/8 w - - 0 1', moves: [] })]),
+      file([goodRaw({ name: 'No kings', startFen: '8/8/8/8/8/8/8/8 w - - 0 1', tree: treeFromMoves([]) })]),
     );
     expect(result.added).toBe(0);
     expect(result.rejections[0]?.reason).toContain('start position');
@@ -403,7 +414,7 @@ describe('import validation', () => {
     const { lines, before, raw } = await withExisting();
     // Black has no knight that can reach c3, so ply index 3 is unplayable.
     const result = lines.importFile(
-      file([goodRaw({ name: 'Bad ply 3', moves: ['e4', 'e5', 'Nf3', 'Nc3'] })]),
+      file([goodRaw({ name: 'Bad ply 3', tree: treeFromMoves(['e4', 'e5', 'Nf3', 'Nc3']) })]),
     );
 
     expect(result.added).toBe(0);
@@ -420,7 +431,7 @@ describe('import validation', () => {
     const result = lines.importFile(
       file([
         goodRaw({ name: 'No colour', userColor: 'white' }),
-        goodRaw({ name: 'Bad moves', moves: [1, 2] }),
+        goodRaw({ name: 'Bad moves', tree: [{ san: 1, next: [] }] }),
         'not even an object',
       ]),
     );
@@ -433,16 +444,16 @@ describe('import validation', () => {
       '(unnamed line #3)',
     ]);
     expect(result.rejections[0]?.reason).toContain('userColor');
-    expect(result.rejections[1]?.reason).toContain('moves');
+    expect(result.rejections[1]?.reason).toContain('"tree[0]" is not a move');
   });
 
   it('imports the good lines from a file that also contains bad ones', async () => {
     const { lines, before } = await withExisting();
     const result = lines.importFile(
       file([
-        goodRaw({ name: 'Fine', moves: ['d4', 'd5'] }),
-        goodRaw({ name: 'Bad ply 3', moves: ['e4', 'e5', 'Nf3', 'Nc3'] }),
-        goodRaw({ name: 'Also fine', moves: [], userColor: 'b' }),
+        goodRaw({ name: 'Fine', tree: treeFromMoves(['d4', 'd5']) }),
+        goodRaw({ name: 'Bad ply 3', tree: treeFromMoves(['e4', 'e5', 'Nf3', 'Nc3']) }),
+        goodRaw({ name: 'Also fine', tree: treeFromMoves([]), userColor: 'b' }),
       ]),
     );
 
@@ -463,14 +474,74 @@ describe('import validation', () => {
   it('normalises imported SAN and preserves timestamps and notes', async () => {
     const lines = await load();
     const result = lines.importFile(
-      file([goodRaw({ moves: ['e4', 'e5', 'Nf3'], notes: 'hello', createdAt: 7, updatedAt: 8 })]),
+      file([goodRaw({ tree: treeFromMoves(['e4', 'e5', 'Nf3']), notes: 'hello', createdAt: 7, updatedAt: 8 })]),
     );
     expect(result.added).toBe(1);
     const imported = lines.listLines()[0] as Line;
-    expect(imported.moves).toEqual(['e4', 'e5', 'Nf3']);
+    expect(imported.tree).toEqual(treeFromMoves(['e4', 'e5', 'Nf3']));
     expect(imported.notes).toBe('hello');
     expect(imported.createdAt).toBe(7);
     expect(imported.updatedAt).toBe(8);
+  });
+
+  it('imports a v1 file, turning each move list into a single-branch tree', async () => {
+    const lines = await load();
+    const v1 = JSON.stringify({
+      schemaVersion: 1,
+      exportedAt: 1,
+      lines: [{ ...goodRaw(), tree: undefined, moves: ['e4', 'e5', 'Ng1f3'] }],
+    });
+    const result = lines.importFile(v1);
+    expect(result.added).toBe(1);
+    expect(lines.listLines()[0]?.tree).toEqual(treeFromMoves(['e4', 'e5', 'Nf3']));
+  });
+
+  it('normalises a branched tree and merges siblings that are the same move', async () => {
+    const lines = await load();
+    const tree = [
+      {
+        san: 'e4',
+        next: [
+          { san: 'e5', comment: 'open', next: [{ san: 'Nf3', next: [] }] },
+          { san: 'c5', next: [] },
+          { san: 'e7e5', next: [{ san: 'Bc4', next: [] }] },
+        ],
+      },
+    ];
+    expect(lines.importFile(file([goodRaw({ tree })])).added).toBe(1);
+    const imported = lines.listLines()[0] as Line;
+    expect(imported.tree).toEqual([
+      {
+        san: 'e4',
+        next: [
+          {
+            san: 'e5',
+            comment: 'open',
+            next: [
+              { san: 'Nf3', next: [] },
+              { san: 'Bc4', next: [] },
+            ],
+          },
+          { san: 'c5', next: [] },
+        ],
+      },
+    ]);
+  });
+
+  it('names the branch of the first unplayable move', async () => {
+    const lines = await load();
+    const tree = [
+      {
+        san: 'e4',
+        next: [
+          { san: 'e5', next: [] },
+          { san: 'c5', next: [{ san: 'Nf3', next: [] }, { san: 'Nc3', next: [{ san: 'Qxh8', next: [] }] }] },
+        ],
+      },
+    ];
+    const result = lines.importFile(file([goodRaw({ name: 'Broken branch', tree })]));
+    expect(result.added).toBe(0);
+    expect(result.rejections[0]?.reason).toBe('illegal move "Qxh8" at ply 3 (move 4 in branch 3)');
   });
 
   it('accepts a file with zero lines', async () => {
@@ -478,6 +549,55 @@ describe('import validation', () => {
     const result = lines.importFile(file([]));
     expect(result).toEqual({ added: 0, skipped: 0, rejections: [] });
     expect(lines.listLines()).toEqual([]);
+  });
+});
+
+describe('schema v1 store', () => {
+  const v1Raw = JSON.stringify({
+    schemaVersion: 1,
+    exportedAt: 1,
+    lines: [
+      {
+        id: 'old',
+        name: 'Old line',
+        startFen: START_FEN,
+        moves: ['d4', 'd5'],
+        userColor: 'w',
+        folder: 'Queen pawn',
+        notes: 'kept',
+        createdAt: 1,
+        updatedAt: 2,
+      },
+    ],
+  });
+
+  it('reads as trees without rewriting the store', async () => {
+    store.map.set(STORAGE_KEY, v1Raw);
+    const lines = await load();
+
+    const [line] = lines.listLines();
+    expect(line?.tree).toEqual(treeFromMoves(['d4', 'd5']));
+    expect(line?.folder).toBe('Queen pawn');
+    expect(line?.notes).toBe('kept');
+    expect(lines.storageWarning()).toBeNull();
+    expect(storedRaw()).toBe(v1Raw);
+  });
+
+  it('is upgraded to the current version on the next write', async () => {
+    store.map.set(STORAGE_KEY, v1Raw);
+    const lines = await load();
+    lines.createLine(ITALIAN);
+
+    const stored = JSON.parse(storedRaw() as string) as {
+      schemaVersion: number;
+      lines: Record<string, unknown>[];
+    };
+    expect(stored.schemaVersion).toBe(LINES_SCHEMA_VERSION);
+    expect(stored.lines).toHaveLength(2);
+    const old = stored.lines.find((l) => l.id === 'old');
+    expect(old?.tree).toEqual(['d4', 'd5']);
+    expect(old !== undefined && 'moves' in old).toBe(false);
+    expect(old?.updatedAt).toBe(2);
   });
 });
 
@@ -511,7 +631,7 @@ describe('corrupt stored payload', () => {
       schemaVersion: LINES_SCHEMA_VERSION,
       exportedAt: 1,
       lines: [
-        { id: 'a', name: 'Good', startFen: START_FEN, moves: [], userColor: 'w', createdAt: 1, updatedAt: 1 },
+        { id: 'a', name: 'Good', startFen: START_FEN, tree: [], userColor: 'w', createdAt: 1, updatedAt: 1 },
         { id: 'b', name: 'Junk' },
       ],
     });
@@ -589,7 +709,7 @@ describe('localStorage failure modes', () => {
             id: 'x',
             name: 'Imported',
             startFen: START_FEN,
-            moves: ['e4'],
+            tree: ['e4'],
             userColor: 'w',
             createdAt: 1,
             updatedAt: 1,
@@ -723,7 +843,7 @@ describe('folders', () => {
             id: 'a',
             name: 'Odd',
             startFen: START_FEN,
-            moves: ['e4'],
+            tree: ['e4'],
             userColor: 'w',
             folder: 42,
             createdAt: 1,
@@ -777,7 +897,7 @@ describe('folders', () => {
   it('carries folders through export and import', async () => {
     const first = await load();
     first.createLine({ ...ITALIAN, folder: 'White/Italian' });
-    const json = JSON.stringify(first.exportAll());
+    const json = serialiseLinesFile(first.exportAll());
 
     vi.resetModules();
     store.map.clear();

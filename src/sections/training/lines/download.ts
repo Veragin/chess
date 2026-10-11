@@ -6,11 +6,11 @@
  * cannot be unit-tested, kept small and in one place.
  */
 
-import type { LinesFile } from '../../../storage/schema';
+import { serialiseLinesFile as serialise, type LinesFile } from '../../../storage/schema';
 
 /** Pretty-printed so an exported file is human-readable (and diffable). */
 export function serialiseLinesFile(file: LinesFile): string {
-  return `${JSON.stringify(file, null, 2)}\n`;
+  return serialise(file, true);
 }
 
 /** Triggers a download of `text` as `filename`. Returns false if the browser refused. */

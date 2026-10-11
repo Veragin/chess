@@ -11,14 +11,20 @@
  * the user where they are instead of navigating to an unrelated position.
  */
 
+import { branchSpec } from '../../../chess/line';
 import { loadPosition } from '../../../state/analysis';
 import { getLine } from '../../../storage/lines';
 
-export function loadLineIntoAnalysis(id: string): boolean {
+/**
+ * `branch` is the branch that was drilled (an index into `branchesOf(line.tree)`). If an edit
+ * since then removed it, the main line is loaded instead — still the same line.
+ */
+export function loadLineIntoAnalysis(id: string, branch = 0): boolean {
   const stored = id.length === 0 ? null : getLine(id);
   if (stored === null) return false;
+  const spec = branchSpec(stored, branch) ?? branchSpec(stored, 0);
   // Moves that no longer replay are dropped by `loadPosition`, which leaves the start position —
   // still the most useful place to land when the line needs fixing.
-  loadPosition(stored.startFen, stored.moves);
+  loadPosition(stored.startFen, spec?.moves ?? []);
   return true;
 }

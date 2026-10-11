@@ -8,6 +8,7 @@ import {
   drillOrientation,
   drillPendingAutoMove,
   drillPhase,
+  drillPly,
   drillRejected,
   drillRevealedSan,
   drillRevealedSquares,
@@ -16,17 +17,28 @@ import {
   drillUserColor,
   drillUserMoveNumber,
   drillUserPlyCount,
+  drillBranchLabel,
+  drillItemKey,
+  drillRevealedComment,
   emptyCycle,
+  markServed,
+  parseDrillItemKey,
+  pickNextBranch,
   pickNextLine,
   pickNextLineId,
+  remainingBranches,
   remainingInCycle,
+  servedBranchesOf,
   type DrillCycle,
+  type DrillItem,
+  type DrillPoolEntry,
   type DrillPhase,
   type DrillState,
   type RandomInt,
 } from './drill';
-import { resolveLine, type LineSpec, type ResolvedLine } from './line';
+import { branchSpec, resolveLine, type LineSpec, type ResolvedLine } from './line';
 import { START_FEN } from './position';
+import type { MoveTree } from './tree';
 
 /* ------------------------------------------------------------------------------------- *
  * Fixtures
@@ -471,6 +483,8 @@ describe('drill summary', () => {
       wrongAttempts: 0,
       complete: true,
       perfect: true,
+      branch: 0,
+      branchCount: 1,
     });
     expect(drillSummaryLabel(drillSummary(state))).toBe('3 of 3 moves correct · 0 hints');
   });
@@ -498,6 +512,8 @@ describe('drill summary', () => {
       wrongAttempts: 3,
       complete: true,
       perfect: false,
+      branch: 0,
+      branchCount: 1,
     });
     expect(drillSummaryLabel(drillSummary(state))).toBe('1 of 3 moves correct · 0 hints');
   });
@@ -523,6 +539,8 @@ describe('drill summary', () => {
       wrongAttempts: 0,
       complete: true,
       perfect: false,
+      branch: 0,
+      branchCount: 1,
     });
     expect(drillSummaryLabel(drillSummary(state))).toBe('1 of 3 moves correct · 2 hints');
   });
@@ -559,5 +577,292 @@ describe('drill summary', () => {
     state = drillHint(state).state;
     state = drillAttempt(state, 'e4').state;
     expect(drillSummaryLabel(drillSummary(state))).toBe('0 of 1 move correct · 1 hint');
+  });
+});
+
+/* ------------------------------------------------------------------------------------- *
+ * 5. Branches — the cycle over branches (D5), switching on another repertoire move (D6),
+ *    and the hint's comment
+ * ------------------------------------------------------------------------------------- */
+
+/**
+ * White repertoire as a tree. Branches, in `branchesOf` order:
+ *   0: e4 e5 Nf3 Nc6 Bb5     ("Develop" on Nf3)
+ *   1: e4 e5 Bc4 Nf6 d3
+ *   2: e4 e5 Bc4 Bc5 c3
+ *   3: e4 e5 Nc3
+ *   4: e4 c5 Nf3 d6
+ *   5: e4 c5 c3
+ */
+const TREE: MoveTree = [
+  {
+    san: 'e4',
+    next: [
+      {
+        san: 'e5',
+        next: [
+          {
+            san: 'Nf3',
+            comment: 'Develop',
+            next: [{ san: 'Nc6', next: [{ san: 'Bb5', next: [] }] }],
+          },
+          {
+            san: 'Bc4',
+            next: [
+              { san: 'Nf6', next: [{ san: 'd3', next: [] }] },
+              { san: 'Bc5', next: [{ san: 'c3', next: [] }] },
+            ],
+          },
+          { san: 'Nc3', next: [] },
+        ],
+      },
+      {
+        san: 'c5',
+        next: [
+          { san: 'Nf3', next: [{ san: 'd6', next: [] }] },
+          { san: 'c3', next: [] },
+        ],
+      },
+    ],
+  },
+];
+
+function branchLine(branch: number): ResolvedLine {
+  const spec = branchSpec({ startFen: START_FEN, tree: TREE, userColor: 'w' }, branch);
+  if (spec === null) throw new Error(`no branch ${branch}`);
+  return resolved(spec);
+}
+
+/** Drills branch `branch` of TREE up to the user's move at ply 2 (after 1.e4 e5 / 1.e4 c5). */
+function atSecondMove(branch: number, served: number[] = []): DrillState {
+  let state = createDrill(branchLine(branch), { tree: TREE, branch, served });
+  state = drillAttempt(state, 'e4').state;
+  state = drillAutoPlay(state);
+  expect(drillPhase(state)).toBe('awaiting-user');
+  return state;
+}
+
+/** Draws until exhausted (bounded), threading the cycle and passing the last line as current. */
+function drawBranches(pool: DrillPoolEntry[], rand: RandomInt): DrillItem[] {
+  let cycle = emptyCycle();
+  let current: string | null = null;
+  const out: DrillItem[] = [];
+  for (let guard = 0; guard < 100; guard++) {
+    const pick = pickNextBranch(pool, cycle, current, rand);
+    cycle = pick.cycle;
+    if (pick.item === null) {
+      expect(pick.exhausted).toBe(true);
+      return out;
+    }
+    out.push(pick.item);
+    current = pick.item.lineId;
+  }
+  throw new Error('never exhausted');
+}
+
+describe('drill branch cycle', () => {
+  const POOL: DrillPoolEntry[] = [
+    { id: 'a', branches: 3 },
+    { id: 'b', branches: 2 },
+    { id: 'c', branches: 1 },
+  ];
+
+  it('keys a branch as lineId#branch and parses it back', () => {
+    expect(drillItemKey({ lineId: 'abc', branch: 2 })).toBe('abc#2');
+    expect(parseDrillItemKey('abc#2')).toEqual({ lineId: 'abc', branch: 2 });
+    expect(parseDrillItemKey('abc')).toBeNull();
+    expect(parseDrillItemKey('#1')).toBeNull();
+    expect(parseDrillItemKey('abc#x')).toBeNull();
+    expect(parseDrillItemKey('abc#-1')).toBeNull();
+  });
+
+  it('serves every branch of a line before moving on to another line', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const items = drawBranches(POOL, seededRandomInt(seed));
+      const lines = items.map((item) => item.lineId);
+      // Each line's branches come in one contiguous run.
+      const runs = lines.filter((id, i) => i === 0 || lines[i - 1] !== id);
+      expect(runs.sort()).toEqual(['a', 'b', 'c']);
+    }
+  });
+
+  it('exhausts after every branch of every line came up exactly once', () => {
+    const items = drawBranches(POOL, seededRandomInt(7));
+    expect(items.map(drillItemKey).sort()).toEqual(['a#0', 'a#1', 'a#2', 'b#0', 'b#1', 'c#0']);
+  });
+
+  it('serves every branch of a single-line pool, then is done', () => {
+    const items = drawBranches([{ id: 'only', branches: 4 }], seededRandomInt(3));
+    expect(items.map((item) => item.branch).sort()).toEqual([0, 1, 2, 3]);
+    expect(new Set(items.map((item) => item.lineId))).toEqual(new Set(['only']));
+  });
+
+  it('picks the branch with the injected index, and clamps a bad one', () => {
+    expect(pickNextBranch(POOL, { served: ['a#0'] }, 'a', () => 1).item).toEqual({
+      lineId: 'a',
+      branch: 2,
+    });
+    expect(pickNextBranch(POOL, emptyCycle(), null, () => 99).item).toEqual({
+      lineId: 'c',
+      branch: 0,
+    });
+    expect(pickNextBranch(POOL, emptyCycle(), null, () => Number.NaN).item).toEqual({
+      lineId: 'a',
+      branch: 0,
+    });
+  });
+
+  it('moves to a random other line when the current one is spent', () => {
+    const cycle: DrillCycle = { served: ['b#0', 'b#1'] };
+    const pick = pickNextBranch(POOL, cycle, 'b', () => 0);
+    expect(pick.item).toEqual({ lineId: 'a', branch: 0 });
+    expect(pick.cycle.served).toEqual(['b#0', 'b#1', 'a#0']);
+  });
+
+  it('returns exhausted for an empty pool', () => {
+    expect(pickNextBranch([], emptyCycle(), null, () => 0)).toEqual({
+      item: null,
+      cycle: emptyCycle(),
+      exhausted: true,
+    });
+  });
+
+  it('prunes served keys of deleted lines and removed branches', () => {
+    const cycle: DrillCycle = { served: ['gone#0', 'a#2', 'a#0', 'junk'] };
+    // Line `a` lost its third branch; `gone` was deleted.
+    const pool: DrillPoolEntry[] = [{ id: 'a', branches: 2 }];
+    const pick = pickNextBranch(pool, cycle, 'a', () => 0);
+    expect(pick.item).toEqual({ lineId: 'a', branch: 1 });
+    expect(pick.cycle.served).toEqual(['a#0', 'a#1']);
+    expect(pickNextBranch(pool, pick.cycle, 'a', () => 0)).toMatchObject({
+      item: null,
+      exhausted: true,
+    });
+  });
+
+  it('treats a bogus branch count as one branch and ignores duplicate ids', () => {
+    const pool: DrillPoolEntry[] = [
+      { id: 'a', branches: 0 },
+      { id: 'a', branches: 5 },
+      { id: 'b', branches: Number.NaN },
+    ];
+    expect(remainingBranches(pool, emptyCycle()).map(drillItemKey)).toEqual(['a#0', 'b#0']);
+  });
+
+  it('reports what is left, and which branches of a line are spent', () => {
+    const cycle = markServed(markServed(emptyCycle(), { lineId: 'a', branch: 2 }), {
+      lineId: 'b',
+      branch: 0,
+    });
+    expect(markServed(cycle, { lineId: 'a', branch: 2 })).toBe(cycle);
+    expect(remainingBranches(POOL, cycle).map(drillItemKey)).toEqual(['a#0', 'a#1', 'b#1', 'c#0']);
+    expect(servedBranchesOf(cycle, 'a')).toEqual([2]);
+    expect(servedBranchesOf(cycle, 'c')).toEqual([]);
+  });
+});
+
+describe('drill branch switching (D6)', () => {
+  it('accepts another repertoire move and switches to an unserved branch through it', () => {
+    const state = atSecondMove(0, [0, 1]);
+    const result = drillAttempt(state, 'Bc4');
+    expect(result.outcome).toBe('branched');
+    expect(result.san).toBe('Bc4');
+    // Branch 1 (Bc4 Nf6) is served, so the run takes branch 2 (Bc4 Bc5).
+    expect(result.state.branch).toBe(2);
+    expect(result.state.servedBranches).toEqual([0, 1, 2]);
+    expect(drillPly(result.state)).toBe(3);
+    expect(drillRejected(result.state)).toBeNull();
+    expect(drillPendingAutoMove(result.state)).toBe('Bc5');
+
+    let after = drillAutoPlay(result.state);
+    after = drillAttempt(after, 'c3').state;
+    expect(drillPhase(after)).toBe('complete');
+    const summary = drillSummary(after);
+    expect(summary).toMatchObject({ branch: 2, branchCount: 6, perfect: true, totalMoves: 3 });
+    expect(drillBranchLabel(summary)).toBe('Branch 3 of 6');
+  });
+
+  it('takes the first branch through the move when only that one is unserved, or all are served', () => {
+    expect(drillAttempt(atSecondMove(0, [0]), 'Bc4').state.branch).toBe(1);
+    expect(drillAttempt(atSecondMove(0, [0, 1, 2]), 'Bc4').state.branch).toBe(1);
+    expect(drillAttempt(atSecondMove(0, [0, 2]), 'Bc4').state.branch).toBe(1);
+    expect(drillAttempt(atSecondMove(0, [0]), 'Nc3').state.branch).toBe(3);
+  });
+
+  it('keeps earlier failures and counters across the switch', () => {
+    let state = atSecondMove(0);
+    const wrong = drillAttempt(state, 'd4');
+    expect(wrong.outcome).toBe('wrong');
+    state = drillAttempt(wrong.state, 'Nc3').state;
+    expect(state.branch).toBe(3);
+    expect(drillPhase(state)).toBe('complete');
+    expect(drillSummary(state)).toMatchObject({
+      movesScored: 2,
+      movesFailed: 1,
+      wrongAttempts: 1,
+      branch: 3,
+    });
+  });
+
+  it('accepts the alternative after a hint, still charging the hint', () => {
+    let state = drillHint(atSecondMove(0)).state;
+    expect(drillRevealedSan(state)).toBe('Nf3');
+    const result = drillAttempt(state, 'Bc4');
+    expect(result.outcome).toBe('branched');
+    state = result.state;
+    expect(drillRevealedSan(state)).toBeNull();
+    expect(drillSummary(state)).toMatchObject({ hintsUsed: 1, movesFailed: 1 });
+  });
+
+  it('still refuses a move that is not in the repertoire', () => {
+    const state = atSecondMove(0);
+    const result = drillAttempt(state, 'd4');
+    expect(result.outcome).toBe('wrong');
+    expect(result.state.branch).toBe(0);
+    expect(drillRejected(result.state)).toMatchObject({ san: 'd4' });
+  });
+
+  it('does not switch to a move from another part of the tree', () => {
+    // 2.c3 exists only after 1...c5; after 1...e5 it is just wrong.
+    expect(drillAttempt(atSecondMove(0), 'c3').outcome).toBe('wrong');
+  });
+
+  it('never switches without a tree (a bare linear line)', () => {
+    let state = createDrill(branchLine(0));
+    state = drillAutoPlay(drillAttempt(state, 'e4').state);
+    expect(drillAttempt(state, 'Bc4').outcome).toBe('wrong');
+    expect(drillSummary(state)).toMatchObject({ branch: 0, branchCount: 1 });
+    expect(drillBranchLabel(drillSummary(state))).toBeNull();
+  });
+
+  it('starts on the requested branch and counts it as served', () => {
+    const state = createDrill(branchLine(4), { tree: TREE, branch: 4, served: [5, 99] });
+    expect(state).toMatchObject({ branch: 4, branchCount: 6, servedBranches: [4, 5] });
+  });
+});
+
+describe('drill hint comment', () => {
+  it('carries the comment of the revealed move', () => {
+    const state = atSecondMove(0);
+    const hint = drillHint(state);
+    expect(hint).toMatchObject({ san: 'Nf3', comment: 'Develop' });
+    expect(drillRevealedComment(hint.state)).toBe('Develop');
+    // Pressing again at the same ply still reports it.
+    expect(drillHint(hint.state).comment).toBe('Develop');
+  });
+
+  it('is null for a move with no comment, and while no hint is showing', () => {
+    const start = createDrill(branchLine(0), { tree: TREE, branch: 0 });
+    expect(drillRevealedComment(start)).toBeNull();
+    const hint = drillHint(start);
+    expect(hint).toMatchObject({ san: 'e4', comment: null });
+    expect(drillRevealedComment(hint.state)).toBeNull();
+    // The comment is there before the hint — but it is only surfaced through one.
+    expect(drillRevealedComment(atSecondMove(0))).toBeNull();
+  });
+
+  it('is null at the end of the line', () => {
+    const { state } = runCleanly(resolved(RUY));
+    expect(drillHint(state).comment).toBeNull();
   });
 });

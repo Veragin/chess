@@ -17,13 +17,14 @@ import {
   ROOT_FOLDER_LABEL,
 } from './folders';
 import { normaliseFolderPath, type Line } from './schema';
+import { treeFromMoves } from '../chess/tree';
 
 function line(name: string, folder?: string): Line {
   const base: Line = {
     id: `id-${name}`,
     name,
     startFen: START_FEN,
-    moves: ['e4'],
+    tree: treeFromMoves(['e4']),
     userColor: 'w',
     createdAt: 1,
     updatedAt: 1,

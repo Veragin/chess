@@ -1,22 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import {
   LINES_SCHEMA_VERSION,
+  MAX_TREE_DEPTH,
+  MAX_TREE_NODES,
   emptyLinesFile,
   lineLabel,
   migrate,
   parseLinesFilePayload,
+  serialiseLinesFile,
   toLine,
+  toStoredLine,
   validateLineShape,
   type Line,
+  type StoredLine,
 } from './schema';
 import { START_FEN } from '../chess/position';
+import { treeFromMoves, type MoveNode } from '../chess/tree';
+import { encodeTree } from './treeFormat';
 
 function makeLine(over: Partial<Line> = {}): Line {
   return {
     id: 'id-1',
     name: 'Italian',
     startFen: START_FEN,
-    moves: ['e4', 'e5', 'Nf3'],
+    tree: treeFromMoves(['e4', 'e5', 'Nf3']),
     userColor: 'w',
     createdAt: 1_000,
     updatedAt: 2_000,
@@ -24,15 +31,32 @@ function makeLine(over: Partial<Line> = {}): Line {
   };
 }
 
+/** `makeLine` as the current schema stores it: the tree in its PGN-like array form. */
+function makeStored(over: Partial<Line> = {}): StoredLine {
+  return toStoredLine(makeLine(over));
+}
+
+/** A current-version payload holding `lines` (in-memory lines, stored as the schema writes them). */
+function fileOf(lines: Line[], exportedAt = 5): Record<string, unknown> {
+  return { schemaVersion: LINES_SCHEMA_VERSION, exportedAt, lines: lines.map(toStoredLine) };
+}
+
+/** The same line as a schema v1 payload wrote it: a linear `moves` array, no `tree`. */
+function makeV1Line(over: Record<string, unknown> = {}): Record<string, unknown> {
+  const { tree: _tree, ...rest } = makeLine();
+  void _tree;
+  return { ...rest, moves: ['e4', 'e5', 'Nf3'], ...over };
+}
+
 describe('validateLineShape', () => {
   it('accepts a well-formed line, with and without notes', () => {
-    expect(validateLineShape(makeLine()).valid).toBe(true);
-    expect(validateLineShape(makeLine({ notes: 'main line' })).valid).toBe(true);
+    expect(validateLineShape(makeStored()).valid).toBe(true);
+    expect(validateLineShape(makeStored({ notes: 'main line' })).valid).toBe(true);
   });
 
   it('accepts an empty move list and an empty name', () => {
-    expect(validateLineShape(makeLine({ moves: [] })).valid).toBe(true);
-    expect(validateLineShape(makeLine({ name: '' })).valid).toBe(true);
+    expect(validateLineShape(makeStored({ tree: [] })).valid).toBe(true);
+    expect(validateLineShape(makeStored({ name: '' })).valid).toBe(true);
   });
 
   it.each([
@@ -46,29 +70,28 @@ describe('validateLineShape', () => {
   });
 
   it('names the offending field', () => {
-    expect(validateLineShape({ ...makeLine(), id: 1 }).error).toContain('id');
-    expect(validateLineShape({ ...makeLine(), name: undefined }).error).toContain('name');
-    expect(validateLineShape({ ...makeLine(), startFen: '  ' }).error).toContain('startFen');
-    expect(validateLineShape({ ...makeLine(), moves: 'e4 e5' }).error).toContain('moves');
-    expect(validateLineShape({ ...makeLine(), moves: ['e4', 7] }).error).toContain('moves[1]');
-    expect(validateLineShape({ ...makeLine(), userColor: 'white' }).error).toContain('userColor');
-    expect(validateLineShape({ ...makeLine(), notes: 3 }).error).toContain('notes');
-    expect(validateLineShape({ ...makeLine(), createdAt: NaN }).error).toContain('createdAt');
-    expect(validateLineShape({ ...makeLine(), updatedAt: '2000' }).error).toContain('updatedAt');
+    expect(validateLineShape({ ...makeStored(), id: 1 }).error).toContain('id');
+    expect(validateLineShape({ ...makeStored(), name: undefined }).error).toContain('name');
+    expect(validateLineShape({ ...makeStored(), startFen: '  ' }).error).toContain('startFen');
+    expect(validateLineShape({ ...makeStored(), tree: 'e4 e5' }).error).toContain('tree');
+    expect(validateLineShape({ ...makeStored(), userColor: 'white' }).error).toContain('userColor');
+    expect(validateLineShape({ ...makeStored(), notes: 3 }).error).toContain('notes');
+    expect(validateLineShape({ ...makeStored(), createdAt: NaN }).error).toContain('createdAt');
+    expect(validateLineShape({ ...makeStored(), updatedAt: '2000' }).error).toContain('updatedAt');
   });
 });
 
 describe('toLine', () => {
   it('keeps only schema fields and trims strings', () => {
-    const line = toLine({ ...makeLine(), startFen: ` ${START_FEN} `, extra: 'junk' });
+    const line = toLine({ ...makeStored(), startFen: ` ${START_FEN} `, extra: 'junk' });
     expect(line).not.toBeNull();
     expect(line?.startFen).toBe(START_FEN);
     expect(Object.keys(line as Line).sort()).toEqual([
       'createdAt',
       'id',
-      'moves',
       'name',
       'startFen',
+      'tree',
       'updatedAt',
       'userColor',
     ]);
@@ -76,6 +99,129 @@ describe('toLine', () => {
 
   it('returns null for a malformed candidate', () => {
     expect(toLine({ id: 'x' })).toBeNull();
+  });
+});
+
+const branched: MoveNode[] = [
+  {
+    san: 'e4',
+    next: [
+      { san: 'e5', comment: 'symmetrical', next: [{ san: 'Nf3', next: [] }] },
+      { san: 'c5', next: [] },
+    ],
+  },
+];
+
+describe('move trees (stored PGN-like)', () => {
+  const bad = (tree: unknown) => validateLineShape({ ...makeStored(), tree }).error;
+
+  it('stores the main line flat and an alternative right after the move it replaces', () => {
+    expect(encodeTree(branched)).toEqual([
+      'e4',
+      { san: 'e5', comment: 'symmetrical' },
+      ['c5'],
+      'Nf3',
+    ]);
+  });
+
+  it('accepts a branched tree with comments and reads it back exactly', () => {
+    const stored = makeStored({ tree: branched });
+    expect(validateLineShape(stored).valid).toBe(true);
+    expect(toLine(stored)?.tree).toEqual(branched);
+  });
+
+  it('keeps sibling order with several alternatives, nested ones included', () => {
+    const tree = encodeTree(branched);
+    const wide: MoveNode[] = [
+      { san: 'd4', next: [] },
+      { san: 'e4', next: branched[0]?.next ?? [] },
+      { san: 'c4', next: [{ san: 'e5', next: [] }, { san: 'c5', next: [] }] },
+    ];
+    expect(toLine({ ...makeStored(), tree })?.tree).toEqual(branched);
+    expect(toLine(makeStored({ tree: wide }))?.tree).toEqual(wide);
+  });
+
+  it('names the offending item', () => {
+    expect(bad([''])).toContain('tree[0]');
+    expect(bad(['e4', 5])).toContain('tree[1]');
+    expect(bad(['e4', { san: '' }])).toContain('tree[1].san');
+    expect(bad(['e4', { san: 'e5', comment: 7 }])).toContain('tree[1].comment');
+    expect(bad([['e4']])).toContain('no move before it');
+    expect(bad(['e4', []])).toContain('empty variation');
+    expect(bad(['e4', ['d4', null]])).toContain('tree[1][1]');
+    expect(bad(undefined)).toContain('tree');
+  });
+
+  it('refuses a nested { san, next } node instead of dropping its continuations', () => {
+    expect(bad([{ san: 'e4', next: [{ san: 'e5', next: [] }] }])).toContain('"next"');
+  });
+
+  it('refuses absurdly deep, nested or large trees instead of overflowing', () => {
+    expect(bad(Array.from({ length: MAX_TREE_DEPTH + 1 }, () => 'Nf3'))).toContain('deeper');
+    let nested: unknown[] = ['e4'];
+    for (let i = 0; i <= MAX_TREE_DEPTH; i++) nested = ['e4', nested];
+    expect(bad(nested)).toContain('nests');
+    const wide = ['e4', ...Array.from({ length: MAX_TREE_NODES }, () => ['d4'])];
+    expect(bad(wide)).toContain('more than');
+  });
+
+  it('trims SANs and drops blank comments when reading', () => {
+    const line = toLine({ ...makeStored(), tree: [{ san: ' e4 ', comment: '  ' }, { san: 'e5', comment: ' ok ' }] });
+    expect(line?.tree).toEqual([{ san: 'e4', next: [{ san: 'e5', comment: 'ok', next: [] }] }]);
+  });
+
+  it('round-trips through migrate unchanged', () => {
+    const line = makeLine({ tree: branched, notes: 'n', folder: 'White/Open' });
+    const res = migrate(JSON.stringify(fileOf([line])));
+    expect(res.error).toBeUndefined();
+    expect(res.changed).toBe(false);
+    expect(res.file).toEqual({ schemaVersion: LINES_SCHEMA_VERSION, exportedAt: 5, lines: [line] });
+  });
+
+  it('round-trips through serialiseLinesFile, compact and pretty', () => {
+    const file = { schemaVersion: LINES_SCHEMA_VERSION, exportedAt: 5, lines: [makeLine({ tree: branched })] };
+    for (const pretty of [false, true]) {
+      const res = migrate(serialiseLinesFile(file, pretty));
+      expect(res.changed).toBe(false);
+      expect(res.file).toEqual(file);
+    }
+  });
+});
+
+describe('migrate — schema v1', () => {
+  it('turns each move list into a single-branch tree and flags the upgrade', () => {
+    const res = migrate({
+      schemaVersion: 1,
+      exportedAt: 5,
+      lines: [makeV1Line({ notes: 'keep me', folder: 'White/Italian' }), makeV1Line({ id: 'id-2', moves: [] })],
+    });
+    expect(res.error).toBeUndefined();
+    expect(res.changed).toBe(true);
+    expect(res.file.schemaVersion).toBe(LINES_SCHEMA_VERSION);
+    expect(res.file.lines).toEqual([
+      makeLine({ notes: 'keep me', folder: 'White/Italian' }),
+      makeLine({ id: 'id-2', tree: [] }),
+    ]);
+    expect('moves' in (res.file.lines[0] as object)).toBe(false);
+  });
+
+  it('still validates v1 move lists', () => {
+    const res = migrate({
+      schemaVersion: 1,
+      exportedAt: 5,
+      lines: [makeV1Line({ moves: ['e4', 7] }), makeV1Line({ id: 'b', moves: 'e4' }), makeStored()],
+    });
+    expect(res.file.lines).toEqual([]);
+    expect(res.error).toContain('moves[1]');
+    expect(res.error).toContain('"moves" must be an array');
+    // A tree-shaped line inside a v1 file has no `moves`, so it is refused too.
+    expect(res.error).toContain('3 unreadable line(s)');
+  });
+
+  it('refuses version 3', () => {
+    const res = migrate({ schemaVersion: 3, exportedAt: 5, lines: [] });
+    expect(res.error).toContain('newer version');
+    expect(res.changed).toBe(false);
   });
 });
 
@@ -149,25 +295,26 @@ describe('migrate — unusable payloads', () => {
 
 describe('migrate — usable payloads', () => {
   const good = makeLine();
+  const goodStored = toStoredLine(good);
 
   it('accepts a JSON string', () => {
-    const res = migrate(JSON.stringify({ schemaVersion: 1, exportedAt: 5, lines: [good] }));
+    const res = migrate(JSON.stringify(fileOf([good])));
     expect(res.error).toBeUndefined();
     expect(res.changed).toBe(false);
-    expect(res.file).toEqual({ schemaVersion: 1, exportedAt: 5, lines: [good] });
+    expect(res.file).toEqual({ schemaVersion: LINES_SCHEMA_VERSION, exportedAt: 5, lines: [good] });
   });
 
   it('accepts an already-parsed object', () => {
-    const res = migrate({ schemaVersion: 1, exportedAt: 5, lines: [good] });
+    const res = migrate(fileOf([good]));
     expect(res.error).toBeUndefined();
     expect(res.file.lines).toEqual([good]);
   });
 
   it('drops individual malformed lines, keeps the rest, and says so', () => {
     const res = migrate({
-      schemaVersion: 1,
+      schemaVersion: LINES_SCHEMA_VERSION,
       exportedAt: 5,
-      lines: [good, { id: 'x', name: 'Broken' }, null, makeLine({ id: 'id-2', name: 'French' })],
+      lines: [goodStored, { id: 'x', name: 'Broken' }, null, makeStored({ id: 'id-2', name: 'French' })],
     });
     expect(res.file.lines.map((l) => l.id)).toEqual(['id-1', 'id-2']);
     expect(res.changed).toBe(true);
@@ -177,14 +324,14 @@ describe('migrate — usable payloads', () => {
   });
 
   it('repairs a missing exportedAt and flags the change', () => {
-    const res = migrate({ schemaVersion: 1, lines: [good] });
+    const res = migrate({ schemaVersion: LINES_SCHEMA_VERSION, lines: [goodStored] });
     expect(res.error).toBeUndefined();
     expect(res.changed).toBe(true);
     expect(res.file.exportedAt).toBe(0);
   });
 
   it('does not mutate the input payload', () => {
-    const payload = { schemaVersion: 1, exportedAt: 5, lines: [good, { id: 'broken' }] };
+    const payload = { schemaVersion: LINES_SCHEMA_VERSION, exportedAt: 5, lines: [goodStored, { id: 'broken' }] };
     const snapshot = JSON.stringify(payload);
     migrate(payload);
     expect(JSON.stringify(payload)).toBe(snapshot);
@@ -194,11 +341,11 @@ describe('migrate — usable payloads', () => {
 describe('parseLinesFilePayload', () => {
   it('returns the raw lines untouched for a valid envelope', () => {
     const res = parseLinesFilePayload(
-      JSON.stringify({ schemaVersion: 1, exportedAt: 9, lines: [{ id: 'raw' }] }),
+      JSON.stringify({ schemaVersion: LINES_SCHEMA_VERSION, exportedAt: 9, lines: [{ id: 'raw' }] }),
     );
     expect(res.ok).toBe(true);
     if (res.ok) {
-      expect(res.schemaVersion).toBe(1);
+      expect(res.schemaVersion).toBe(LINES_SCHEMA_VERSION);
       expect(res.exportedAt).toBe(9);
       expect(res.rawLines).toEqual([{ id: 'raw' }]);
     }
@@ -213,38 +360,30 @@ describe('parseLinesFilePayload', () => {
 
 describe('the folder field', () => {
   it('is optional, and any string is a valid folder', () => {
-    expect(validateLineShape(makeLine()).valid).toBe(true);
-    expect(validateLineShape(makeLine({ folder: '' })).valid).toBe(true);
-    expect(validateLineShape(makeLine({ folder: 'Black/Sicilian' })).valid).toBe(true);
+    expect(validateLineShape(makeStored()).valid).toBe(true);
+    expect(validateLineShape(makeStored({ folder: '' })).valid).toBe(true);
+    expect(validateLineShape(makeStored({ folder: 'Black/Sicilian' })).valid).toBe(true);
   });
 
   it('rejects a folder of the wrong type', () => {
-    expect(validateLineShape({ ...makeLine(), folder: 42 }).error).toMatch(/folder/);
-    expect(validateLineShape({ ...makeLine(), folder: ['a'] }).error).toMatch(/folder/);
+    expect(validateLineShape({ ...makeStored(), folder: 42 }).error).toMatch(/folder/);
+    expect(validateLineShape({ ...makeStored(), folder: ['a'] }).error).toMatch(/folder/);
   });
 
   it('is normalised by toLine, and omitted when it comes to nothing', () => {
-    expect(toLine(makeLine({ folder: ' Black // Sicilian / ' }))?.folder).toBe('Black/Sicilian');
-    expect('folder' in (toLine(makeLine({ folder: '  ' })) as object)).toBe(false);
-    expect('folder' in (toLine(makeLine()) as object)).toBe(false);
+    expect(toLine(makeStored({ folder: ' Black // Sicilian / ' }))?.folder).toBe('Black/Sicilian');
+    expect('folder' in (toLine(makeStored({ folder: '  ' })) as object)).toBe(false);
+    expect('folder' in (toLine(makeStored()) as object)).toBe(false);
   });
 
   it('survives a round trip through migrate', () => {
-    const result = migrate({
-      schemaVersion: LINES_SCHEMA_VERSION,
-      exportedAt: 5,
-      lines: [makeLine({ folder: 'White/Italian' })],
-    });
+    const result = migrate(fileOf([makeLine({ folder: 'White/Italian' })]));
     expect(result.error).toBeUndefined();
     expect(result.file.lines[0]?.folder).toBe('White/Italian');
   });
 
   it('reads a pre-folders file as a repertoire with no folders at all', () => {
-    const result = migrate({
-      schemaVersion: LINES_SCHEMA_VERSION,
-      exportedAt: 5,
-      lines: [makeLine()],
-    });
+    const result = migrate(fileOf([makeLine()]));
     expect(result.error).toBeUndefined();
     expect(result.changed).toBe(false);
     expect(result.file.lines[0]?.folder).toBeUndefined();

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { START_FEN } from './position';
+import { treeFromMoves, type MoveTree } from './tree';
 import {
   attemptMove,
   autoPlay,
+  branchSpec,
   canStepBack,
   clearRejection,
   colorAtPly,
@@ -21,6 +23,7 @@ import {
   resolveLine,
   restartSession,
   revealNextMove,
+  sessionExpectedComment,
   sessionExpectedSan,
   sessionFen,
   sessionLastMove,
@@ -636,5 +639,57 @@ describe('orientationFor', () => {
   it('maps colours to board orientation', () => {
     expect(orientationFor('w')).toBe('white');
     expect(orientationFor('b')).toBe('black');
+  });
+});
+
+describe('branchSpec', () => {
+  const tree: MoveTree = [
+    {
+      san: 'e4',
+      next: [
+        { san: 'e5', next: [{ san: 'Nf3', comment: 'develop', next: [] }] },
+        { san: 'c5', comment: 'Sicilian', next: [{ san: 'Nf3', next: [] }] },
+      ],
+    },
+  ];
+  const stored = { startFen: START_FEN, tree, userColor: 'w' as const };
+
+  it('cuts one branch out of a tree, with its comments', () => {
+    expect(branchSpec(stored, 0)).toEqual({
+      startFen: START_FEN,
+      moves: ['e4', 'e5', 'Nf3'],
+      userColor: 'w',
+      comments: [undefined, undefined, 'develop'],
+    });
+    expect(branchSpec(stored, 1)?.moves).toEqual(['e4', 'c5', 'Nf3']);
+    expect(branchSpec(stored, 1)?.comments).toEqual([undefined, 'Sicilian', undefined]);
+  });
+
+  it('is null past the last branch, and branch 0 of an empty tree is empty', () => {
+    expect(branchSpec(stored, 2)).toBeNull();
+    expect(branchSpec(stored, -1)).toBeNull();
+    expect(branchSpec({ ...stored, tree: [] }, 0)?.moves).toEqual([]);
+  });
+
+  it('feeds the comments through resolveLine to the session', () => {
+    const spec = branchSpec(stored, 1) as LineSpec;
+    const line = resolved(spec);
+    expect(line.comments).toEqual([undefined, 'Sicilian', undefined]);
+
+    let s = createSession(line);
+    expect(sessionExpectedComment(s)).toBeNull();
+    s = attemptMove(s, 'e4').session;
+    expect(sessionExpectedComment(s)).toBe('Sicilian');
+    s = play(s, 2);
+    expect(isSessionComplete(s)).toBe(true);
+    expect(sessionExpectedComment(s)).toBeNull();
+  });
+
+  it('defaults to no comments for a plain linear spec', () => {
+    expect(resolved({ startFen: START_FEN, moves: ['d4', 'd5'], userColor: 'w' }).comments).toEqual([
+      undefined,
+      undefined,
+    ]);
+    expect(branchSpec({ ...stored, tree: treeFromMoves(['d4']) }, 0)?.comments).toEqual([undefined]);
   });
 });

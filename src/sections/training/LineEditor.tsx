@@ -1,8 +1,9 @@
 /**
  * `#/training/new` and `#/training/:id/edit` — the line editor (README §7 Phase 5).
  *
- * Fields: name, folder, trained-as colour, starting position, notes, and the move list itself,
- * entered by playing moves on the board.
+ * Fields: name, folder, trained-as colour, starting position, notes, and the move tree itself,
+ * entered by playing moves on the board — playing a different move anywhere in the line adds a
+ * branch from there — with an optional comment on every move.
  *
  * The folder is **picked, not typed**: a select of every folder the repertoire already has, with
  * the folder this line came from (`?folder=`, or the line's own on an edit) already selected — so
@@ -13,40 +14,46 @@
  * What this file deliberately does NOT own:
  *  - the starting position editor — that is Phase 4's `components/PositionEditor`, reused as the
  *    spec requires;
- *  - move-list mechanics — `chess/history.ts` provides truncation, cursor navigation and
- *    `historyFromSan`, so undo is `stepBack` and redo is `stepForward`;
+ *  - move-tree mechanics — `chess/treeHistory.ts` (playing at the cursor, navigation, delete,
+ *    make main line, comments, rebasing onto a new start position);
+ *  - the tree view — `components/MoveTree`;
  *  - validation, dirty-tracking and the draft→`Line` mapping — `./lines/draft.ts`, unit-tested.
  *
- * Undo/redo semantics are documented in `./lines/draft.ts`: undo walks the cursor back and the
- * saved line is the moves *up to the cursor*, so undone moves are recoverable with Redo right up
- * until either Save or a different move truncates them.
+ * Editing semantics are documented in `./lines/draft.ts`: nothing is ever truncated, "Back" only
+ * moves the cursor, and the saved line is the whole tree.
  */
 
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import styled from 'styled-components';
 import { Board } from '../../components/Board';
-import { MoveList } from '../../components/MoveList';
+import { MoveTree } from '../../components/MoveTree';
 import { PositionEditor } from '../../components/PositionEditor';
 import { Button, Panel, RotateButton } from '../../components/ui';
 import { createGame, type Color, type MoveInput } from '../../chess/game';
+import { flipOrientation, type Orientation } from '../../chess/position';
+import { countMoves, type NodePath } from '../../chess/tree';
 import {
-  applyMove,
-  createHistory,
-  currentFen,
-  isAtEnd,
+  applyMoveAt,
+  canPromote,
+  clearTree,
+  commentAt,
+  deleteFromCursor,
+  fenAt,
   isAtStart,
   jumpTo,
-  lastMoveOf,
-  sansOf,
-  sideToMove,
-  startColor,
-  startMoveNumber,
+  lastMoveAt,
+  moveLabelAt,
+  movesFromCursor,
+  promoteToMainLine,
+  rebaseTree,
+  setCommentAt,
+  sideToMoveAt,
+  startColorOf,
+  startMoveNumberOf,
   stepBack,
-  stepForward,
-  type HistoryState,
-} from '../../chess/history';
-import { flipOrientation, type Orientation } from '../../chess/position';
+  type TreeHistoryState,
+} from '../../chess/treeHistory';
 import { allFolderPaths, folderLabel } from '../../storage/folders';
 import { createLine, getLine, listLines, updateLine } from '../../storage/lines';
 import { normaliseFolderPath } from '../../storage/schema';
@@ -56,16 +63,14 @@ import { linesPath } from './lines/folderNav';
 import { Notice, NoticeTitle } from './lines/Notice';
 import {
   draftFromLine,
-  draftMoves,
   emptyDraft,
   isDirty,
-  pendingRedoCount,
-  rebaseHistory,
+  loadMoves,
   toLineInput,
   validateDraft,
   type LineDraft,
 } from './lines/draft';
-import { colorLabel, isStandardStart, moveCountLabel } from './lines/lineFormat';
+import { colorLabel, isStandardStart, lineSizeLabel, moveCountLabel } from './lines/lineFormat';
 
 /**
  * Sentinel value of the folder picker's last option. Not a legal folder path — `/` is the path
@@ -84,6 +89,15 @@ interface EditorState {
   loadNotice: string | null;
 }
 
+/** A destructive move-tree edit waiting for confirmation. */
+interface PendingRemoval {
+  kind: 'delete' | 'clear';
+  /** How many moves it removes. */
+  count: number;
+  /** `12…Nf3` for a delete, for the dialog text. */
+  label: string | null;
+}
+
 function seedState(
   id: string | undefined,
   folder: string,
@@ -96,10 +110,10 @@ function seedState(
     if (staged === null) {
       return { routeId: null, status: 'new', draft, baseline: draft, loadNotice: null };
     }
-    // Moves handed over by explore or analyse. Rebased rather than trusted: the staged list came
-    // from a live board, but the editor re-derives every position it shows from the start FEN
-    // anyway.
-    const rebased = rebaseHistory(staged.startFen, staged.moves);
+    // Moves handed over by explore or analyse — a linear list, loaded as a single-branch tree.
+    // Replayed rather than trusted: the staged list came from a live board, but the editor
+    // re-derives every position it shows from the start FEN anyway.
+    const rebased = loadMoves(staged.startFen, staged.moves);
     const seeded: LineDraft = {
       ...draft,
       folder: normaliseFolderPath(staged.folder),
@@ -162,6 +176,8 @@ export function LineEditor() {
   const [positionNotice, setPositionNotice] = useState<string | null>(null);
   /** Non-null while the "discard unsaved changes?" dialog is open; holds where to go next. */
   const [pendingLeave, setPendingLeave] = useState<string | null>(null);
+  /** Non-null while "Delete from here" / "Clear moves" waits for confirmation. */
+  const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null);
 
   // `Routes` renders `<LineEditor />` at the same position for both /new and /:id/edit, so the
   // component instance can survive an id change. Re-seed during render (React's documented
@@ -176,6 +192,7 @@ export function LineEditor() {
     setError(null);
     setPositionNotice(null);
     setPendingLeave(null);
+    setPendingRemoval(null);
   }
 
   const { draft, baseline, status } = state;
@@ -211,16 +228,16 @@ export function LineEditor() {
   }, [knownFolders, selectedFolder]);
 
   const dirty = useMemo(() => isDirty(draft, baseline), [draft, baseline]);
-  const moves = sansOf(history);
-  const savedMoves = draftMoves(history);
-  const undone = pendingRedoCount(history);
-  const fen = currentFen(history);
+  const totalMoves = countMoves(history.tree);
+  const fen = useMemo(() => fenAt(history), [history]);
+  const lastMove = useMemo(() => lastMoveAt(history), [history]);
+  const cursorLabel = moveLabelAt(history, history.cursor);
 
   const onMove = useCallback(
     (move: MoveInput) => {
       setError(null);
       setState((prev) => {
-        const next = applyMove(prev.draft.history, move);
+        const next = applyMoveAt(prev.draft.history, move);
         if (next === null) return prev;
         return { ...prev, draft: { ...prev.draft, history: next } };
       });
@@ -228,10 +245,39 @@ export function LineEditor() {
     [],
   );
 
-  const setHistory = useCallback((fn: (h: HistoryState) => HistoryState) => {
+  const setHistory = useCallback((fn: (h: TreeHistoryState) => TreeHistoryState) => {
     setError(null);
     setState((prev) => ({ ...prev, draft: { ...prev.draft, history: fn(prev.draft.history) } }));
   }, []);
+
+  /** Pure navigation: never clears a save error, since nothing that is saved changed. */
+  const onSelect = useCallback((path: NodePath) => {
+    setState((prev) => ({
+      ...prev,
+      draft: { ...prev.draft, history: jumpTo(prev.draft.history, path) },
+    }));
+  }, []);
+
+  /** "Delete from here": straight away for a single move, after a confirmation for more. */
+  const onDeleteFromHere = useCallback(() => {
+    const count = movesFromCursor(history);
+    if (count === 0) return;
+    if (count === 1) setHistory(deleteFromCursor);
+    else setPendingRemoval({ kind: 'delete', count, label: moveLabelAt(history, history.cursor) });
+  }, [history, setHistory]);
+
+  const onClearMoves = useCallback(() => {
+    if (totalMoves === 0) return;
+    if (totalMoves === 1) setHistory(clearTree);
+    else setPendingRemoval({ kind: 'clear', count: totalMoves, label: null });
+  }, [setHistory, totalMoves]);
+
+  const onConfirmRemoval = useCallback(() => {
+    const removal = pendingRemoval;
+    setPendingRemoval(null);
+    if (removal === null) return;
+    setHistory(removal.kind === 'delete' ? deleteFromCursor : clearTree);
+  }, [pendingRemoval, setHistory]);
 
   const onChooseColor = useCallback(
     (color: Color) => {
@@ -243,9 +289,9 @@ export function LineEditor() {
 
   const onConfirmPosition = useCallback(
     (nextFen: string) => {
-      // Keeps the longest legal prefix of what has been entered so far; anything the new
-      // position makes illegal is dropped and reported rather than silently kept.
-      const rebased = rebaseHistory(nextFen, draftMoves(history));
+      // Keeps every move (and branch, and comment) still legal from the new position; anything
+      // it makes illegal is dropped with its continuations and reported rather than silently kept.
+      const rebased = rebaseTree(history, nextFen);
       setEditingPosition(false);
       setPositionNotice(
         rebased.dropped > 0
@@ -264,10 +310,9 @@ export function LineEditor() {
       setError(validation.error ?? 'This line cannot be saved yet.');
       return;
     }
-    const input = toLineInput(draft);
-    // Persist the SAN exactly as chess.js normalises it, so drill comparisons are against
-    // canonical strings.
-    input.moves = validation.moves;
+    // Persist the validated tree: every branch and comment, SANs exactly as chess.js normalises
+    // them (so drill comparisons are against canonical strings), duplicate siblings merged.
+    const input = toLineInput(draft, validation.tree);
     if (status === 'edit' && id !== undefined) {
       if (updateLine(id, input) === null) {
         setError('That line no longer exists — it may have been deleted in another tab.');
@@ -330,7 +375,8 @@ export function LineEditor() {
     );
   }
 
-  const turn = sideToMove(history);
+  const turn = sideToMoveAt(history);
+  const atStart = isAtStart(history);
 
   return (
     <Wrap data-testid="line-editor">
@@ -370,7 +416,7 @@ export function LineEditor() {
           >
             <BoardStack>
               <Caption data-testid="editor-caption">
-                {describeTurn(fen, turn)} · {moveCountLabel(savedMoves.length)} in this line
+                {describeTurn(fen, turn)} · {lineSizeLabel(history.tree)} in this line
               </Caption>
               <BoardCell>
                 <Board
@@ -378,46 +424,78 @@ export function LineEditor() {
                   orientation={orientation}
                   onMove={onMove}
                   movableFor="both"
-                  lastMove={lastMoveOf(history)}
+                  lastMove={lastMove}
                 />
               </BoardCell>
               <ButtonRow>
                 <Button
-                  data-testid="undo-move"
-                  disabled={isAtStart(history)}
+                  data-testid="step-back"
+                  disabled={atStart}
                   onClick={() => setHistory(stepBack)}
                 >
-                  Undo
+                  Back
                 </Button>
                 <Button
-                  data-testid="redo-move"
-                  disabled={isAtEnd(history)}
-                  onClick={() => setHistory(stepForward)}
+                  data-testid="delete-from-here"
+                  disabled={atStart}
+                  title="Remove this move and everything after it"
+                  onClick={onDeleteFromHere}
                 >
-                  Redo
+                  Delete from here
+                </Button>
+                <Button
+                  data-testid="make-main-line"
+                  disabled={!canPromote(history)}
+                  title="Make this move's branch the main line"
+                  onClick={() => setHistory(promoteToMainLine)}
+                >
+                  Make main line
                 </Button>
                 <Button
                   variant="danger"
                   data-testid="clear-moves"
-                  disabled={moves.length === 0}
-                  onClick={() => setHistory((h) => createHistory(h.startFen))}
+                  disabled={totalMoves === 0}
+                  onClick={onClearMoves}
                 >
                   Clear moves
                 </Button>
               </ButtonRow>
-              {undone > 0 && (
-                <Notice $tone="warn" role="status" data-testid="undone-notice">
-                  {moveCountLabel(undone)} after the cursor {undone === 1 ? 'has' : 'have'} been
-                  undone and will not be saved. Press Redo to keep {undone === 1 ? 'it' : 'them'}.
-                </Notice>
-              )}
-              <MoveList
-                moves={moves}
+              <MoveTree
+                tree={history.tree}
                 cursor={history.cursor}
-                onJump={(index) => setHistory((h) => jumpTo(h, index))}
-                startColor={startColor(history)}
-                startMoveNumber={startMoveNumber(history)}
+                onSelect={onSelect}
+                startColor={startColorOf(history)}
+                startMoveNumber={startMoveNumberOf(history)}
+                keyboardNavigation={pendingRemoval === null && pendingLeave === null}
               />
+              <Field>
+                <FieldLabel htmlFor="move-comment">
+                  {cursorLabel === null ? (
+                    'Comment'
+                  ) : (
+                    <>
+                      Comment on <MoveRef>{cursorLabel}</MoveRef>
+                    </>
+                  )}
+                </FieldLabel>
+                <TextArea
+                  id="move-comment"
+                  rows={2}
+                  disabled={atStart}
+                  value={commentAt(history)}
+                  placeholder={
+                    atStart ? 'Select a move to comment on it' : 'What to know about this move…'
+                  }
+                  data-testid="comment-input"
+                  onChange={(event) => {
+                    const text = event.target.value;
+                    setHistory((h) => setCommentAt(h, text));
+                  }}
+                />
+                {atStart && (
+                  <Hint>Comments belong to a move — play or select one in the tree above.</Hint>
+                )}
+              </Field>
             </BoardStack>
           </Panel>
         </BoardColumn>
@@ -556,6 +634,22 @@ export function LineEditor() {
         </FormColumn>
       </Columns>
 
+      {pendingRemoval !== null && (
+        <ConfirmDialog
+          title={pendingRemoval.kind === 'delete' ? 'Delete these moves?' : 'Clear every move?'}
+          confirmLabel={pendingRemoval.kind === 'delete' ? 'Delete' : 'Clear moves'}
+          onCancel={() => setPendingRemoval(null)}
+          onConfirm={onConfirmRemoval}
+        >
+          {pendingRemoval.kind === 'delete'
+            ? `This removes ${pendingRemoval.label ?? 'this move'} and everything after it — ` +
+              `${moveCountLabel(pendingRemoval.count)} in all, comments included.`
+            : `This removes all ${moveCountLabel(pendingRemoval.count)} of this line, every ` +
+              `branch and comment included.`}{' '}
+          Nothing is saved until you press Save.
+        </ConfirmDialog>
+      )}
+
       {pendingLeave !== null && (
         <ConfirmDialog
           title="Discard unsaved changes?"
@@ -693,6 +787,13 @@ const FieldLabel = styled.label`
   color: ${(p) => p.theme.color.textMuted};
 `;
 
+/** A move inside an uppercase label: SAN is case-sensitive (`Bc4` vs `bc4`), so keep it as is. */
+const MoveRef = styled.span`
+  font-family: ${(p) => p.theme.font.mono};
+  letter-spacing: 0;
+  text-transform: none;
+`;
+
 const Hint = styled.p`
   margin: 0;
   color: ${(p) => p.theme.color.textFaint};
@@ -746,6 +847,11 @@ const TextArea = styled.textarea`
   font-family: inherit;
   font-size: ${(p) => p.theme.font.size.md};
   resize: vertical;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
 
   &:focus-visible {
     outline: 2px solid ${(p) => p.theme.color.focus};

@@ -2,19 +2,29 @@ import { describe, expect, it } from 'vitest';
 import { fenAfter } from '../../chess/game';
 import { START_FEN } from '../../chess/position';
 import type { Line } from '../../storage/schema';
-import { buildCoverageIndex, coverageAt, positionKey } from './coverage';
+import { arrivalComments, buildCoverageIndex, coverageAt, positionKey } from './coverage';
+import { treeFromMoves, type MoveNode, type MoveTree } from '../../chess/tree';
 
 function line(name: string, moves: string[], overrides: Partial<Line> = {}): Line {
   return {
     id: `id-${name}`,
     name,
     startFen: START_FEN,
-    moves,
+    tree: treeFromMoves(moves),
     userColor: 'w',
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
   };
+}
+
+/** A tree node; `next` given as further nodes. */
+function n(san: string, next: MoveNode[] = [], comment?: string): MoveNode {
+  return comment === undefined ? { san, next } : { san, comment, next };
+}
+
+function treeLine(name: string, tree: MoveTree, overrides: Partial<Line> = {}): Line {
+  return line(name, [], { tree, ...overrides });
 }
 
 /** The position after `moves` from the standard start, as chess.js writes it. */
@@ -86,7 +96,8 @@ describe('coverageAt', () => {
     expect(coverage.moves).toEqual([]);
     expect(coverage.endsHere.map((r) => r.line.name)).toEqual(['Italian']);
     expect(coverage.endsHere[0]?.ply).toBe(5);
-    expect(coverage.endsHere[0]?.total).toBe(5);
+    expect(coverage.endsHere[0]?.leaf).toBe(true);
+    expect(coverage.endsHere[0]?.path).toEqual([0, 0, 0, 0, 0]);
   });
 
   it('matches by transposition, not by move order', () => {
@@ -143,7 +154,7 @@ describe('buildCoverageIndex with damaged lines', () => {
     const damaged = line('Damaged', ['e4', 'e5', 'Qxd8']);
     const index = buildCoverageIndex([damaged]);
 
-    expect(index.broken).toEqual([{ line: damaged, failedAtPly: 2 }]);
+    expect(index.broken).toEqual([{ line: damaged, failedAtPly: 2, path: [0, 0, 0] }]);
     expect(coverageAt(index, after(['e4'])).moves.map((m) => m.san)).toEqual(['e5']);
 
     // The position where it gives up: reached, but with no playable continuation.
@@ -151,13 +162,111 @@ describe('buildCoverageIndex with damaged lines', () => {
     expect(atBreak.moves).toEqual([]);
     expect(atBreak.endsHere).toEqual([]);
     expect(atBreak.breaksHere.map((r) => r.line.name)).toEqual(['Damaged']);
+    expect(atBreak.breaksHere[0]).toMatchObject({ brokenSan: 'Qxd8', nextPath: [0, 0, 0] });
+  });
+
+  it('keeps indexing the playable siblings of a broken move', () => {
+    const damaged = treeLine('Damaged', [n('e4', [n('Qxd8'), n('c5', [n('Nf3')])])]);
+    const index = buildCoverageIndex([damaged]);
+    expect(index.broken).toEqual([{ line: damaged, failedAtPly: 1, path: [0, 0] }]);
+    const afterE4 = coverageAt(index, after(['e4']));
+    expect(afterE4.moves.map((m) => m.san)).toEqual(['c5']);
+    expect(afterE4.breaksHere.map((r) => r.brokenSan)).toEqual(['Qxd8']);
+    expect(coverageAt(index, after(['e4', 'c5'])).moves.map((m) => m.san)).toEqual(['Nf3']);
   });
 
   it('reports an illegal start position and indexes nothing for it', () => {
     const nonsense = line('Nonsense', ['e4'], { startFen: 'not a fen' });
     const index = buildCoverageIndex([nonsense, line('Good', ['e4'])]);
-    expect(index.broken).toEqual([{ line: nonsense, failedAtPly: null }]);
+    expect(index.broken).toEqual([{ line: nonsense, failedAtPly: null, path: [] }]);
     expect(index.lineCount).toBe(2);
     expect(coverageAt(index, START_FEN).lines.map((l) => l.name)).toEqual(['Good']);
+  });
+});
+
+describe('coverage of a branched line', () => {
+  // 1.e4 e5 2.Nf3 (2.Bc4 Nf6) Nc6 — one line, two continuations after 1...e5.
+  const branched = treeLine('Open games', [
+    n('e4', [
+      n('e5', [
+        n('Nf3', [n('Nc6')], 'Develop and attack e5'),
+        n('Bc4', [n('Nf6', [], 'Petroff-style counter')], 'Bishop first'),
+      ]),
+    ]),
+  ]);
+
+  it('covers every continuation of the tree, not just the main line', () => {
+    const index = buildCoverageIndex([branched]);
+    const coverage = coverageAt(index, after(['e4', 'e5']));
+    expect(coverage.lines.map((l) => l.name)).toEqual(['Open games']);
+    expect(coverage.moves.map((m) => [m.san, m.lines.length])).toEqual([
+      ['Bc4', 1],
+      ['Nf3', 1],
+    ]);
+    expect(coverage.reaching.map((r) => [r.nextSan, r.nextPath, r.branchCount])).toEqual([
+      ['Nf3', [0, 0, 0], 2],
+      ['Bc4', [0, 0, 1], 2],
+    ]);
+    // The side branch is indexed all the way to its leaf.
+    const leaf = coverageAt(index, after(['e4', 'e5', 'Bc4', 'Nf6']));
+    expect(leaf.endsHere.map((r) => [r.line.name, r.path, r.leaf, r.branchCount])).toEqual([
+      ['Open games', [0, 0, 1, 0], true, 1],
+    ]);
+  });
+
+  it('carries the next move\'s comment on each reach', () => {
+    const coverage = coverageAt(buildCoverageIndex([branched]), after(['e4', 'e5']));
+    expect(coverage.reaching.map((r) => [r.nextSan, r.comment])).toEqual([
+      ['Nf3', 'Develop and attack e5'],
+      ['Bc4', 'Bishop first'],
+    ]);
+  });
+
+  it('groups comments per continuation, from every line that plays it', () => {
+    const other = treeLine('Bishop lines', [
+      n('e4', [n('e5', [n('Bc4', [n('Nc6', [n('Qh5', [], 'Scholar threat')])])])]),
+    ]);
+    const coverage = coverageAt(buildCoverageIndex([branched, other]), after(['e4', 'e5']));
+    const bc4 = coverage.moves.find((m) => m.san === 'Bc4');
+    const nf3 = coverage.moves.find((m) => m.san === 'Nf3');
+    expect(bc4?.lines.map((l) => l.name)).toEqual(['Bishop lines', 'Open games']);
+    // The first comment on each branch from the move on, with the moves that lead to it.
+    expect(bc4?.comments.map((c) => [c.line.name, c.moves.join(' '), c.text])).toEqual([
+      ['Bishop lines', 'Bc4 Nc6 Qh5', 'Scholar threat'],
+      ['Open games', 'Bc4', 'Bishop first'],
+    ]);
+    expect(nf3?.comments.map((c) => [c.line.name, c.text])).toEqual([
+      ['Open games', 'Develop and attack e5'],
+    ]);
+  });
+
+  it('counts a line reaching a position along two branches with the same next move once', () => {
+    // 1.Nf3 Nf6 2.d4 e6 and 1.d4 Nf6 2.Nf3 e6 — the same position, the same reply.
+    const transposing = treeLine('Queen pawn', [
+      n('Nf3', [n('Nf6', [n('d4', [n('e6', [], 'Solid')])])]),
+      n('d4', [n('Nf6', [n('Nf3', [n('e6', [], 'Also solid')])])]),
+    ]);
+    const coverage = coverageAt(buildCoverageIndex([transposing]), after(['d4', 'Nf6', 'Nf3']));
+    expect(coverage.reaching).toHaveLength(1);
+    expect(coverage.moves).toEqual([
+      expect.objectContaining({ san: 'e6', reaches: [expect.anything()] }),
+    ]);
+    // Both branches' comments survive the dedupe.
+    expect(coverage.moves[0]?.comments.map((c) => c.text)).toEqual(['Solid', 'Also solid']);
+    // Both leaves end here, but the line is named once.
+    const end = coverageAt(buildCoverageIndex([transposing]), after(['d4', 'Nf6', 'Nf3', 'e6']));
+    expect(end.endsHere).toHaveLength(1);
+  });
+
+  it('finds the comment on the move that led to the board position', () => {
+    const index = buildCoverageIndex([branched]);
+    const fen = after(['e4', 'e5', 'Bc4']);
+    const before = after(['e4', 'e5']);
+    expect(arrivalComments(index, fen, { san: 'Bc4', fenBefore: before })).toEqual([
+      { line: branched, text: 'Bishop first' },
+    ]);
+    // Another move into the same position is not this move.
+    expect(arrivalComments(index, fen, { san: 'Bc4', fenBefore: START_FEN })).toEqual([]);
+    expect(arrivalComments(index, fen, null)).toEqual([]);
   });
 });

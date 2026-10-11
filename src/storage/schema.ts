@@ -8,23 +8,49 @@
  * of the payload. Deciding whether to write anything back is the caller's business, and
  * `lines.ts` deliberately never writes during a read.
  *
- * This module is pure — no `localStorage`, no `chess.js` — so it stays trivially testable.
+ * This module is pure — no `localStorage`, no `chess.js` calls — so it stays trivially testable.
+ * (It builds trees with `chess/tree.ts`, whose chess.js-backed replay it never uses.)
+ *
+ * Versions:
+ *  - **1** — a line was linear: `moves: string[]`.
+ *  - **2** — a line is a move tree, stored PGN-like (`treeFormat.ts`): `tree` is the main line
+ *    as an array of moves (`"e4"` or `{ "san": "e4", "comment": "…" }`), and an array after a
+ *    move is an alternative to it; `moves` is gone. In memory a `Line` holds a `MoveTree` (see
+ *    `chess/tree.ts`); only `serialiseLinesFile` writes the stored form. A v1 payload is still
+ *    read: each line becomes a single-branch tree, and `migrate` reports `changed` so the next
+ *    write persists it as v2. Nothing else is done to it (no joining of lines) — a migration
+ *    must stay lossless and unsurprising.
  */
 
-export const LINES_SCHEMA_VERSION = 1;
+import { treeFromMoves, type MoveTree } from '../chess/tree';
+import { formatJson } from './formatJson';
+import { decodeTree, encodeTree, type StoredTree } from './treeFormat';
+
+export const LINES_SCHEMA_VERSION = 2;
+
+/** Oldest `schemaVersion` this build still reads (and upgrades). */
+export const MIN_LINES_SCHEMA_VERSION = 1;
+
+/** Deepest move tree a stored line may hold, in plies. Far beyond any real line; stops recursion. */
+export const MAX_TREE_DEPTH = 1000;
+/** Most moves (nodes) a stored line may hold. Refuses absurd payloads instead of choking on them. */
+export const MAX_TREE_NODES = 20000;
 
 /** Deepest folder nesting a path may express; anything below is truncated, never rejected. */
 export const MAX_FOLDER_DEPTH = 8;
 /** Longest single folder segment. Long enough for a real opening name, short enough to render. */
 export const MAX_FOLDER_SEGMENT = 64;
 
-/** A linear repertoire line: one starting position, one ordered move sequence. */
+/** A repertoire line: one starting position, and a tree of moves from it. */
 export interface Line {
   id: string; // crypto.randomUUID()
   name: string;
   startFen: string; // valid FEN; standard start position by default
-  /** SAN moves in order, alternating sides, starting from the side to move in startFen. */
-  moves: string[];
+  /**
+   * The moves playable from `startFen` (side to move there first), each with its continuations.
+   * First child = main line. Empty for a line with no moves. Replaces v1's linear `moves`.
+   */
+  tree: MoveTree;
   /** Side the user trains as. Determines who moves in drill vs who is auto-played. */
   userColor: 'w' | 'b';
   /**
@@ -97,10 +123,97 @@ function isFiniteNumber(v: unknown): v is number {
 }
 
 /**
+ * Checks a stored tree (`treeFormat.ts`): every item a non-empty SAN string, a
+ * `{ san, comment? }` object, or a non-empty array (a variation) that follows a move. Returns
+ * the first problem, or `null`. Iterative, and capped by `MAX_TREE_DEPTH` / `MAX_TREE_NODES`, so
+ * a hostile payload is refused rather than overflowing the stack; variation nesting is capped by
+ * `MAX_TREE_DEPTH` too, since an alternative does not advance the ply.
+ */
+function storedTreeShapeError(raw: unknown): string | null {
+  if (!Array.isArray(raw)) {
+    return '"tree" must be an array of moves';
+  }
+  /** `ply` is the ply of the line's first move; `nesting` counts enclosing variations. */
+  const stack: { items: unknown[]; label: string; ply: number; nesting: number }[] = [
+    { items: raw, label: 'tree', ply: 1, nesting: 0 },
+  ];
+  let count = 0;
+  while (stack.length > 0) {
+    const { items, label, ply, nesting } = stack.pop() as (typeof stack)[number];
+    if (nesting > MAX_TREE_DEPTH) {
+      return `"tree" nests variations deeper than ${MAX_TREE_DEPTH} levels`;
+    }
+    if (nesting > 0 && items.length === 0) {
+      return `"${label}" is an empty variation`;
+    }
+    let moves = 0;
+    for (let i = 0; i < items.length; i++) {
+      const item: unknown = items[i];
+      const at = `${label}[${i}]`;
+      if (Array.isArray(item)) {
+        if (moves === 0) {
+          return `"${at}" is a variation with no move before it`;
+        }
+        stack.push({ items: item, label: at, ply: ply + moves - 1, nesting: nesting + 1 });
+        continue;
+      }
+      count++;
+      if (count > MAX_TREE_NODES) {
+        return `"tree" has more than ${MAX_TREE_NODES} moves`;
+      }
+      if (ply + moves > MAX_TREE_DEPTH) {
+        return `"tree" is deeper than ${MAX_TREE_DEPTH} moves`;
+      }
+      const san: unknown = isPlainObject(item) ? item.san : item;
+      if (typeof san !== 'string' || san.trim().length === 0) {
+        return isPlainObject(item)
+          ? `"${at}.san" is not a SAN string`
+          : `"${at}" is not a move (a SAN string or { "san", "comment" })`;
+      }
+      if (isPlainObject(item) && item.next !== undefined) {
+        // A nested `{ san, next }` node (the in-memory shape): reading it would silently drop
+        // its continuations.
+        return `"${at}" has "next"; continuations follow a move in the same array`;
+      }
+      if (isPlainObject(item) && item.comment !== undefined && typeof item.comment !== 'string') {
+        return `"${at}.comment" must be a string when present`;
+      }
+      moves++;
+    }
+  }
+  return null;
+}
+
+/** v1's linear `moves`: an array of non-empty strings. Returns the first problem, or `null`. */
+function movesShapeError(raw: unknown): string | null {
+  if (!Array.isArray(raw)) {
+    return '"moves" must be an array of SAN strings';
+  }
+  for (let i = 0; i < raw.length; i++) {
+    const mv: unknown = raw[i];
+    if (typeof mv !== 'string' || mv.trim().length === 0) {
+      return `"moves[${i}]" is not a SAN string`;
+    }
+  }
+  return null;
+}
+
+/** The version a payload's lines are written in, clamped to what this build knows. */
+function lineVersion(schemaVersion: number): number {
+  return schemaVersion < LINES_SCHEMA_VERSION ? schemaVersion : LINES_SCHEMA_VERSION;
+}
+
+/**
  * Validates one candidate `Line` object field by field. Shared by `migrate` (to drop junk
  * out of the store) and by `importFile` (to explain why a line was rejected).
+ *
+ * `schemaVersion` is the version of the payload the line came from: a v1 line carries `moves`,
+ * a v2 line carries `tree`. Defaults to the current version.
  */
-export function validateLineShape(raw: unknown): LineShapeResult {
+export function validateLineShape(
+  raw: unknown,
+  schemaVersion: number = LINES_SCHEMA_VERSION,
+): LineShapeResult {
   if (!isPlainObject(raw)) {
     return { valid: false, error: 'not an object' };
   }
@@ -113,14 +226,10 @@ export function validateLineShape(raw: unknown): LineShapeResult {
   if (typeof raw.startFen !== 'string' || raw.startFen.trim().length === 0) {
     return { valid: false, error: 'missing or invalid "startFen"' };
   }
-  if (!Array.isArray(raw.moves)) {
-    return { valid: false, error: '"moves" must be an array of SAN strings' };
-  }
-  for (let i = 0; i < raw.moves.length; i++) {
-    const mv: unknown = raw.moves[i];
-    if (typeof mv !== 'string' || mv.trim().length === 0) {
-      return { valid: false, error: `"moves[${i}]" is not a SAN string` };
-    }
+  const movesError =
+    lineVersion(schemaVersion) === 1 ? movesShapeError(raw.moves) : storedTreeShapeError(raw.tree);
+  if (movesError !== null) {
+    return { valid: false, error: movesError };
   }
   if (raw.userColor !== 'w' && raw.userColor !== 'b') {
     return { valid: false, error: '"userColor" must be "w" or "b"' };
@@ -141,16 +250,21 @@ export function validateLineShape(raw: unknown): LineShapeResult {
 }
 
 /**
- * Copies a *validated* candidate into a fresh `Line`, keeping only schema fields.
+ * Copies a *validated* candidate into a fresh `Line`, keeping only schema fields — turning a v1
+ * candidate's `moves` into a single-branch `tree`, and a stored tree into a `MoveTree`.
  * Call `validateLineShape` first; returns null if the shape does not hold.
  */
-export function toLine(raw: unknown): Line | null {
-  if (!validateLineShape(raw).valid || !isPlainObject(raw)) return null;
+export function toLine(raw: unknown, schemaVersion: number = LINES_SCHEMA_VERSION): Line | null {
+  if (!validateLineShape(raw, schemaVersion).valid || !isPlainObject(raw)) return null;
+  const tree =
+    lineVersion(schemaVersion) === 1
+      ? treeFromMoves((raw.moves as string[]).map((m) => m.trim()))
+      : decodeTree(raw.tree as StoredTree);
   const line: Line = {
     id: raw.id as string,
     name: raw.name as string,
     startFen: (raw.startFen as string).trim(),
-    moves: (raw.moves as string[]).map((m) => m.trim()),
+    tree,
     userColor: raw.userColor as 'w' | 'b',
     createdAt: raw.createdAt as number,
     updatedAt: raw.updatedAt as number,
@@ -163,6 +277,50 @@ export function toLine(raw: unknown): Line | null {
     line.notes = raw.notes;
   }
   return line;
+}
+
+/** A `Line` as written to storage or a file: its `tree` in the stored form. */
+export type StoredLine = Omit<Line, 'tree'> & { tree: StoredTree };
+
+/** A `LinesFile` as written to storage or a file. */
+export interface StoredLinesFile {
+  schemaVersion: number;
+  exportedAt: number;
+  lines: StoredLine[];
+}
+
+/** Fields in a fixed order (optional ones only when present), so written files diff cleanly. */
+export function toStoredLine(line: Line): StoredLine {
+  const out: StoredLine = {
+    id: line.id,
+    name: line.name,
+    startFen: line.startFen,
+    tree: encodeTree(line.tree),
+    userColor: line.userColor,
+    createdAt: line.createdAt,
+    updatedAt: line.updatedAt,
+  };
+  if (line.folder !== undefined) out.folder = line.folder;
+  if (line.notes !== undefined) out.notes = line.notes;
+  return out;
+}
+
+export function toStoredLinesFile(file: LinesFile): StoredLinesFile {
+  return {
+    schemaVersion: file.schemaVersion,
+    exportedAt: file.exportedAt,
+    lines: file.lines.map(toStoredLine),
+  };
+}
+
+/**
+ * The one write path: `file` in the stored form, as JSON `migrate` reads back to an equal
+ * file. `pretty` lays it out for people (exports, `public/data`); otherwise it is compact.
+ * Throws only where `JSON.stringify` would.
+ */
+export function serialiseLinesFile(file: LinesFile, pretty = false): string {
+  const stored = toStoredLinesFile(file);
+  return pretty ? formatJson(stored) : JSON.stringify(stored);
 }
 
 /** A short human label for a candidate line, used in import rejection messages. */
@@ -213,7 +371,7 @@ export function parseLinesFilePayload(raw: unknown): PayloadResult {
         `this build understands up to ${LINES_SCHEMA_VERSION})`,
     };
   }
-  if (version < 1) {
+  if (version < MIN_LINES_SCHEMA_VERSION) {
     return { ok: false, error: `Unknown schemaVersion ${version}` };
   }
 
@@ -235,6 +393,8 @@ export function parseLinesFilePayload(raw: unknown): PayloadResult {
  * - Absent/empty store ⇒ an empty file, `changed: false`, no error (not a problem).
  * - Unusable payload ⇒ an empty file plus `error`; the caller must NOT persist this.
  * - Future `schemaVersion` ⇒ refused outright, never guessed at.
+ * - Older `schemaVersion` ⇒ upgraded in the returned file, `changed: true` (the store itself is
+ *   only rewritten by the caller's next ordinary write).
  * - Individual malformed lines ⇒ dropped, `changed: true`, and `error` naming the count.
  *
  * Never throws, never writes.
@@ -255,8 +415,8 @@ export function migrate(raw: unknown): MigrateResult {
 
   for (let i = 0; i < payload.rawLines.length; i++) {
     const candidate = payload.rawLines[i];
-    const shape = validateLineShape(candidate);
-    const line = shape.valid ? toLine(candidate) : null;
+    const shape = validateLineShape(candidate, payload.schemaVersion);
+    const line = shape.valid ? toLine(candidate, payload.schemaVersion) : null;
     if (line === null) {
       dropped.push(`${lineLabel(candidate, i)}: ${shape.error ?? 'invalid'}`);
       changed = true;

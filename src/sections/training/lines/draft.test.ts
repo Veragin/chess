@@ -1,24 +1,34 @@
 import { describe, expect, it } from 'vitest';
-import { applyMove, sansOf, stepBack, stepForward } from '../../../chess/history';
+import { applyMove, createHistory, stepBack } from '../../../chess/history';
 import { START_FEN } from '../../../chess/position';
+import { treeFromMoves, treeKey, type MoveTree } from '../../../chess/tree';
+import {
+  applyMoveAt,
+  deleteFromCursor,
+  jumpTo,
+  promoteToMainLine,
+  rebaseTree,
+  setCommentAt,
+  stepBack as treeStepBack,
+  toStart,
+} from '../../../chess/treeHistory';
 import type { Line } from '../../../storage/schema';
 import {
   draftFromLine,
   draftMoves,
   emptyDraft,
   isDirty,
-  pendingRedoCount,
-  rebaseHistory,
+  loadMoves,
   toLineInput,
   validateDraft,
   type LineDraft,
 } from './draft';
 
-/** Plays SAN moves onto a fresh draft, failing loudly if the test's own moves are wrong. */
+/** Plays SAN moves from the draft's cursor, failing loudly if the test's own moves are wrong. */
 function play(draft: LineDraft, ...sans: string[]): LineDraft {
   let history = draft.history;
   for (const san of sans) {
-    const next = applyMove(history, san);
+    const next = applyMoveAt(history, san);
     if (next === null) throw new Error(`test fixture: ${san} is illegal`);
     history = next;
   }
@@ -30,13 +40,25 @@ function storedLine(partial: Partial<Line>): Line {
     id: 'l1',
     name: 'Stored',
     startFen: START_FEN,
-    moves: ['e4', 'c5'],
+    tree: treeFromMoves(['e4', 'c5']),
     userColor: 'w',
     createdAt: 1,
     updatedAt: 2,
     ...partial,
   };
 }
+
+/** 1.e4 c5 (1...e5 2.Nf3 {Main}) 2.Nf3 {Open Sicilian} d6 — with comments. */
+const BRANCHED: MoveTree = [
+  {
+    san: 'e4',
+    comment: 'Best by test',
+    next: [
+      { san: 'c5', next: [{ san: 'Nf3', comment: 'Open Sicilian', next: [{ san: 'd6', next: [] }] }] },
+      { san: 'e5', next: [{ san: 'Nf3', comment: 'Main', next: [] }] },
+    ],
+  },
+];
 
 describe('emptyDraft', () => {
   it('starts blank, White, on the standard start position', () => {
@@ -45,81 +67,61 @@ describe('emptyDraft', () => {
     expect(d.notes).toBe('');
     expect(d.userColor).toBe('w');
     expect(d.history.startFen).toBe(START_FEN);
-    expect(draftMoves(d.history)).toEqual([]);
+    expect(d.history.tree).toEqual([]);
+    expect(d.history.cursor).toEqual([]);
   });
 });
 
-describe('draftMoves / pendingRedoCount — undo/redo semantics', () => {
-  it('saves the moves up to the cursor, so an undone move is excluded', () => {
-    const d = play(emptyDraft(), 'e4', 'e5', 'Nf3');
-    expect(draftMoves(d.history)).toEqual(['e4', 'e5', 'Nf3']);
-    expect(pendingRedoCount(d.history)).toBe(0);
-
-    const undone = { ...d, history: stepBack(d.history) };
-    expect(draftMoves(undone.history)).toEqual(['e4', 'e5']);
-    expect(pendingRedoCount(undone.history)).toBe(1);
-    // The move itself is still there — Redo can get it back.
-    expect(sansOf(undone.history)).toEqual(['e4', 'e5', 'Nf3']);
-
-    const redone = { ...undone, history: stepForward(undone.history) };
-    expect(draftMoves(redone.history)).toEqual(['e4', 'e5', 'Nf3']);
-    expect(pendingRedoCount(redone.history)).toBe(0);
-  });
-
-  it('truncates the future when a different move is played mid-history', () => {
-    const d = play(emptyDraft(), 'e4', 'e5', 'Nf3');
-    const undone = stepBack(stepBack(d.history)); // cursor after e4
-    const diverged = applyMove(undone, 'c5');
-    expect(diverged).not.toBeNull();
-    expect(sansOf(diverged!)).toEqual(['e4', 'c5']);
-    expect(pendingRedoCount(diverged!)).toBe(0);
-  });
-
-  it('clamps a nonsense cursor instead of returning phantom moves', () => {
-    const d = play(emptyDraft(), 'e4');
-    expect(draftMoves({ ...d.history, cursor: 99 })).toEqual(['e4']);
-    expect(draftMoves({ ...d.history, cursor: -7 })).toEqual([]);
+describe('draftMoves (linear hand-off helper)', () => {
+  it('returns the moves up to the cursor of a linear history', () => {
+    let h = createHistory(START_FEN);
+    for (const san of ['e4', 'e5', 'Nf3']) h = applyMove(h, san)!;
+    expect(draftMoves(h)).toEqual(['e4', 'e5', 'Nf3']);
+    expect(draftMoves(stepBack(h))).toEqual(['e4', 'e5']);
+    expect(draftMoves({ ...h, cursor: 99 })).toEqual(['e4', 'e5', 'Nf3']);
+    expect(draftMoves({ ...h, cursor: -7 })).toEqual([]);
   });
 });
 
-describe('rebaseHistory', () => {
-  it('keeps every move that is still legal from the new start position', () => {
-    const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-    const result = rebaseHistory(fen, ['e4', 'e5', 'Nf3']);
-    expect(result.dropped).toBe(0);
-    expect(sansOf(result.history)).toEqual(['e4', 'e5', 'Nf3']);
-    expect(result.history.cursor).toBe(2);
+describe('tree editing in a draft', () => {
+  it('adds a branch instead of truncating when a different move is played mid-line', () => {
+    const d = play(emptyDraft(), 'e4', 'e5', 'Nf3');
+    const back = { ...d, history: jumpTo(d.history, [0]) };
+    const diverged = play(back, 'c5');
+    expect(treeKey(diverged.history.tree)).toBe('e4(c5,e5(Nf3))');
+    expect(diverged.history.cursor).toEqual([0, 1]);
+  });
+
+  it('saves the whole tree wherever the cursor is', () => {
+    const d = play({ ...emptyDraft(), name: 'X' }, 'e4', 'e5');
+    const atStart = { ...d, history: toStart(d.history) };
+    expect(toLineInput(atStart).tree).toEqual(treeFromMoves(['e4', 'e5']));
+    expect(validateDraft(atStart).ok).toBe(true);
+  });
+});
+
+describe('loadMoves', () => {
+  it('keeps every move that is still legal and puts the cursor at the end', () => {
+    const { history, dropped } = loadMoves(START_FEN, ['e4', 'e5', 'Nf3']);
+    expect(dropped).toBe(0);
+    expect(history.tree).toEqual(treeFromMoves(['e4', 'e5', 'Nf3']));
+    expect(history.cursor).toEqual([0, 0, 0]);
   });
 
   it('keeps the legal prefix and reports how many moves were dropped', () => {
-    // Black to move: 'e4' is impossible, so everything goes.
-    const result = rebaseHistory('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1', [
+    const result = loadMoves('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1', [
       'e4',
       'e5',
     ]);
     expect(result.dropped).toBe(2);
-    expect(sansOf(result.history)).toEqual([]);
-    expect(result.history.cursor).toBe(-1);
-  });
-
-  it('drops only the moves that stop being legal', () => {
-    // A position where 1.e4 works but 1...e5 does not (Black has no pawn on e7).
-    const fen = 'rnbqkbnr/pppp1ppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-    const result = rebaseHistory(fen, ['e4', 'e5', 'Nf3']);
-    expect(sansOf(result.history)).toEqual(['e4']);
-    expect(result.dropped).toBe(2);
+    expect(result.history.tree).toEqual([]);
+    expect(result.history.cursor).toEqual([]);
   });
 
   it('never throws on an unparseable FEN', () => {
-    const result = rebaseHistory('not a fen', ['e4']);
+    const result = loadMoves('not a fen', ['e4']);
     expect(result.dropped).toBe(1);
-    expect(sansOf(result.history)).toEqual([]);
-  });
-
-  it('keeps every fenAfter aligned with its move', () => {
-    const result = rebaseHistory(START_FEN, ['e4', 'e5']);
-    expect(result.history.entries[0]?.fenAfter).toContain(' b ');
-    expect(result.history.entries[1]?.fenAfter).toContain(' w ');
+    expect(result.history.tree).toEqual([]);
   });
 });
 
@@ -132,7 +134,15 @@ describe('draftFromLine', () => {
     expect(draft.name).toBe('Sicilian');
     expect(draft.userColor).toBe('b');
     expect(draft.notes).toBe('sharp');
-    expect(draftMoves(draft.history)).toEqual(['e4', 'c5']);
+    expect(draft.history.tree).toEqual(treeFromMoves(['e4', 'c5']));
+    expect(draft.history.cursor).toEqual([0, 0]);
+  });
+
+  it('loads every branch and comment, cursor at the end of the main line', () => {
+    const { draft, dropped } = draftFromLine(storedLine({ tree: BRANCHED }));
+    expect(dropped).toBe(0);
+    expect(draft.history.tree).toEqual(BRANCHED);
+    expect(draft.history.cursor).toEqual([0, 0, 0, 0]);
   });
 
   it('turns an absent notes field into an empty string', () => {
@@ -140,9 +150,29 @@ describe('draftFromLine', () => {
   });
 
   it('opens a corrupt stored line instead of throwing, reporting the dropped moves', () => {
-    const { draft, dropped } = draftFromLine(storedLine({ moves: ['e4', 'Qh9', 'Nf3'] }));
+    const { draft, dropped } = draftFromLine(storedLine({ tree: treeFromMoves(['e4', 'Qh9', 'Nf3']) }));
     expect(dropped).toBe(2);
-    expect(draftMoves(draft.history)).toEqual(['e4']);
+    expect(draft.history.tree).toEqual(treeFromMoves(['e4']));
+  });
+
+  it('cuts only the broken branch of a damaged tree', () => {
+    const tree: MoveTree = [
+      { san: 'e4', next: [{ san: 'Qh9', next: [] }, { san: 'c5', comment: 'kept', next: [] }] },
+    ];
+    const { draft, dropped } = draftFromLine(storedLine({ tree }));
+    expect(dropped).toBe(1);
+    expect(draft.history.tree).toEqual([{ san: 'e4', next: [{ san: 'c5', comment: 'kept', next: [] }] }]);
+  });
+
+  it('normalises SANs and merges siblings that only differed in notation', () => {
+    const tree: MoveTree = [
+      { san: 'Ng1f3', comment: 'a', next: [] },
+      { san: 'Nf3', comment: 'b', next: [{ san: 'd5', next: [] }] },
+    ];
+    const { draft } = draftFromLine(storedLine({ tree }));
+    expect(draft.history.tree).toEqual([
+      { san: 'Nf3', comment: 'a\nb', next: [{ san: 'd5', next: [] }] },
+    ]);
   });
 });
 
@@ -152,7 +182,7 @@ describe('validateDraft', () => {
     const result = validateDraft(d);
     expect(result.ok).toBe(true);
     expect(result.error).toBeUndefined();
-    expect(result.moves).toEqual(['e4', 'e5']);
+    expect(result.tree).toEqual(treeFromMoves(['e4', 'e5']));
   });
 
   it('refuses an empty name with a reason', () => {
@@ -168,9 +198,9 @@ describe('validateDraft', () => {
     expect(result.error).toMatch(/at least one move/i);
   });
 
-  it('refuses a line whose moves were all undone', () => {
-    const d = play({ ...emptyDraft(), name: 'Undone' }, 'e4');
-    const result = validateDraft({ ...d, history: stepBack(d.history) });
+  it('refuses a line whose moves were all deleted', () => {
+    const d = play({ ...emptyDraft(), name: 'Deleted' }, 'e4');
+    const result = validateDraft({ ...d, history: deleteFromCursor(d.history) });
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/at least one move/i);
   });
@@ -183,39 +213,60 @@ describe('validateDraft', () => {
     expect(result.error).toMatch(/starting position/i);
   });
 
-  it('refuses a move list that is illegal from the start position, naming the move', () => {
+  it('refuses a move that is illegal from the start position, naming the move', () => {
     const d: LineDraft = {
       ...emptyDraft(),
       name: 'Bad ply 3',
-      history: {
-        startFen: START_FEN,
-        entries: [
-          { san: 'e4', fenAfter: START_FEN },
-          { san: 'e5', fenAfter: START_FEN },
-          { san: 'Qh5xf7', fenAfter: START_FEN },
-        ],
-        cursor: 2,
-      },
+      history: { startFen: START_FEN, tree: treeFromMoves(['e4', 'e5', 'Qh5xf7']), cursor: [] },
     };
     const result = validateDraft(d);
     expect(result.ok).toBe(false);
     expect(result.error).toContain('Move 3');
     expect(result.error).toContain('Qh5xf7');
+    expect(result.error).not.toContain('branch');
   });
 
-  it('returns SAN normalised by chess.js', () => {
+  it('names the branch of an illegal move when the line has several', () => {
+    const tree: MoveTree = [
+      { san: 'e4', next: [{ san: 'e5', next: [] }, { san: 'c5', next: [{ san: 'Bb5', next: [{ san: 'Ke3', next: [] }] }] }] },
+    ];
+    const d: LineDraft = {
+      ...emptyDraft(),
+      name: 'Bad branch',
+      history: { startFen: START_FEN, tree, cursor: [] },
+    };
+    const result = validateDraft(d);
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('Move 4');
+    expect(result.error).toContain('branch 2');
+  });
+
+  it('returns SAN normalised by chess.js with duplicate siblings merged', () => {
     const d: LineDraft = {
       ...emptyDraft(),
       name: 'Loose SAN',
       history: {
         startFen: START_FEN,
-        entries: [{ san: 'e2e4', fenAfter: START_FEN }],
-        cursor: 0,
+        tree: [
+          { san: 'e2e4', next: [] },
+          { san: 'e4', next: [{ san: 'e5', next: [] }] },
+        ],
+        cursor: [],
       },
     };
     const result = validateDraft(d);
     expect(result.ok).toBe(true);
-    expect(result.moves).toEqual(['e4']);
+    expect(result.tree).toEqual(treeFromMoves(['e4', 'e5']));
+  });
+
+  it('keeps every branch and trims comments', () => {
+    let d = draftFromLine(storedLine({ name: 'B', tree: BRANCHED })).draft;
+    d = { ...d, history: setCommentAt(jumpTo(d.history, [0, 1]), '  solid  ') };
+    const result = validateDraft(d);
+    expect(result.ok).toBe(true);
+    expect(result.tree[0]?.next[1]?.comment).toBe('solid');
+    expect(result.tree[0]?.comment).toBe('Best by test');
+    expect(treeKey(result.tree)).toBe(treeKey(BRANCHED));
   });
 });
 
@@ -224,7 +275,7 @@ describe('toLineInput', () => {
     const d = play({ ...emptyDraft(), name: '  Najdorf  ', notes: '   ' }, 'e4', 'c5');
     const input = toLineInput(d);
     expect(input.name).toBe('Najdorf');
-    expect(input.moves).toEqual(['e4', 'c5']);
+    expect(input.tree).toEqual(treeFromMoves(['e4', 'c5']));
     expect(input.userColor).toBe('w');
     expect('notes' in input).toBe(false);
   });
@@ -234,9 +285,26 @@ describe('toLineInput', () => {
     expect(toLineInput(d).notes).toBe('watch d5');
   });
 
-  it('excludes undone moves', () => {
-    const d = play({ ...emptyDraft(), name: 'X' }, 'e4', 'e5');
-    expect(toLineInput({ ...d, history: stepBack(d.history) }).moves).toEqual(['e4']);
+  it('round-trips a branched, commented line unchanged (edit then save)', () => {
+    const line = storedLine({ name: 'Branched', tree: BRANCHED });
+    const { draft } = draftFromLine(line);
+    const validation = validateDraft(draft);
+    expect(validation.ok).toBe(true);
+    const input = toLineInput(draft, validation.tree);
+    expect(input.tree).toEqual(BRANCHED);
+    // A deep copy: storage must not share structure with editor state.
+    expect(input.tree[0]).not.toBe(draft.history.tree[0]);
+  });
+
+  it('saves added branches and comments alongside the stored ones', () => {
+    let d = draftFromLine(storedLine({ name: 'Grow', tree: BRANCHED })).draft;
+    d = play({ ...d, history: jumpTo(d.history, [0]) }, 'c6');
+    d = { ...d, history: setCommentAt(d.history, 'Caro-Kann') };
+    const validation = validateDraft(d);
+    const input = toLineInput(d, validation.tree);
+    expect(treeKey(input.tree)).toBe('e4(c5(Nf3(d6)),c6,e5(Nf3))');
+    expect(input.tree[0]?.next[2]).toEqual({ san: 'c6', comment: 'Caro-Kann', next: [] });
+    expect(input.tree[0]?.next[0]?.next[0]?.comment).toBe('Open Sicilian');
   });
 });
 
@@ -253,7 +321,10 @@ describe('isDirty', () => {
     expect(isDirty({ ...base, notes: 'new' }, base)).toBe(true);
     expect(isDirty(play(base, 'Nf3'), base)).toBe(true);
     expect(
-      isDirty({ ...base, history: rebaseHistory('4k3/8/8/8/8/8/8/4K3 w - - 0 1', []).history }, base),
+      isDirty(
+        { ...base, history: rebaseTree(base.history, '4k3/8/8/8/8/8/8/4K3 w - - 0 1').history },
+        base,
+      ),
     ).toBe(true);
   });
 
@@ -262,15 +333,23 @@ describe('isDirty', () => {
     expect(isDirty({ ...base, notes: '  a  ' }, base)).toBe(false);
   });
 
-  it('ignores pure cursor navigation that ends where it started', () => {
+  it('ignores cursor navigation, and replaying an existing move', () => {
     const base = draftFromLine(storedLine({})).draft;
-    const wandered = { ...base, history: stepForward(stepBack(base.history)) };
-    expect(isDirty(wandered, base)).toBe(false);
+    expect(isDirty({ ...base, history: treeStepBack(base.history) }, base)).toBe(false);
+    const replayed = play({ ...base, history: toStart(base.history) }, 'e4', 'c5');
+    expect(isDirty(replayed, base)).toBe(false);
   });
 
-  it('treats an undone move as a change, because it would not be saved', () => {
-    const base = draftFromLine(storedLine({})).draft;
-    expect(isDirty({ ...base, history: stepBack(base.history) }, base)).toBe(true);
+  it('notices a deletion, a comment edit and a main-line change', () => {
+    const base = draftFromLine(storedLine({ tree: BRANCHED })).draft;
+    expect(isDirty({ ...base, history: deleteFromCursor(base.history) }, base)).toBe(true);
+    const commented = setCommentAt(jumpTo(base.history, [0, 0]), 'sharp');
+    expect(isDirty({ ...base, history: commented }, base)).toBe(true);
+    // Only whitespace added to an existing comment: nothing that would be saved changed.
+    const padded = setCommentAt(jumpTo(base.history, [0]), 'Best by test  ');
+    expect(isDirty({ ...base, history: padded }, base)).toBe(false);
+    const promoted = promoteToMainLine(jumpTo(base.history, [0, 1]));
+    expect(isDirty({ ...base, history: promoted }, base)).toBe(true);
   });
 });
 
