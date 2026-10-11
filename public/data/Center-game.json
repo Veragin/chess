@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "exportedAt": 1791706112631,
+  "lines": [
+    {
+      "id": "112b7d0e-4fec-4eea-8028-c0783de4a111",
+      "name": "Center d6",
+      "startFen": "rnbqkbnr/ppp1pppp/3p4/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1",
+      "moves": [
+        "d4",
+        "Nf6",
+        "Nc3",
+        "g6",
+        "Bf4",
+        "Bg7",
+        "e5",
+        "dxe5",
+        "dxe5",
+        "Qxd1+",
+        "Rxd1",
+        "Nh5",
+        "Nd5",
+        "Nxf4",
+        "Nxc7+",
+        "Kf8",
+        "Rd8#"
+      ],
+      "userColor": "w",
+      "createdAt": 1790951823044,
+      "updatedAt": 1790951823044,
+      "folder": "Center Game"
+    },
+    {
+      "id": "4f49a9bd-8c4e-46a7-92d6-956a777fc63b",
+      "name": "Center trap 1",
+      "startFen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1",
+      "moves": [
+        "d4",
+        "exd4",
+        "Qxd4",
+        "Nc6",
+        "Qe3",
+        "Nf6",
+        "e5",
+        "Ng4",
+        "Qe4",
+        "Ngxe5",
+        "f4",
+        "d5",
+        "Qe2",
+        "Bb4+",
+        "c3"
+      ],
+      "userColor": "w",
+      "createdAt": 1790934230654,
+      "updatedAt": 1790934230654,
+      "folder": "Center Game"
+    }
+  ]
+}
