@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1791700004157,
+  "lines": [
+    {
+      "id": "371d8451-25bb-5e43-840b-dbeb726452cb",
+      "name": "Budapest - e5 dxe5 Ng4 Ngf3 Be7",
+      "startFen": "rnbqkb1r/pppppppp/5n2/8/3P4/8/PPPNPPPP/R1BQKBNR b KQkq - 0 1",
+      "tree": [
+        "e5", "dxe5", "Ng4", "Ngf3", "Be7", "h3", "Ne3", "fxe3", "Bh4+", "Nxh4", "Qxh4+", "g3",
+        "Qxg3#"
+      ],
+      "userColor": "b",
+      "createdAt": 1790352532809,
+      "updatedAt": 1790352532809,
+      "folder": "Budapest"
+    }
+  ]
+}

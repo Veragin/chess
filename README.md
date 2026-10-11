@@ -173,6 +173,7 @@ npx tsx scripts/migrate-data.ts                 # rewrite public/data (+ duplici
 npx tsx scripts/migrate-data.ts --dry-run       # report only, write nothing
 npx tsx scripts/migrate-data.ts --duplicities   # rewrite duplicities.md even if no data changed
 npx tsx scripts/migrate-data.ts --source <dir>  # read the input from <dir>; output still goes to public/data
+npx tsx scripts/migrate-data.ts --graft         # also graft lines starting mid-game into others
 ```
 
 The committed files were generated from the original v1 files (`git show <rev>:public/data/<file>`
@@ -184,13 +185,12 @@ nothing.
   their opening (Stafford, Traxler, Petroff, Anti-london, Center Game, From gambit, Budapest);
   a line no rule matches aborts the run. Other files keep their lines.
 - **Joining.** Lines with the same target file and folder, start position (first four FEN
-  fields) and trained side are merged into one tree (`joinKey`); the file's own lines come first,
-  so they stay the main line. Then a joined line whose start position is reached inside another
-  line of the same file and trained side is **grafted** there: its tree is merged into the
-  children of the first node (depth-first, main line first) reaching that position, repeatedly,
-  so chains end up in one tree. A source line's notes become the comment on its last move. Lines
-  whose start position no other line of their file reaches stay separate (the report lists them
-  with the reason); files are never joined with each other.
+  fields), trained side and the same first 3 moves (`SHARED_PLIES`) are merged into one tree
+  (`joinKey`); the file's own lines come first, so they stay the main line. A source line's
+  notes become the comment on its last move. Other lines stay separate (the report lists them
+  with the reason); files are never joined with each other. With `--graft`, a joined line whose
+  start position is reached inside another line of the same file and trained side is also
+  **grafted** there (merged into the children of the first node reaching that position).
 - **Naming.** `<Opening> - <first 5 moves>`, e.g. `Stafford - Bc5 Be2 h5 c3 Ng4`, where the
   opening is the folder path with `/` → space; a clash gets ` (2)`, ` (3)`… Ids are derived from
   the join key, so re-running on its own output changes nothing.
@@ -199,8 +199,8 @@ nothing.
   line must still be a path in some output line — from its root, or from a node reaching the
   source's start position (a grafted line). The report prints lines in → lines out per file,
   the branches of every output line, the grafts and what stayed separate. `duplicities.md`
-  (trained-side positions with more than one repertoire move — now mostly branches inside one
-  joined line, which drill accepts) is regenerated whenever the data changes.
+  (positions, matched across all files, where the trained side has more than one repertoire
+  move) is regenerated whenever the data changes.
 
 ---
 

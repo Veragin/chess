@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1791700004157,
+  "lines": [
+    {
+      "id": "7c1cf4b1-f0a7-56a5-9c7f-49a66fe0df91",
+      "name": "Traxler - Bxf7+ Ke7 Nc3 h6 Nd5+",
+      "startFen": "r1bqk2r/pppp1ppp/2n2n2/2b1p1N1/2B1P3/8/PPPP1PPP/RNBQK2R w KQkq - 0 1",
+      "tree": [
+        "Bxf7+", "Ke7", "Nc3", "h6", "Nd5+", "Kf8", "Nxf6", "Qxf6", "Qh5", "Qxg5", "Qxg5", "hxg5",
+        "Bb3", "d6", "d3", "g4"
+      ],
+      "userColor": "b",
+      "createdAt": 1791240420453,
+      "updatedAt": 1791240420453,
+      "folder": "Traxler"
+    },
+    {
+      "id": "e9bb8813-7872-547a-99e8-e49b99ca746b",
+      "name": "Traxler - Bxf7+ Ke7 Bc4 d6 O-O",
+      "startFen": "r1bqk2r/pppp1ppp/2n2n2/2b1p1N1/2B1P3/8/PPPP1PPP/RNBQK2R w KQkq - 0 1",
+      "tree": [
+        "Bxf7+", "Ke7", "Bc4", "d6", "O-O", "Qe8", "Nc3", "h6", "Nf3", "Bg4", "Nd5+", "Nxd5",
+        "Bxd5", "Nd4", "b4", "Qh5", "bxc5", "Nxf3+", "gxf3", "Bxf3", "Qxf3", "Qxf3"
+      ],
+      "userColor": "b",
+      "createdAt": 1791239546477,
+      "updatedAt": 1791239546477,
+      "folder": "Traxler"
+    },
+    {
+      "id": "6f3fb5b4-3418-5e3b-9492-2e4223d4699b",
+      "name": "Traxler - Bxf7+ Ke7 Qf3 h6 Bc4",
+      "startFen": "r1bqk2r/pppp1ppp/2n2n2/2b1p1N1/2B1P3/8/PPPP1PPP/RNBQK2R w KQkq - 0 1",
+      "tree": ["Bxf7+", "Ke7", "Qf3", "h6", "Bc4", "hxg5"],
+      "userColor": "b",
+      "createdAt": 1791238851362,
+      "updatedAt": 1791238851362,
+      "folder": "Traxler"
+    },
+    {
+      "id": "67cef378-1de1-5efe-bd61-fd8432251924",
+      "name": "Traxler - Nxf7 Bxf2+ Kxf2 Nxe4+ Ke1",
+      "startFen": "r1bqk2r/pppp1ppp/2n2n2/2b1p1N1/2B1P3/8/PPPP1PPP/RNBQK2R w KQkq - 0 1",
+      "tree": [
+        "Nxf7", "Bxf2+", "Kxf2", "Nxe4+", "Ke1", ["Kg1", "Qh4", "Qf1", "Rf8"], "Qh4+", "g3", "Nxg3",
+        "Nxh8", ["hxg3", "Qxh1+", "Ke2", "Nd4+", "Ke3", "Qxd1"], "Ne4+", "Ke2", "Qf2+", "Kd3",
+        "Nb4+", "Kxe4", "Qf4#"
+      ],
+      "userColor": "b",
+      "createdAt": 1791237909445,
+      "updatedAt": 1791238710406,
+      "folder": "Traxler"
+    },
+    {
+      "id": "71538a03-ffda-5b9d-87a6-c7fd413afb9b",
+      "name": "Traxler - Bxf7+ Ke7 Bb3 d6 O-O",
+      "startFen": "r1bqk2r/pppp1ppp/2n2n2/2b1p1N1/2B1P3/8/PPPP1PPP/RNBQK2R w KQkq - 0 1",
+      "tree": [
+        "Bxf7+", "Ke7", "Bb3", "d6", "O-O", ["Nf7", "Qf8", "Nxh8", "Bxf2+", "Kxf2", "Nxe4+"], "Bg4",
+        "Qe1", "Rf8"
+      ],
+      "userColor": "b",
+      "createdAt": 1791238349195,
+      "updatedAt": 1791238530013,
+      "folder": "Traxler"
+    },
+    {
+      "id": "07487ae5-1e47-5fc1-bf80-b884e5e09184",
+      "name": "Traxler - Nxf7 Bxf2+ Kf1 Qe7 Nxh8",
+      "startFen": "r1bqk2r/pppp1ppp/2n2n2/2b1p1N1/2B1P3/8/PPPP1PPP/RNBQK2R w KQkq - 0 1",
+      "tree": [
+        "Nxf7", "Bxf2+", "Kf1", "Qe7", "Nxh8", "d5", "exd5", ["Bxd5", "Bg4"], "Nd4", "c3", "Bg4",
+        "Qa4+", "Nd7", "cxd4", "Qf6"
+      ],
+      "userColor": "b",
+      "createdAt": 1791238096641,
+      "updatedAt": 1791238231568,
+      "folder": "Traxler"
+    }
+  ]
+}

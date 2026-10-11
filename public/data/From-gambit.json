@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1791700004157,
+  "lines": [
+    {
+      "id": "f609dbb8-500e-538d-82ed-7891379cc367",
+      "name": "From gambit - e5 fxe5 d6 exd6 Bf5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/5P2/8/PPPPP1PP/RNBQKBNR b KQkq - 0 1",
+      "tree": ["e5", "fxe5", "d6", "exd6", "Bf5", "dxc7", "Qxc7", "Nf3", "Bxc2"],
+      "userColor": "b",
+      "createdAt": 1790352643889,
+      "updatedAt": 1790352643889,
+      "folder": "From gambit"
+    }
+  ]
+}

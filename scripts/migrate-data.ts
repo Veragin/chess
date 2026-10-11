@@ -6,6 +6,7 @@
  *     npx tsx scripts/migrate-data.ts --dry-run       # report only, write nothing
  *     npx tsx scripts/migrate-data.ts --duplicities   # also rewrite duplicities.md when no data changed
  *     npx tsx scripts/migrate-data.ts --source <dir>  # read the input from <dir> (default public/data)
+ *     npx tsx scripts/migrate-data.ts --graft         # also graft lines starting mid-game (step 4)
  *
  * The output always goes to `public/data`. `--source` lets the run start from the original v1
  * files (e.g. extracted from git) so their names, notes and timestamps are what gets joined.
@@ -14,12 +15,12 @@
  *  1. Load every `<source>/*.json` through `migrate()` (v1 → v2 shape). Any refused line, or
  *     any move that does not replay, aborts the run before anything is written.
  *  2. Re-file lines of mixed files into the file/folder of their opening (`REFILE` below).
- *  3. Join lines sharing `joinKey` (target file, folder, start position, trained side) into one
- *     tree (`mergeTrees`). A source line's `notes` become the comment of its last move, so
- *     nothing is lost.
- *  4. Graft: a joined line whose start position is reached inside another joined line of the
- *     same target file and trained side is merged into that line at the first node (depth-first,
- *     main line first) reaching it. Repeated until nothing changes, so chains end in one tree.
+ *  3. Join lines sharing `joinKey` (target file, folder, start position, trained side and the
+ *     first `SHARED_PLIES` moves) into one tree (`mergeTrees`). A source line's `notes` become
+ *     the comment of its last move, so nothing is lost.
+ *  4. Graft (only with `--graft`): a joined line whose start position is reached inside another
+ *     joined line of the same target file and trained side is merged into that line at the first
+ *     node (depth-first, main line first) reaching it. Repeated until nothing changes.
  *  5. Name each line `<Opening Name> - <first 5 moves>` (` (2)`, ` (3)`… on clashes).
  *  6. Write the current schema through `serialiseLinesFile` (PGN-like stored tree, compact
  *     layout); ids are derived from the join key, so re-running on its own output reproduces
@@ -79,6 +80,9 @@ const ALIASES_FILE = join(ROOT, 'public', 'seed-aliases.json');
 
 /** Plies of the main line that identify a joined line (and appear in its name). */
 const JOIN_PLIES = 5;
+
+/** Opening moves (plies) lines must share, besides the start position, to be joined. */
+const SHARED_PLIES = 3;
 
 /* ------------------------------------------------------------------------------------- *
  * Re-filing
@@ -196,16 +200,18 @@ function loadSources(dir: string, files: string[]): Source[] {
  * ------------------------------------------------------------------------------------- */
 
 /** The first `JOIN_PLIES` moves of the main line (all of them for a shorter line). */
-function leadingMoves(tree: MoveTree): string[] {
-  return branchMoves(tree, branchesOf(tree)[0] ?? []).slice(0, JOIN_PLIES);
+function leadingMoves(tree: MoveTree, plies = JOIN_PLIES): string[] {
+  return branchMoves(tree, branchesOf(tree)[0] ?? []).slice(0, plies);
 }
 
 /**
  * The one definition of "these lines start together": same target file and folder, same start
- * position, same trained side. Lines starting elsewhere are joined by grafting (`graftAll`).
+ * position, same trained side, same first `SHARED_PLIES` moves of the main line (all of them for
+ * a shorter line). Lines starting elsewhere are only joined by grafting (`graftAll`, `--graft`).
  */
 function joinKey(source: Source): string {
-  return [source.target.file, source.target.folder, source.fenKey, source.line.userColor].join('|');
+  const moves = leadingMoves(source.tree, SHARED_PLIES).join(' ');
+  return [source.target.file, source.target.folder, source.fenKey, source.line.userColor, moves].join('|');
 }
 
 /**
@@ -378,7 +384,10 @@ function joinAll(sources: Source[]): { groups: Group[]; grafts: Graft[] } {
     if (members === undefined) byKey.set(key, [source]);
     else members.push(source);
   }
-  const { roots, grafts } = graftAll([...byKey].map(([key, members]) => joinGroup(key, members)));
+  const joined = [...byKey].map(([key, members]) => joinGroup(key, members));
+  const { roots, grafts } = process.argv.includes('--graft')
+    ? graftAll(joined)
+    : { roots: joined, grafts: [] };
   nameGroups(roots);
   return { groups: roots, grafts };
 }
@@ -473,11 +482,20 @@ function unmergedReasons(groups: Group[]): string[] {
     if (others.length === 0) continue;
     const sameSide = others.filter((g) => g.line.userColor === group.line.userColor);
     const sameStart = sameSide.filter((g) => g.startKey === group.startKey);
-    const why: string[] = [
-      sameStart.length > 0
-        ? `same start as ${sameStart.map((g) => quote(g.line.name)).join(', ')} but another folder`
-        : `start position not reached in any other line of ${group.target.file} training the same side`,
-    ];
+    const sameFolder = sameStart.filter((g) => g.target.folder === group.target.folder);
+    const otherFolder = sameStart.filter((g) => g.target.folder !== group.target.folder);
+    const why: string[] = [];
+    if (sameFolder.length > 0) {
+      why.push(
+        `same start as ${sameFolder.map((g) => quote(g.line.name)).join(', ')} but other first ${SHARED_PLIES} moves`,
+      );
+    }
+    if (otherFolder.length > 0) {
+      why.push(`same start as ${otherFolder.map((g) => quote(g.line.name)).join(', ')} but another folder`);
+    }
+    if (sameStart.length === 0) {
+      why.push(`start position not reached in any other line of ${group.target.file} training the same side`);
+    }
     const otherSide = reaching(
       others.filter((g) => g.line.userColor !== group.line.userColor),
       group,
@@ -556,7 +574,8 @@ function printReport(
 }
 
 /* ------------------------------------------------------------------------------------- *
- * Duplicities: positions where the repertoire gives the trained side several moves
+ * Duplicities: positions where the repertoire gives the trained side several moves, matched
+ * across all files
  * ------------------------------------------------------------------------------------- */
 
 interface Use {
@@ -565,7 +584,8 @@ interface Use {
 }
 
 interface Duplicity {
-  opening: string;
+  /** Openings whose lines reach the position, in discovery order (positions match across files). */
+  openings: string[];
   fen: string;
   example: { moves: string[]; source: Source };
   /** Move → the (source line, joined line) pairs playing it, in discovery order. */
@@ -579,19 +599,20 @@ function findDuplicities(groups: Group[]): Duplicity[] {
   for (const group of groups) for (const m of group.members) rootOf.set(m, group);
 
   const positions = new Map<string, Duplicity>();
-  const keyOf = (opening: string, color: string, fen: string): string => `${opening}|${color}|${fen}`;
+  const keyOf = (color: string, fen: string): string => `${color}|${fen}`;
   for (const group of groups) {
     for (const source of group.members) {
       for (const node of replayTree(source.line.startFen, source.tree).nodes) {
         if (node.fenBefore.split(' ')[1] !== source.line.userColor) continue;
         const fen = fenKey(node.fenBefore);
-        const key = keyOf(source.opening, source.line.userColor, fen);
+        const key = keyOf(source.line.userColor, fen);
         let entry = positions.get(key);
         if (entry === undefined) {
           const moves = pathSans(source.tree, node.path.slice(0, -1));
-          entry = { opening: source.opening, fen, example: { moves, source }, moves: new Map(), branches: [] };
+          entry = { openings: [], fen, example: { moves, source }, moves: new Map(), branches: [] };
           positions.set(key, entry);
         }
+        if (!entry.openings.includes(source.opening)) entry.openings.push(source.opening);
         const users = entry.moves.get(node.san) ?? [];
         if (!users.some((u) => u.source === source)) users.push({ source, joined: rootOf.get(source) as Group });
         entry.moves.set(node.san, users);
@@ -602,10 +623,9 @@ function findDuplicities(groups: Group[]): Duplicity[] {
   // Where a joined tree itself branches on the trained side — what drill meets (D6).
   for (const group of groups) {
     const { line } = group;
-    const opening = (group.members[0] as Source).opening;
     const record = (fen: string, children: MoveNode[], path: number[]): void => {
       if (fen.split(' ')[1] !== line.userColor || children.length < 2) return;
-      const entry = positions.get(keyOf(opening, line.userColor, fenKey(fen)));
+      const entry = positions.get(keyOf(line.userColor, fenKey(fen)));
       entry?.branches.push({ joined: group, at: pathSans(line.tree, path), moves: children.map((c) => c.san) });
     };
     const replay = replayTree(line.startFen, line.tree);
@@ -643,7 +663,10 @@ const KIND_LABEL: Record<Kind, string> = {
 
 function renderDuplicities(dups: Duplicity[]): string {
   const counts = new Map<string, number>();
-  for (const d of dups) counts.set(d.opening, (counts.get(d.opening) ?? 0) + 1);
+  for (const d of dups) {
+    const opening = d.openings.join(' / ');
+    counts.set(opening, (counts.get(opening) ?? 0) + 1);
+  }
   const breakdown = [...counts].map(([opening, n]) => `${opening} ×${n}`).join(', ');
   const n = (kind: Kind): number => dups.filter((d) => kindOf(d) === kind).length;
   const where = `${n('branch')} branch inside a single joined line (drill accepts either move there), ${n('transposition')} inside one line by transposition, ${n('across')} across lines.`;
@@ -661,11 +684,11 @@ function renderDuplicities(dups: Duplicity[]): string {
   const out = [
     '# Trained-side duplicities in `public/data`',
     '',
-    'Positions where the repertoire gives the **trained side** more than one move. Lines are joined by position (§8 of `implementation-plan.md`: same start, and lines starting mid-game grafted where their start is reached), so most of these alternatives now sit *inside* one joined line, where drill accepts any of them (decision D6). Lines use the re-filing from §8 of the plan.',
+    'Positions where the repertoire gives the **trained side** more than one move. Lines are joined when they share the start position and the first 3 moves, so most of these alternatives now sit *inside* one joined line, where drill accepts any of them (decision D6). Lines use the re-filing from §8 of the plan.',
     '',
     summary,
     '',
-    'Usually one of them is a mistake or an unintended alternative worth reviewing. Positions are matched by transposition within one opening; each move lists the original (v1) lines playing it and the joined line they are now part of.',
+    'Usually one of them is a mistake or an unintended alternative worth reviewing. Positions are matched by transposition across all files (same trained side); each move lists the original (v1) lines playing it and the joined line they are now part of.',
     '',
     '- **branch inside one line** — the joined tree branches on a move of the trained side at this position; drill accepts any of the moves and continues on that branch (D6).',
     '- **transposition inside one line** — one joined line reaches the position at different nodes with different moves; at each node drill only knows that node\'s move.',
@@ -677,7 +700,7 @@ function renderDuplicities(dups: Duplicity[]): string {
     const after = d.example.moves.length > 0 ? d.example.moves.join(' ') : '(start of line)';
     out.push(
       '',
-      `### ${d.opening} — ${KIND_LABEL[kindOf(d)]}`,
+      `### ${d.openings.join(' / ')} — ${KIND_LABEL[kindOf(d)]}`,
       '',
       `Position: \`${d.fen}\` (e.g. after \`${after}\` in ${label(d.example.source)})`,
       '',
