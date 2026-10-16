@@ -17,7 +17,12 @@
  *     cost grow with the repertoire on each click. Build the index from the line list, hold it,
  *     and each position is then a `Map` lookup.
  *
- *  3. **The whole move tree is indexed**, not just the main line: every node of every line is a
+ *  3. **A move counts if it leads into the repertoire, whoever plays it.** Besides what the
+ *     reaching lines play next, every legal move from the position is tried, and one that lands
+ *     in a position some line visits is listed too, with those lines. Without this, a line saved
+ *     from `…dxc6 d3 Bc5 Be2` has nothing to say after `…dxc6 Be2 Bc5`, although `d3` brings
+ *     the board straight back into it.
+ *  4. **The whole move tree is indexed**, not just the main line: every node of every line is a
  *     visit to the position it leads to, and every child of that node is a continuation. A line
  *     that reaches the same position along two of its branches and plays the same move next is
  *     still one line playing one move (deduplicated by `line.id + nextSan`).
@@ -88,7 +93,14 @@ export interface CoverageMove {
   san: string;
   /** Every distinct visit that continues with `san` — one per line (deduplicated by line id). */
   reaches: LineReach[];
-  /** Distinct lines behind `reaches`, sorted by name — what the UI counts and lists. */
+  /**
+   * Lines that do not play `san` from here but visit the position it leads to (by another move
+   * order, or by starting there) — one visit per line. Empty when no other line gets there.
+   */
+  transpositions: LineReach[];
+  /** True when no reaching line plays `san` here: it is listed only because of `transpositions`. */
+  transposes: boolean;
+  /** Distinct lines behind `reaches` and `transpositions`, sorted by name — what the UI counts. */
   lines: Line[];
   /**
    * What the lines say about this continuation: on each branch, the first comment found from the
@@ -284,11 +296,16 @@ export function buildCoverageIndex(lines: readonly Line[]): CoverageIndex {
  * On each branch from `reach`'s next move on, the first commented move within
  * `COMMENT_LOOKAHEAD` plies, with the moves that lead to it from the current position.
  */
-function upcomingComments(index: CoverageIndex, reach: LineReach): CoverageComment[] {
+function upcomingComments(
+  index: CoverageIndex,
+  reach: LineReach,
+  /** Moves from the current position to `reach`'s position (a transposing move), if any. */
+  prefix: readonly string[] = [],
+): CoverageComment[] {
   const sans = index.sanAt.get(reach.line.id);
   if (sans === undefined || reach.nextPath === null) return [];
   const out: CoverageComment[] = [];
-  const walk = (node: MoveNode, path: NodePath, moves: string[]): void => {
+  const walk = (node: MoveNode, path: NodePath, moves: readonly string[]): void => {
     const san = sans.get(pathKey(path));
     if (san === undefined) return; // unplayable: nothing after it is real
     const here = [...moves, san];
@@ -306,7 +323,7 @@ function upcomingComments(index: CoverageIndex, reach: LineReach): CoverageComme
     if (node === undefined) return [];
     children = node.next;
   }
-  if (node !== undefined) walk(node, reach.nextPath, []);
+  if (node !== undefined) walk(node, reach.nextPath, prefix);
   return out;
 }
 
@@ -333,8 +350,9 @@ function reachKey(reach: LineReach): string {
 
 /** What the repertoire does in the position `fen` — the panel's whole input. */
 export function coverageAt(index: CoverageIndex, fen: string): Coverage {
-  const found = index.byPosition.get(positionKey(fen));
-  if (found === undefined || found.length === 0) return EMPTY_COVERAGE;
+  const found = index.byPosition.get(positionKey(fen)) ?? [];
+  const transposing = transposingMoves(index, fen);
+  if (found.length === 0 && transposing.size === 0) return EMPTY_COVERAGE;
 
   const all = found.slice().sort(byReach);
 
@@ -370,15 +388,32 @@ export function coverageAt(index: CoverageIndex, fen: string): Coverage {
     else bucket.push(reach);
   }
 
-  const moves: CoverageMove[] = [...grouped.entries()]
-    .map(([san, reaches]) => ({
-      san,
-      reaches,
-      lines: distinctLines(reaches),
-      comments: dedupeComments(commentsBySan.get(san) ?? []),
-    }))
-    // Most-played first so the main line leads; alphabetical within a tie keeps it stable.
-    .sort((a, b) => b.lines.length - a.lines.length || bySan(a.san, b.san));
+  const sans = new Set([...grouped.keys(), ...transposing.keys()]);
+  const moves: CoverageMove[] = [...sans]
+    .map((san) => {
+      const reaches = grouped.get(san) ?? [];
+      const direct = new Set(reaches.map((reach) => reach.line.id));
+      // Lines that already play `san` here are counted once, through their own move.
+      const others = (transposing.get(san) ?? []).filter((reach) => !direct.has(reach.line.id));
+      const comments = [...(commentsBySan.get(san) ?? [])];
+      for (const reach of others) comments.push(...upcomingComments(index, reach, [san]));
+      return {
+        san,
+        reaches,
+        transpositions: dedupeByLine(others),
+        transposes: reaches.length === 0,
+        lines: distinctLines([...reaches, ...others]),
+        comments: dedupeComments(comments),
+      };
+    })
+    // Most-played first so the main line leads; a line's own move before a transposition into
+    // it; alphabetical within a tie keeps it stable.
+    .sort(
+      (a, b) =>
+        b.lines.length - a.lines.length ||
+        Number(a.transposes) - Number(b.transposes) ||
+        bySan(a.san, b.san),
+    );
 
   return {
     reaching,
@@ -387,6 +422,28 @@ export function coverageAt(index: CoverageIndex, fen: string): Coverage {
     endsHere,
     breaksHere: dedupeByLine(breaksHere),
   };
+}
+
+/**
+ * Every legal move from `fen` that lands in a position the index knows, with the visits to that
+ * position (line name first). One replay of the legal moves per call — a few dozen moves.
+ */
+function transposingMoves(index: CoverageIndex, fen: string): Map<string, LineReach[]> {
+  const out = new Map<string, LineReach[]>();
+  let game;
+  try {
+    game = createGame(fen);
+  } catch {
+    return out;
+  }
+  for (const legal of game.legalMoves()) {
+    const played = game.move(legal.san);
+    if (played === null) continue;
+    const found = index.byPosition.get(positionKey(game.fen()));
+    game.undo();
+    if (found !== undefined && found.length > 0) out.set(played.san, found.slice().sort(byReach));
+  }
+  return out;
 }
 
 /** One entry per line: the panel names lines, and a line that breaks here twice is still one. */

@@ -156,6 +156,52 @@ describe('coverageAt', () => {
   });
 });
 
+describe('coverageAt with moves that transpose into a line', () => {
+  // Saved from the position after 1.e4 e5 2.Nf3 Nf6 3.Nxe5 Nc6 4.Nxc6 dxc6 5.d3, like the
+  // Stafford files: the line never sees 5.Be2 Bc5 6.d3, which reaches the same position.
+  const stafford = ['e4', 'e5', 'Nf3', 'Nf6', 'Nxe5', 'Nc6', 'Nxc6', 'dxc6'];
+  const fromD3 = line('Stafford d3', ['Bc5', 'Be2', 'h5'], {
+    startFen: after([...stafford, 'd3']),
+  });
+  const index = buildCoverageIndex([fromD3]);
+
+  it('lists a move no reaching line plays when it lands in a saved position', () => {
+    const coverage = coverageAt(index, after([...stafford, 'Be2', 'Bc5']));
+    expect(coverage.reaching).toEqual([]);
+    expect(coverage.moves).toEqual([
+      expect.objectContaining({ san: 'd3', reaches: [], transposes: true }),
+    ]);
+    expect(coverage.moves[0]?.lines.map((l) => l.name)).toEqual(['Stafford d3']);
+    expect(coverage.moves[0]?.transpositions[0]?.nextSan).toBe('h5');
+    expect(coverageArrows(coverage, after([...stafford, 'Be2', 'Bc5']))).toEqual([
+      { san: 'd3', from: 'd2', to: 'd3', weight: 1 },
+    ]);
+  });
+
+  it('adds transposing lines to a move another line plays directly, counting each line once', () => {
+    const direct = line('Main', [...stafford, 'Be2', 'Bc5', 'd3', 'Bg4']);
+    const both = buildCoverageIndex([direct, fromD3]);
+    const coverage = coverageAt(both, after([...stafford, 'Be2', 'Bc5']));
+    expect(coverage.moves.map((m) => [m.san, m.transposes, m.lines.map((l) => l.name)])).toEqual([
+      ['d3', false, ['Main', 'Stafford d3']],
+    ]);
+    expect(coverage.moves[0]?.transpositions.map((r) => r.line.name)).toEqual(['Stafford d3']);
+  });
+
+  it('carries the comments of the transposed-into line, from the transposing move', () => {
+    const commented = treeLine('Commented', [n('Bc5', [n('Be2', [n('h5', [], 'Push')])])], {
+      startFen: after([...stafford, 'd3']),
+    });
+    const coverage = coverageAt(
+      buildCoverageIndex([commented]),
+      after([...stafford, 'Be2', 'Bc5']),
+    );
+    expect(coverage.moves[0]?.comments.map((c) => [c.moves.join(' '), c.text])).toEqual([
+      ['d3 h5', 'Push'],
+    ]);
+  });
+});
+
 describe('buildCoverageIndex with damaged lines', () => {
   it('indexes a broken line as far as it replays and reports where it broke', () => {
     const damaged = line('Damaged', ['e4', 'e5', 'Qxd8']);

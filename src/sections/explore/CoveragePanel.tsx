@@ -9,6 +9,9 @@
  * Comments travel with the lines: under each continuation, what each line says about it (the
  * first comment on each branch from that move on), and above them the comment on the move that
  * brought the board here, when a reaching line played that same move.
+ *
+ * A move no reaching line plays, but which lands in a position some line visits, is listed too,
+ * marked "transposes": the repertoire covers it, by another move order.
  */
 
 import styled from 'styled-components';
@@ -57,11 +60,15 @@ export function CoveragePanel({
   arrival = [],
 }: CoveragePanelProps) {
   const reaching = coverage.lines.length;
+  const intoRepertoire = coverage.moves.length;
   const summary =
     scopeSize === 0
       ? 'No saved lines to compare against.'
       : reaching === 0
-        ? 'No saved line reaches this position.'
+        ? intoRepertoire === 0
+          ? 'No saved line reaches this position.'
+          : 'No saved line reaches this position, but ' +
+            `${intoRepertoire === 1 ? 'this move transposes' : 'these moves transpose'} into one.`
         : `${reaching} of ${lineCountLabel(scopeSize)} ` +
           `${reaching === 1 ? 'reaches' : 'reach'} this position.`;
 
@@ -97,7 +104,18 @@ export function CoveragePanel({
                   {move.san}
                 </PlayMove>
                 <MoveBody>
-                  <Count data-testid="coverage-count">{lineCountLabel(move.lines.length)}</Count>
+                  <Count data-testid="coverage-count">
+                    {lineCountLabel(move.lines.length)}
+                    {move.transposes && (
+                      <Tag
+                        data-testid="coverage-transposes"
+                        title="Reaches a saved line by another move order"
+                      >
+                        {' '}
+                        · transposes
+                      </Tag>
+                    )}
+                  </Count>
                   <Names>
                     {move.lines.map((line) => (
                       <NameLink
@@ -168,7 +186,7 @@ export function CoveragePanel({
           </Group>
         )}
 
-        {reaching === 0 && scopeSize > 0 && (
+        {reaching === 0 && intoRepertoire === 0 && scopeSize > 0 && (
           <Hint data-testid="coverage-empty">
             Nothing in this scope transposes here. Play the moves you want covered and save them
             as a new line.
@@ -260,6 +278,11 @@ const MoveBody = styled.div`
 const Count = styled.span`
   color: ${(p) => p.theme.color.textFaint};
   font-size: ${(p) => p.theme.font.size.sm};
+`;
+
+const Tag = styled.span`
+  color: ${(p) => p.theme.color.textMuted};
+  font-style: italic;
 `;
 
 const Names = styled.div`
