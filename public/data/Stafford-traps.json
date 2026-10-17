@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792267801162,
+  "lines": [
+    {
+      "id": "40fc3003-0033-521e-847a-6cc1214627b6",
+      "name": "Stafford traps - e4 e5 Nf3 Nf6 Nxe5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e5", "Nf3", "Nf6", "Nxe5", "Nc6", "Nxc6", "dxc6", "e5",
+        [
+          "Nc3", "Bc5", "d3",
+          [
+            "h3", "Be6", "d3", "Qd6", "Be2", "O-O-O", "O-O", "Bxh3", "gxh3", "Qg3+", "Kh1", "Qxh3+",
+            "Kg1", {"san": "h5", "comment": "Next Ng4"}, "Be3", "Ng4", "Bxg4+", "hxg4", "Bxc5",
+            "Qh1#"
+          ],
+          "Ng4", "Be3", "Nxe3", "fxe3",
+          {"san": "Bxe3", "comment": "Not really a trap, but much better for Black"}
+        ],
+        [
+          "d3", "Bc5", "Bg5", ["h3", "Bxf2+", "Kxf2", "Nxe4+", "dxe4", "Qxd1"],
+          [
+            "Be2", "h5", "O-O",
+            [
+              "c3", "Ng4", "d4", "Qh4", "g3", "Qf6", "f3", "h4", "fxg4", "hxg3", "hxg3", "Rxh1+",
+              "Kd2"
+            ],
+            "Ng4", "h3", "Qd6", "hxg4", "hxg4", "Bxg4", ["g3", "Qxg3#"], "Qh2#"
+          ],
+          {"san": "Bxf2+", "comment": "6...Nxe4 is the stronger trap"},
+          [
+            "Nxe4", "Bxd8", ["dxe4", "Bxf2+", "Kxf2", ["Ke2", "Bg4+", "Kxf2", "Qxd1"], "Qxd1"],
+            "Bxf2+", "Ke2", "Bg4#"
+          ],
+          "Kxf2", "Nxe4+", "Ke1", "Nxg5"
+        ],
+        "Ne4", "d3", ["d4", "Qh4", "g3", "Nxg3", "hxg3", ["fxg3", "Qe4+", "Be2", "Qxh1+"], "Qxh1"],
+        "Bc5", "Be3", "Bxe3", "fxe3", "Qh4+", "Ke2", "Qf2#"
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Stafford/traps"
+    }
+  ]
+}

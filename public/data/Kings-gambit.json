@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792267801162,
+  "lines": [
+    {
+      "id": "53be74c0-260e-554c-9bf2-51edb6c01cc5",
+      "name": "King's Gambit Accepted - e4 e5 f4 exf4 Bc4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e5", "f4", "exf4", "Bc4",
+        ["d4", "Qh4+", "g3", "fxg3", "Nf3", "g2+", "Nxh4", "gxh1=Q"], "d5",
+        ["Nf6", "d3", "d5", "exd5", "Nxd5", "Qh5", "c6", "Bxf4", "Qe7+", "Qe5", "Nxf4"], "exd5",
+        [
+          "Bxd5", "Nf6", "Nc3", "Bb4", "d3", "Nxd5", "exd5", "O-O", "Qf3", "Re8+", "Ne2", "Qh4+",
+          "g3", "Bxc3+", "bxc3", "Bg4", "gxh4", "Bxf3", "O-O", "Bxe2"
+        ],
+        "Qh4+", "Kf1", "f3", "Qe1+", "Qxe1+", "Kxe1", {"san": "fxg2", "comment": "Next gxh1=Q"}
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "King's Gambit Accepted"
+    }
+  ]
+}

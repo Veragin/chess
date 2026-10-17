@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792267801162,
+  "lines": [
+    {
+      "id": "dd9d2844-be13-52c3-99c2-0e4f9bc20ce6",
+      "name": "Sicilian Defense - e4 c5 c3 d5 exd5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "c5", "c3", "d5", ["Nf6", "e5", "Nd5"], "exd5", "Qxd5", "Nf3", "Nf6", "d4", "e6",
+        "Bd3", "c4", "Qa4+", "b5", "Qc2", ["Bxc4", "Qe4+", "Be2", "bxa4"], "cxd3", "Qxd3"
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Sicilian Defense"
+    },
+    {
+      "id": "58073713-cff1-554f-a4c2-bbc50e2aadae",
+      "name": "Sicilian Defense - e4 c5 Nc3 Nc6 Nge2",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "c5", "Nc3", "Nc6", "Nge2",
+        [
+          "f4", "g6", "Nf3", "Bg7", "Bb5", "Nd4", "Nxd4", "cxd4", "Ne2", "e6", "d3", "Qa5+", "Bd2",
+          "Qxb5"
+        ],
+        "g6", "d3", "Bg7", "Be3", "Nd4", "g3", "Nf3#"
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Sicilian Defense"
+    },
+    {
+      "id": "ae678255-1662-5c7a-808b-42b0361d4d58",
+      "name": "Sicilian Defense - e4 c5 Ne2 Nc6 c4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": ["e4", "c5", "Ne2", "Nc6", "c4", "Nf6", "Nbc3", "Nb4", "a3", "Nd3#"],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Sicilian Defense"
+    },
+    {
+      "id": "cc53c1a0-ac5f-53d7-b25b-6397c5b955d4",
+      "name": "Sicilian Defense - e4 c5 Nf3 Nc6 Bb5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "c5", "Nf3", "Nc6",
+        [
+          "e6", "d4", "cxd4", "Nxd4", "a6",
+          [
+            "Nc6", "Nc3", "d6", "Be3", "Be7", "Qg4", "Nxd4", "Bxd4",
+            {"san": "e5", "comment": "Hits the bishop on d4 and opens Bc8 onto the queen on g4"}
+          ],
+          "Bf4", "e5", "Bxe5", "Qa5+", "Nc3", "Qxe5"
+        ],
+        "Bb5", "a6", "Ba4", "b5", "Bb3", "c4", "O-O", "cxb3"
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Sicilian Defense"
+    },
+    {
+      "id": "5a80579f-11b5-5ed3-bb34-43dd57713793",
+      "name": "Sicilian Defense - e4 c5 b4 cxb4 a3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": ["e4", "c5", "b4", "cxb4", "a3", "d5", "exd5", "Qxd5", "axb4", "Qe5+", "Be2", "Qxa1"],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Sicilian Defense"
+    },
+    {
+      "id": "60f0a430-dbc8-50f6-9531-6d8b6709fa7d",
+      "name": "Sicilian Defense - e4 c5 d4 cxd4 Nf3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": ["e4", "c5", "d4", "cxd4", "Nf3", "e5", "Nxe5", "Qa5+", "Bd2", "Qxe5"],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Sicilian Defense"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792267801162,
+  "lines": [
+    {
+      "id": "d4cdebfd-4dc4-5cd0-9177-2d9c69dcc7a3",
+      "name": "Caro-Kann Defense - e4 c6 c4 d5 cxd5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "c6", "c4", "d5", "cxd5",
+        [
+          "exd5", "cxd5", "cxd5", "Nf6", "Bb5+", "Bd7", "Bc4", "Qc7", "Qb3", "b5", "Bxb5",
+          ["d3", "bxc4", "dxc4"], "Qxc1+"
+        ],
+        "cxd5", "Bb5+", "Bd7", "Qa4", "dxe4", "Bxd7+", "Nxd7", "Qxe4", "Nc5", "Qc4", "Rc8", "Nf3",
+        "Nd3+"
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Caro-Kann Defense"
+    },
+    {
+      "id": "d79ee334-2a89-511d-880c-1eedc955592f",
+      "name": "Caro-Kann Defense - e4 c6 Nc3 d5 f3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": ["e4", "c6", "Nc3", "d5", "f3", "d4", "Na4", "e6", "Ne2", "b5"],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Caro-Kann Defense"
+    },
+    {
+      "id": "bb524307-8051-510c-b7c6-53b5cdbf85f2",
+      "name": "Caro-Kann Defense - e4 c6 d4 d5 Nc3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "c6", "d4", "d5", "Nc3", "dxe4", "Nxe4", "Nf6", "Ng3",
+        [
+          "Nxf6+", "exf6", "Bc4", "Qe7+", "Ne2",
+          ["Qe2", "Be6", "Be3", "Qb4+", "Bd2", "Qxc4", "Qxc4", "Bxc4"], "Qb4+", "c3", "Qxc4"
+        ],
+        "h5", "Bg5", "h4", "Bxf6", "hxg3", "Be5", "Rxh2", "Rxh2", "Qa5+", "c3", "Qxe5+", "dxe5",
+        "gxh2", "Nf3", "h1=Q"
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Caro-Kann Defense"
+    },
+    {
+      "id": "54f0a0e4-09a2-50f4-8cb4-bcd77fd06072",
+      "name": "Caro-Kann Defense - e4 c6 d3 d5 Nd2",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "c6", "d3", "d5", "Nd2", "g6", "f4", "Nh6", "Ngf3", "Ng4", "Be2",
+        {"san": "Ne3", "comment": "Hits the queen on d1"}
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Caro-Kann Defense"
+    }
+  ]
+}
