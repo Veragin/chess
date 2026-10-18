@@ -54,7 +54,7 @@ import {
   type TreeHistoryState,
 } from '../../chess/treeHistory';
 import { allFolderPaths, folderLabel } from '../../storage/folders';
-import { createLine, getLine, listLines, updateLine } from '../../storage/lines';
+import { createLine, getLine, isServerLine, listLines, updateLine } from '../../storage/lines';
 import { normaliseFolderPath } from '../../storage/schema';
 import { clearStagedLine, peekStagedLine, type StagedLine } from '../../state/newLine';
 import { ConfirmDialog } from './lines/ConfirmDialog';
@@ -86,6 +86,8 @@ interface EditorState {
   baseline: LineDraft;
   /** Set when loading a stored line had to drop moves that no longer replay. */
   loadNotice: string | null;
+  /** Editing a bundled line: saving stores the user's own copy (see `storage/lines.ts`). */
+  server?: boolean;
 }
 
 /** A "Delete from here" waiting for confirmation. */
@@ -139,6 +141,7 @@ function seedState(
   return {
     routeId: id,
     status: 'edit',
+    server: isServerLine(line),
     draft,
     baseline: draft,
     loadNotice:
@@ -397,6 +400,12 @@ export function LineEditor() {
         </Button>
       </TopBar>
 
+      {state.server === true && (
+        <Notice $tone="info" data-testid="server-line-notice">
+          This is a bundled line. Saving stores your own copy in place of it; the bundled
+          original stays out of your list.
+        </Notice>
+      )}
       {state.loadNotice !== null && (
         <Notice $tone="warn" role="alert" data-testid="load-notice">
           {state.loadNotice}

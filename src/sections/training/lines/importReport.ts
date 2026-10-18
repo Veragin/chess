@@ -61,12 +61,12 @@ export function describeImport(result: ImportResult): ImportReportView {
 
 /**
  * What "Clear data" did, in the same notice the import uses. The custom count is the part worth
- * repeating afterwards: the bundled lines are coming back on the next load, those were not.
+ * repeating afterwards: the bundled lines are all still there, those are gone.
  */
 export function describeReset(summary: ResetSummary, result: ResetResult): ImportReportView {
   const details: string[] = [];
   if (summary.blindGame) details.push('The saved blind game was deleted.');
-  details.push('The bundled lines are added again the next time the app loads.');
+  details.push('Every bundled line is back, including any you had deleted or edited.');
 
   if (!result.ok) {
     return {
@@ -78,14 +78,13 @@ export function describeReset(summary: ResetSummary, result: ResetResult): Impor
 
   const headline =
     summary.custom === 0
-      ? `Cleared ${summary.total} stored line(s). Nothing of your own was lost.`
-      : `Cleared ${summary.total} stored line(s), ${summary.custom} of them your own. ` +
-        'That cannot be undone.';
+      ? 'Cleared stored data. Nothing of your own was lost.'
+      : `Deleted ${summary.custom} line(s) of your own. That cannot be undone.`;
   return { tone: summary.custom === 0 ? 'ok' : 'warn', headline, details };
 }
 
 /**
- * The startup seed of `public/data/*.json` (`storage/seed.ts`) reports only when something
+ * The startup load of `public/data/*.json` (`storage/seed.ts`) reports only when something
  * went wrong: lines that *did* arrive are self-evident — they are in the list — while a file
  * that was silently refused would leave the user hunting for lines that never appear.
  * Returns null when there is nothing to say.
@@ -94,7 +93,6 @@ export function describeSeed(report: SeedReport | null): ImportReportView | null
   if (report === null) return null;
 
   const details: string[] = [];
-  if (report.error !== undefined) details.push(report.error);
   for (const file of report.files) {
     if (file.error !== undefined) details.push(`${file.file} — ${file.error}`);
     for (const rejection of file.rejections) {
@@ -107,13 +105,13 @@ export function describeSeed(report: SeedReport | null): ImportReportView | null
   if (added > 0) {
     return {
       tone: 'warn',
-      headline: `Added ${added} bundled line(s); the rest could not be loaded.`,
+      headline: `Loaded ${added} bundled line(s); the rest could not be loaded.`,
       details,
     };
   }
   return {
     tone: 'error',
-    headline: 'Bundled lines could not be loaded — your saved lines were left untouched.',
+    headline: 'Bundled lines could not be loaded — your own lines were left untouched.',
     details,
   };
 }

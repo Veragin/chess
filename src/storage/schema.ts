@@ -65,6 +65,11 @@ export interface Line {
   notes?: string;
   createdAt: number; // epoch ms
   updatedAt: number;
+  /**
+   * `'server'` for a bundled line (`public/data/*.json`), absent for the user's own. In memory
+   * only: it is never stored nor exported, so an exported bundled line imports as a user line.
+   */
+  origin?: 'server';
 }
 
 /**

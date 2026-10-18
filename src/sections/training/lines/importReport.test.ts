@@ -103,7 +103,7 @@ describe('describeSeed', () => {
       }),
     );
     expect(view?.tone).toBe('warn');
-    expect(view?.headline).toContain('Added 2');
+    expect(view?.headline).toContain('Loaded 2');
     expect(view?.details).toEqual(['stafford.json — Broken — illegal move "Qxh8" at ply 2']);
   });
 
@@ -117,34 +117,21 @@ describe('describeSeed', () => {
     expect(view?.headline).toMatch(/left untouched/i);
     expect(view?.details).toEqual(['junk.json — Not valid JSON']);
   });
-
-  it('leads with a write failure that affected the whole seed', () => {
-    const view = describeSeed(
-      seed({
-        added: 1,
-        error: 'storage full',
-        files: [{ file: 'a.json', added: 1, skipped: 0, rejections: [] }],
-      }),
-    );
-    expect(view?.details).toEqual(['storage full']);
-  });
 });
 
 describe('describeReset', () => {
   it('says nothing of the user’s own was lost when every line was bundled', () => {
     const view = describeReset(summary({ total: 12 }), { ok: true });
     expect(view.tone).toBe('ok');
-    expect(view.headline).toContain('12');
     expect(view.headline).toMatch(/nothing of your own/i);
     expect(view.details).toEqual([
-      'The bundled lines are added again the next time the app loads.',
+      'Every bundled line is back, including any you had deleted or edited.',
     ]);
   });
 
   it('warns, and repeats the custom count, when the user lost their own lines', () => {
     const view = describeReset(summary({ total: 12, custom: 5 }), { ok: true });
     expect(view.tone).toBe('warn');
-    expect(view.headline).toContain('12');
     expect(view.headline).toContain('5');
     expect(view.headline).toMatch(/cannot be undone/i);
   });

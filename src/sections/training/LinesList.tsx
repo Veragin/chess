@@ -19,8 +19,12 @@
  * result into a `Blob` or a report. Export follows the open folder — inside one it writes that
  * folder and its subfolders (the Drill/Explore scope), at the root the whole repertoire.
  * "Clear data…" is the one action that ignores the open folder: it empties every key the app
- * stores (`storage/reset.ts`), so its confirmation counts the lines no bundled file could put
- * back — the only part of the store the reset destroys for good.
+ * stores (`storage/reset.ts`), so its confirmation counts the user's own lines — the only part
+ * of the store the reset destroys for good.
+ *
+ * Bundled ("server") lines and the user's own are listed together; own lines carry a "Custom"
+ * badge, and the "My lines" filter hides the bundled ones. The filter is remembered for the tab
+ * (`sessionStorage`), so it survives a round trip through the editor or a drill.
  *
  * No logic worth testing lives here: filtering, folder arithmetic, labelling, the export filename
  * and the import wording are pure functions in `./lines/` and `storage/folders.ts` with their own
@@ -46,6 +50,7 @@ import {
     deleteLine,
     exportFolder,
     importFile,
+    isServerLine,
     listLines,
     renameFolder,
     storageWarning,
@@ -85,12 +90,39 @@ import {
     subfolderCountLabel,
 } from './lines/lineFormat';
 
+const MINE_ONLY_KEY = 'chess-trainer.linesMineOnly';
+
+/** Per-tab convenience only, so any storage failure just means "filter off". */
+function readMineOnly(): boolean {
+    try {
+        return globalThis.sessionStorage?.getItem(MINE_ONLY_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+function writeMineOnly(on: boolean): void {
+    try {
+        if (on) globalThis.sessionStorage?.setItem(MINE_ONLY_KEY, '1');
+        else globalThis.sessionStorage?.removeItem(MINE_ONLY_KEY);
+    } catch {
+        // Not remembered; the filter still applies for this visit.
+    }
+}
+
 export function LinesList() {
     const navigate = useNavigate();
     const [params, setParams] = useSearchParams();
     const folder = normaliseFolderPath(params.get('folder'));
 
-    const [lines, setLines] = useState<Line[]>(() => listLines());
+    const [allLines, setAllLines] = useState<Line[]>(() => listLines());
+    /** Show only the user's own lines, hiding the bundled ones. */
+    const [mineOnly, setMineOnly] = useState(readMineOnly);
+    /** What every count, folder and search below works on. */
+    const lines = useMemo(
+        () => (mineOnly ? allLines.filter((line) => !isServerLine(line)) : allLines),
+        [allLines, mineOnly],
+    );
     const [warning, setWarning] = useState<string | null>(() => storageWarning());
     const [query, setQuery] = useState('');
     const [pendingDelete, setPendingDelete] = useState<Line | null>(null);
@@ -110,8 +142,15 @@ export function LinesList() {
 
     /** Re-reads the store. Also refreshes the storage warning, which any write can raise. */
     const refresh = useCallback(() => {
-        setLines(listLines());
+        setAllLines(listLines());
         setWarning(storageWarning());
+    }, []);
+
+    const toggleMineOnly = useCallback(() => {
+        setMineOnly((on) => {
+            writeMineOnly(!on);
+            return !on;
+        });
     }, []);
 
     const openFolder = useCallback(
@@ -232,7 +271,9 @@ export function LinesList() {
         if (result.error !== undefined) setWarning(result.error);
     }, [crumbs, folder, openFolder, refresh, renameTo]);
 
-    const storeEmpty = lines.length === 0;
+    const storeEmpty = allLines.length === 0;
+    /** The filter is on and hides everything — at the root, the user has no lines of their own. */
+    const noneOfMine = mineOnly && !storeEmpty && lines.length === 0;
     const inFolder = folder.length > 0;
     const nothingHere = here.length === 0 && subfolders.length === 0;
 
@@ -294,7 +335,9 @@ export function LinesList() {
                         ? 'No saved lines'
                         : inFolder
                           ? folderCountLabel(here.length, scope.length)
-                          : `${lineCountLabel(lines.length)} saved`
+                          : mineOnly
+                            ? `${lineCountLabel(lines.length)} of your own`
+                            : `${lineCountLabel(lines.length)} saved`
                 }
                 actions={
                     <FileActions>
@@ -378,6 +421,18 @@ export function LinesList() {
                                 onChange={(event) => setQuery(event.target.value)}
                             />
                             {inFolder && <Hint>Searches this folder and everything below it.</Hint>}
+                            <FilterRow>
+                                <Button
+                                    size="sm"
+                                    variant={mineOnly ? 'primary' : 'secondary'}
+                                    aria-pressed={mineOnly}
+                                    data-testid="filter-mine"
+                                    onClick={toggleMineOnly}
+                                    title="Show only lines you created, imported or edited"
+                                >
+                                    My lines only
+                                </Button>
+                            </FilterRow>
                         </SearchRow>
                     )}
 
@@ -418,6 +473,16 @@ export function LinesList() {
                                 onClick={() => navigate(newLinePath(folder))}
                             >
                                 Create your first line
+                            </Button>
+                        </EmptyState>
+                    ) : noneOfMine ? (
+                        <EmptyState data-testid="lines-none-mine">
+                            <p>
+                                You have no lines of your own yet. Create one, import a file, or
+                                edit a bundled line — editing saves your own copy.
+                            </p>
+                            <Button data-testid="filter-mine-off" onClick={toggleMineOnly}>
+                                Show all lines
                             </Button>
                         </EmptyState>
                     ) : searching ? (
@@ -534,8 +599,10 @@ export function LinesList() {
                             ? 'Untitled line'
                             : pendingDelete.name}
                     </strong>{' '}
-                    ({lineSizeLabel(pendingDelete.tree)}) will be removed. This cannot be
-                    undone — export first if you want a copy.
+                    ({lineSizeLabel(pendingDelete.tree)}) will be removed.{' '}
+                    {isServerLine(pendingDelete)
+                        ? 'It is a bundled line, so it only comes back after "Clear data".'
+                        : 'This cannot be undone — export first if you want a copy.'}
                 </ConfirmDialog>
             )}
 
@@ -548,18 +615,14 @@ export function LinesList() {
                 >
                     <ResetBody>
                         <p>
-                            Everything this app keeps in the browser will be deleted:{' '}
-                            <strong data-testid="reset-total">
-                                {lineCountLabel(pendingReset.total)}
-                            </strong>
-                            {pendingReset.blindGame && ' and the saved blind game'}.
+                            Everything this app keeps in the browser will be deleted
+                            {pendingReset.blindGame && ', the saved blind game included'}.
                         </p>
                         <p>
                             {pendingReset.custom === 0 ? (
                                 <>
-                                    None of them is your own — every stored line comes from the
-                                    bundled repertoires and is added again the next time the app
-                                    loads.
+                                    You have no lines of your own, so nothing is lost: the bundled
+                                    repertoires stay, and any bundled line you deleted comes back.
                                 </>
                             ) : (
                                 <>
@@ -567,9 +630,9 @@ export function LinesList() {
                                         {lineCountLabel(pendingReset.custom)}
                                     </strong>{' '}
                                     {pendingReset.custom === 1 ? 'was' : 'were'} created, imported
-                                    or edited by you and cannot be recovered. The rest come from the
-                                    bundled repertoires and are added again the next time the app
-                                    loads.
+                                    or edited by you and cannot be recovered. The bundled
+                                    repertoires stay — any bundled line you deleted or edited comes
+                                    back in its original form.
                                 </>
                             )}
                         </p>
@@ -638,6 +701,14 @@ export function LinesList() {
                     <LineName data-testid="line-name">
                         {line.name.trim().length === 0 ? 'Untitled line' : line.name}
                     </LineName>
+                    {!isServerLine(line) && (
+                        <CustomBadge
+                            data-testid="line-custom"
+                            title="Your own line — created, imported or edited by you"
+                        >
+                            Custom
+                        </CustomBadge>
+                    )}
                     <ColorBadge $white={line.userColor === 'w'} data-testid="line-color">
                         as {colorLabel(line.userColor)}
                     </ColorBadge>
@@ -993,6 +1064,23 @@ const LineName = styled.h3`
     font-size: ${(p) => p.theme.font.size.lg};
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const FilterRow = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: ${(p) => p.theme.space.xs};
+`;
+
+const CustomBadge = styled.span`
+    flex: 0 0 auto;
+    padding: 2px ${(p) => p.theme.space.sm};
+    border-radius: 999px;
+    border: 1px solid ${(p) => p.theme.color.accent};
+    color: ${(p) => p.theme.color.accent};
+    font-size: ${(p) => p.theme.font.size.sm};
+    font-weight: 600;
     white-space: nowrap;
 `;
 

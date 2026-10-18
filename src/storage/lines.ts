@@ -14,6 +14,14 @@
  *
  * `localStorage` is looked up lazily inside each accessor (never captured at import time)
  * so the module works in a DOM-less environment and can be tested with a stub.
+ *
+ * **Server lines vs. user lines.** Only the user's own lines are stored under `STORAGE_KEY`. The
+ * bundled lines (`public/data/*.json`) are handed in at startup by `seed.ts` through
+ * `setServerLines` and live in memory only, so a new build simply replaces them — there is
+ * nothing to merge with what the user wrote. Every reader (`listLines`, `getLine`, exports) sees
+ * both, marked by `Line.origin`. A server line is never written to: editing one stores an edited
+ * copy under a fresh id and hides the original, and deleting one only hides it. The hidden ids
+ * live under their own key (`HIDDEN_KEY`).
  */
 
 import { validateFenRules } from '../chess/game';
@@ -40,6 +48,9 @@ import {
 
 /** Single storage key for the whole repertoire. The payload is a `LinesFile`. */
 const STORAGE_KEY = 'chess-trainer.lines.v1';
+
+/** Ids of server lines the user deleted or replaced with an edited copy. A JSON string array. */
+const HIDDEN_KEY = 'chess-trainer.hiddenServerLines.v1';
 
 const UNAVAILABLE =
   'Browser storage is unavailable (private browsing or blocked cookies). ' +
@@ -182,17 +193,88 @@ function byUpdatedAtDesc(a: Line, b: Line): number {
 }
 
 // ---------------------------------------------------------------------------------------
+// Server lines
+// ---------------------------------------------------------------------------------------
+
+/** The bundled lines, as last handed in by `setServerLines`. Never persisted. */
+let serverLines: Line[] = [];
+
+/**
+ * Hidden server ids, mirrored in memory so a session whose storage is blocked still hides what
+ * the user deleted. `null` until first read.
+ */
+let hiddenIds: Set<string> | null = null;
+
+/** Replaces the bundled lines (validated by the caller), each marked `origin: 'server'`. */
+export function setServerLines(lines: readonly Line[]): void {
+  serverLines = lines.map((line) => ({ ...line, origin: 'server' }));
+}
+
+function readHidden(): Set<string> {
+  if (hiddenIds !== null) return hiddenIds;
+  hiddenIds = new Set();
+  const store = localStore();
+  if (store === null) return hiddenIds;
+  try {
+    const parsed: unknown = JSON.parse(store.getItem(HIDDEN_KEY) ?? '[]');
+    if (Array.isArray(parsed)) {
+      for (const id of parsed) if (typeof id === 'string') hiddenIds.add(id);
+    }
+  } catch {
+    // Unreadable record: hide nothing. Worst case a deleted bundled line reappears.
+  }
+  return hiddenIds;
+}
+
+/** Best-effort, like the record it replaces: losing it only brings bundled lines back. */
+function hideServerLines(ids: readonly string[]): void {
+  if (ids.length === 0) return;
+  const hidden = readHidden();
+  for (const id of ids) hidden.add(id);
+  const store = localStore();
+  if (store === null) return;
+  try {
+    store.setItem(HIDDEN_KEY, JSON.stringify([...hidden]));
+  } catch {
+    // Kept in memory for this session.
+  }
+}
+
+function visibleServerLines(): Line[] {
+  const hidden = readHidden();
+  return serverLines.filter((line) => !hidden.has(line.id));
+}
+
+function findServerLine(id: string): Line | null {
+  return visibleServerLines().find((l) => l.id === id) ?? null;
+}
+
+/**
+ * An edited copy of a server line: a user line under a fresh id, everything but the identity
+ * carried over. The caller stores it and hides the original.
+ */
+function forkServerLine(line: Line): Line {
+  const copy: Line = { ...line, id: newId(), createdAt: Date.now() };
+  delete copy.origin;
+  return copy;
+}
+
+// ---------------------------------------------------------------------------------------
 // CRUD
 // ---------------------------------------------------------------------------------------
 
-/** All saved lines, most recently updated first. */
+/** All lines — the user's own and the visible server ones — most recently updated first. */
 export function listLines(): Line[] {
-  return loadFile().lines.slice().sort(byUpdatedAtDesc);
+  return [...loadFile().lines, ...visibleServerLines()].sort(byUpdatedAtDesc);
 }
 
 export function getLine(id: string): Line | null {
   if (typeof id !== 'string' || id.length === 0) return null;
-  return loadFile().lines.find((l) => l.id === id) ?? null;
+  return loadFile().lines.find((l) => l.id === id) ?? findServerLine(id);
+}
+
+export function isServerLine(line: Line): boolean {
+  return line.origin === 'server';
 }
 
 export function createLine(input: Omit<Line, 'id' | 'createdAt' | 'updatedAt'>): Line {
@@ -218,13 +300,24 @@ export function createLine(input: Omit<Line, 'id' | 'createdAt' | 'updatedAt'>):
   return line;
 }
 
+/**
+ * Applies `patch` to line `id`. Editing a **server** line stores the result as a new user line
+ * (fresh id) and hides the original, so the returned line's `id` can differ from `id`.
+ */
 export function updateLine(
   id: string,
-  patch: Partial<Omit<Line, 'id' | 'createdAt'>>,
+  patch: Partial<Omit<Line, 'id' | 'createdAt' | 'origin'>>,
 ): Line | null {
   const file = loadFile();
-  const index = file.lines.findIndex((l) => l.id === id);
-  if (index === -1) return null;
+  let index = file.lines.findIndex((l) => l.id === id);
+  let forkedFrom: string | null = null;
+  if (index === -1) {
+    const server = findServerLine(id);
+    if (server === null) return null;
+    file.lines.push(forkServerLine(server));
+    index = file.lines.length - 1;
+    forkedFrom = server.id;
+  }
   const current = file.lines[index] as Line;
 
   const updated: Line = {
@@ -248,21 +341,28 @@ export function updateLine(
 
   const next = file.lines.slice();
   next[index] = updated;
-  saveFile(next);
+  const persisted = saveFile(next);
+  // Only once the copy is stored: hiding the original after a failed write would lose the line.
+  if (forkedFrom !== null && persisted) hideServerLines([forkedFrom]);
   return updated;
 }
 
+/** Deletes a user line, or hides a server line (it stays hidden across builds). */
 export function deleteLine(id: string): boolean {
   const file = loadFile();
   const next = file.lines.filter((l) => l.id !== id);
-  if (next.length === file.lines.length) return false;
+  if (next.length === file.lines.length) {
+    if (findServerLine(id) === null) return false;
+    hideServerLines([id]);
+    return true;
+  }
   saveFile(next);
   return true;
 }
 
 /**
- * Removes the whole repertoire from storage — the "clear data" escape hatch, not an operation
- * any normal edit reaches.
+ * Removes the user's lines from storage and un-hides every server line — the "clear data"
+ * escape hatch, not an operation any normal edit reaches.
  *
  * The in-memory fallback and its warning are dropped too: a session that had degraded must not
  * keep serving the copy that is now meant to be gone. Returns false when the on-disk payload
@@ -273,10 +373,12 @@ export function clearLines(): boolean {
   usingMemory = false;
   memoryValue = null;
   warning = null;
+  hiddenIds = null;
   const store = localStore();
   if (store !== null) {
     try {
       store.removeItem(STORAGE_KEY);
+      store.removeItem(HIDDEN_KEY);
       return true;
     } catch {
       // Storage revoked mid-session, or no `removeItem` at all.
@@ -308,14 +410,18 @@ export interface FolderOpResult {
  *
  * `updatedAt` is deliberately **not** touched: filing a line somewhere else is not a change to
  * the line, and bumping it would reshuffle the whole list order for a rename.
+ *
+ * Server lines in the folder are edits like any other: each becomes a user copy (see
+ * `updateLine`) filed under the new name.
  */
 export function renameFolder(from: string, to: string): FolderOpResult {
   const invalid = folderRenameError(from, to);
   if (invalid !== null) return { ok: false, moved: 0, error: invalid };
 
   const file = loadFile();
+  const forked = visibleServerLines().filter((line) => isWithinFolder(lineFolder(line), from));
   let moved = 0;
-  const next = file.lines.map((line) => {
+  const next = [...file.lines, ...forked.map(forkServerLine)].map((line) => {
     const current = lineFolder(line);
     if (!isWithinFolder(current, from)) return line;
     const folder = renameFolderPath(current, from, to);
@@ -329,6 +435,7 @@ export function renameFolder(from: string, to: string): FolderOpResult {
 
   if (moved === 0) return { ok: true, moved: 0 };
   const persisted = saveFile(next);
+  if (persisted) hideServerLines(forked.map((line) => line.id));
   const result: FolderOpResult = { ok: true, moved };
   if (!persisted) result.error = warning ?? WRITE_FAILED;
   return result;

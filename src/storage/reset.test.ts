@@ -3,13 +3,8 @@ import { treeFromMoves } from '../chess/tree';
 
 /**
  * The one test that runs against the *real* `public/data/*.json` files (through
- * `import.meta.glob` in `seedData.ts`, which vitest resolves like the app build does).
- *
- * What it guards is the claim the confirmation dialog makes: "these N lines are your own, the
- * rest come back on the next load". That claim rests on a freshly seeded line matching its own
- * source file by content — so a bundled file written with SAN the normaliser rewrites (`0-0`,
- * `e4xd5`), or a folder path that gets trimmed on the way in, would silently turn every seeded
- * line into a "custom" one and warn the user about losing lines they never wrote.
+ * `import.meta.glob` in `seedData.ts`, which vitest resolves like the app build does): every
+ * bundled file must load cleanly, and a reset must only ever destroy the user's own lines.
  *
  * Same stub-per-test setup as `lines.test.ts`.
  */
@@ -55,53 +50,56 @@ beforeEach(() => {
   });
 });
 
+const MINE = {
+  name: 'Mine',
+  startFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+  tree: treeFromMoves(['d4']),
+  userColor: 'w' as const,
+};
+
+describe('bundled files', () => {
+  it('all load without a rejected line', async () => {
+    const { seedData } = await load();
+    const report = seedData.loadBundledLines();
+    expect(report.added).toBeGreaterThan(0);
+    expect(report.files.filter((f) => f.error !== undefined || f.rejections.length > 0)).toEqual([]);
+  });
+});
+
 describe('resetSummary against the bundled files', () => {
-  it('counts no custom line in a store that holds only seeded lines', async () => {
+  it('counts no custom line when only bundled lines are listed', async () => {
     const { reset, seedData } = await load();
-    const seeded = seedData.seedBundledLines();
+    const loaded = seedData.loadBundledLines();
 
     const summary = reset.resetSummary();
-    expect(summary.total).toBe(seeded.added);
-    expect(summary.total).toBeGreaterThan(0);
+    expect(summary.total).toBe(loaded.added);
     expect(summary.custom).toBe(0);
     expect(summary.blindGame).toBe(false);
   });
 
-  it('counts the lines the user added on top', async () => {
+  it('counts the lines the user added, and bundled lines they edited', async () => {
     const { reset, seedData, lines } = await load();
-    seedData.seedBundledLines();
-    lines.createLine({
-      name: 'Mine',
-      startFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-      tree: treeFromMoves(['d4']),
-      userColor: 'w',
-    });
+    seedData.loadBundledLines();
+    lines.createLine(MINE);
+    const bundled = lines.listLines().find((l) => l.origin === 'server');
+    lines.updateLine(bundled?.id ?? '', { name: 'Edited' });
 
-    expect(reset.resetSummary().custom).toBe(1);
+    expect(reset.resetSummary().custom).toBe(2);
   });
 });
 
 describe('clearAll', () => {
-  it('empties every key, and the next load seeds the bundled lines again', async () => {
-    const first = await load();
-    const seeded = first.seedData.seedBundledLines();
-    first.lines.createLine({
-      name: 'Mine',
-      startFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-      tree: treeFromMoves(['d4']),
-      userColor: 'w',
-    });
+  it('empties every key, keeps the bundled lines and drops the user ones', async () => {
+    const { reset, seedData, lines } = await load();
+    const loaded = seedData.loadBundledLines();
+    lines.createLine(MINE);
+    const bundled = lines.listLines().find((l) => l.origin === 'server');
+    lines.deleteLine(bundled?.id ?? '');
 
-    expect(first.reset.clearAll()).toEqual({ ok: true });
+    expect(reset.clearAll()).toEqual({ ok: true });
     expect(store.map.size).toBe(0);
-    expect(first.lines.listLines()).toEqual([]);
-
-    vi.resetModules();
-    const second = await load();
-    second.seedData.seedBundledLines();
-    // The bundled repertoire is back in full; the hand-written line is not.
-    expect(second.lines.listLines()).toHaveLength(seeded.added);
-    expect(second.lines.listLines().map((l) => l.name)).not.toContain('Mine');
+    expect(lines.listLines()).toHaveLength(loaded.added);
+    expect(lines.listLines().map((l) => l.name)).not.toContain('Mine');
   });
 
   it('reports failure instead of claiming an empty store it could not empty', async () => {

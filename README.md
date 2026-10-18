@@ -18,7 +18,7 @@ at runtime.
   once per drill; a hint shows the move and its comment; when a branch is done you can take the
   next branch or line, replay that same branch, or open it in Analyze. See
   [Lines, branches and comments](#lines-branches-and-comments). Files in `public/data/` ship as
-  a starter repertoire — see
+  a starter repertoire, kept apart from the user's own lines — see
   [Bundled lines](#bundled-lines-publicdata).
 - **Explore** (inside Training) — the same board and engine as Analyze, next to what the
   _repertoire_ says about the position on it: every saved line that reaches it (by transposition,
@@ -121,48 +121,41 @@ they were.
 ## Bundled lines (`public/data`)
 
 Every `public/data/*.json` file is a Training export (`schemaVersion`, `exportedAt`, `lines`)
-— schema v2 today, though a v1 file is still accepted and seeded as single-branch lines — and its
-lines are added to the user's repertoire automatically. To ship a repertoire with the
-app: export it from Training, drop the file in `public/data/`, rebuild. There is no list of file
-names to maintain — `src/storage/seedData.ts` globs the directory at **build time** and the JSON
-travels inside the bundle, so seeding needs no fetch, no manifest and no network (it works on the
-very first visit and offline). Each line's own `folder` field decides where it is filed;
-`Stafford.json` puts its lines in `Stafford`.
+— schema v2 today, though a v1 file is still accepted as single-branch lines. Its lines are
+**server lines**: listed in Training next to the user's own, but never copied into the user's
+store. To ship a repertoire with the app: export it from Training, drop the file in
+`public/data/`, rebuild. There is no list of file names to maintain — `src/storage/seedData.ts`
+globs the directory at **build time** and the JSON travels inside the bundle, so loading needs no
+fetch, no manifest and no network (it works on the very first visit and offline). Each line's own
+`folder` field decides where it is filed; `Stafford.json` puts its lines in `Stafford`.
 
-Rules the seeder (`src/storage/seed.ts`) keeps:
+Rules (`src/storage/seed.ts`, `src/storage/lines.ts`):
 
-- **Once, then hands off.** A line is seeded on the first load that sees it and is an ordinary
-  line from then on — editable, deletable, exported with the rest. Delete it and it stays
-  deleted; edit it and the edit survives the next load.
-- **A record of its own.** Delivered lines are remembered as `file::id` keys under
-  `chess-trainer.seededLines.v1`, separate from the repertoire. Adding a file, or a line to an
-  existing file, seeds exactly the new material next time. Same `id` in two files = two lines.
+- **Loaded on every start, in memory only.** A new build replaces the server lines wholesale;
+  nothing has to be reconciled with what the user wrote, so an update can never lose or
+  duplicate user data. Server lines keep the `id` written in their file, so ids must be unique
+  across all files (a duplicate is refused).
+- **User lines are stored separately** under `chess-trainer.lines.v1` — only lines the user
+  created, imported or edited.
+- **Editing a server line makes it the user's.** Saving an edit (or moving it to another folder,
+  or renaming a folder it is in) stores a copy under a fresh id as a user line and hides the
+  original. **Deleting** a server line just hides it. Hidden server ids live under
+  `chess-trainer.hiddenServerLines.v1`, so they stay hidden across builds.
 - **Bundled files are validated like any import.** Same shape, FEN-legality and SAN-replay checks
   as `Import…`, per line: one unplayable line is refused with a reason while its healthy siblings
-  are seeded, and an unreadable file changes nothing at all. Refusals are _not_ recorded as
-  delivered, so fixing the file seeds the line on the next load, and the lines screen shows what
-  it could not read (silence there would look like a missing line).
-- **One write, and never a false record.** All files are validated first, added in a single
-  write, and the record is only persisted if that write reached `localStorage` — a memory-only
-  session must not tell the next one that these lines were already delivered.
+  load, and the lines screen shows what it could not read (silence there would look like a
+  missing line).
 
-Fresh ids are assigned on the way in (as for any import), so a seed can never overwrite an
-existing line; an identical-content guard keeps duplicates away even if the record is lost.
+In Training, the user's own lines carry a **Custom** badge, and **My lines only** hides the
+bundled ones.
 
-**Clear data…** (Training, beside Export / Import) empties every key the app owns: the
-repertoire, the seed record and the blind-game resume record. Clearing the seed record along with
-the lines is what makes it a reset rather than a deletion — the next load seeds every bundled
-line again — so the only permanent loss is the lines no bundled file can produce: the ones
-written, imported or edited by hand. The confirmation counts exactly those (`storage/reset.ts`
-compares stored lines against the bundled files by content, because stored lines carry fresh ids
-that the seed record cannot match), and the notice afterwards repeats the count.
+**Clear data…** (Training, beside Export / Import) empties every key the app owns: the user's
+lines, the hidden server ids and the blind-game resume record. The bundled lines stay — every one
+of them visible again, in its original form — so the only permanent loss is the user's own
+lines, which the confirmation counts first.
 
-**Browsers that seeded the old v1 files keep their old lines.** The bundled files were rewritten
-as joined v2 lines with new ids, so their `file::id` keys are new to the seed record and the
-merged trees match no old line by content: a browser that had already seeded the v1 lines gets
-the merged lines _on top of_ the old single-move-list ones. There is deliberately no dedupe for
-this; **Clear data…** removes the old copies (and re-seeds only the current bundled lines), at
-the cost of any hand-made lines, which it counts first.
+Browsers that used the old seed-once model still have the bundled lines copied into their store;
+those copies now show up as custom lines next to the server ones. **Clear data…** removes them.
 
 ### Regenerating the bundled data (`scripts/migrate-data.ts`)
 
