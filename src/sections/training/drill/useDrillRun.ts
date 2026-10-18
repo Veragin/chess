@@ -40,6 +40,7 @@ import {
   drillPly,
   drillRejected,
   drillRevealedComment,
+  drillRevealedThreats,
   drillRevealedSan,
   drillRevealedSquares,
   drillSummary,
@@ -51,6 +52,7 @@ import {
 } from '../../../chess/drill';
 import type { Color, MoveInput } from '../../../chess/game';
 import type { PlySquares } from '../../../chess/line';
+import type { ThreatMark } from '../../../chess/threats';
 import type { Orientation, Square } from '../../../chess/position';
 import { loadDrillLine } from './pool';
 
@@ -80,6 +82,8 @@ export interface DrillView {
   hint: DrillMoveMark | null;
   /** The line's comment on the hinted move; non-null only alongside `hint`, if it has one. */
   hintComment: string | null;
+  /** Threats of the position after the hinted move; empty unless `hint` is showing. */
+  hintThreats: ThreatMark[];
   /** The refused move, for the error flash. Carries no hint of what was expected. */
   wrong: DrillMoveMark | null;
   /** 1-based index of the user's current move. No total — that would narrow down the line. */
@@ -169,6 +173,7 @@ function viewOf(state: DrillState): DrillView {
         ? null
         : { san: revealedSan, from: revealedSquares.from, to: revealedSquares.to },
     hintComment: revealedSan === null ? null : drillRevealedComment(state),
+    hintThreats: revealedSan === null ? [] : drillRevealedThreats(state),
     wrong: rejected,
     moveNumber: drillUserMoveNumber(state),
     ply: drillPly(state),

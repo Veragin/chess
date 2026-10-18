@@ -4,6 +4,7 @@ import { START_FEN } from '../../chess/position';
 import type { Line } from '../../storage/schema';
 import {
   arrivalComments,
+  arrivalThreats,
   buildCoverageIndex,
   coverageArrows,
   coverageAt,
@@ -310,6 +311,23 @@ describe('coverage of a branched line', () => {
     // Both leaves end here, but the line is named once.
     const end = coverageAt(buildCoverageIndex([transposing]), after(['d4', 'Nf6', 'Nf3', 'e6']));
     expect(end.endsHere).toHaveLength(1);
+  });
+
+  it('finds the threats of the move that led to the board position, from every line', () => {
+    const bc4 = (threats: string[], next: MoveNode[] = []): MoveTree => [
+      { san: 'e4', next: [{ san: 'e5', next: [{ san: 'Bc4', threats, next }] }] },
+    ];
+    const a = line('A', [], { tree: bc4(['Qh5']) });
+    const b = line('B', [], { tree: bc4(['Qh5', 'Bxf7+'], [{ san: 'Nc6', next: [] }]) });
+    const index = buildCoverageIndex([a, b]);
+    const fen = after(['e4', 'e5', 'Bc4']);
+    const before = after(['e4', 'e5']);
+    expect(arrivalThreats(index, fen, { san: 'Bc4', fenBefore: before })).toEqual([
+      { move: 'Qh5', from: 'd1', to: 'h5' },
+      { move: 'Bxf7+', from: 'c4', to: 'f7' },
+    ]);
+    expect(arrivalThreats(index, fen, { san: 'Bc4', fenBefore: START_FEN })).toEqual([]);
+    expect(arrivalThreats(index, fen, null)).toEqual([]);
   });
 
   it('finds the comment on the move that led to the board position', () => {

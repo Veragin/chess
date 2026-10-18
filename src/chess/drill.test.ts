@@ -20,6 +20,7 @@ import {
   drillBranchLabel,
   drillItemKey,
   drillRevealedComment,
+  drillRevealedThreats,
   emptyCycle,
   markServed,
   parseDrillItemKey,
@@ -838,6 +839,29 @@ describe('drill branch switching (D6)', () => {
   it('starts on the requested branch and counts it as served', () => {
     const state = createDrill(branchLine(4), { tree: TREE, branch: 4, served: [5, 99] });
     expect(state).toMatchObject({ branch: 4, branchCount: 6, servedBranches: [4, 5] });
+  });
+});
+
+describe('drill hint threats', () => {
+  const line = resolved({
+    startFen: START_FEN,
+    moves: ['e4', 'e5', 'Bc4'],
+    userColor: 'w',
+    threats: [undefined, undefined, ['Qh5', 'Bxf7+']],
+  });
+
+  it('shows the threats of the position after the revealed move, only with a hint', () => {
+    let state = createDrill(line);
+    state = drillAutoPlay(drillAttempt(state, 'e4').state);
+    expect(drillRevealedThreats(state)).toEqual([]);
+    expect(drillRevealedThreats(drillHint(state).state)).toEqual([
+      { move: 'Qh5', from: 'd1', to: 'h5' },
+      { move: 'Bxf7+', from: 'c4', to: 'f7' },
+    ]);
+  });
+
+  it('is empty for a move with no threats', () => {
+    expect(drillRevealedThreats(drillHint(createDrill(line)).state)).toEqual([]);
   });
 });
 

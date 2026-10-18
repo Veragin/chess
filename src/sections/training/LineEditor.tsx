@@ -3,7 +3,7 @@
  *
  * Fields: name, folder, trained-as colour, starting position, notes, and the move tree itself,
  * entered by playing moves on the board — playing a different move anywhere in the line adds a
- * branch from there — with an optional comment on every move.
+ * branch from there — with an optional comment and threats on every move.
  *
  * The folder is **picked, not typed**: a select of every folder the repertoire already has, with
  * the folder this line came from (`?folder=`, or the line's own on an edit) already selected — so
@@ -19,19 +19,25 @@
  *  - the tree view — `components/MoveTree`;
  *  - validation, dirty-tracking and the draft→`Line` mapping — `./lines/draft.ts`, unit-tested.
  *
- * Editing semantics are documented in `./lines/draft.ts`: nothing is ever truncated, "New branch"
- * only moves the cursor, and the saved line is the whole tree.
+ * Editing semantics are documented in `./lines/draft.ts`: nothing is ever truncated, and the
+ * saved line is the whole tree. A branch is added by selecting a move's parent in the tree and
+ * playing a different move.
+ *
+ * Threats (`chess/threats.ts`) are entered on the board too: "Add threat" hands the turn back to
+ * the side that just moved, and every move played is recorded as a threat of the selected move
+ * instead of joining the tree, until "Done".
  */
 
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
-import styled from 'styled-components';
+import styled, { useTheme } from 'styled-components';
 import { Board } from '../../components/Board';
 import { MoveTree } from '../../components/MoveTree';
 import { PositionEditor } from '../../components/PositionEditor';
 import { Button, Panel, RotateButton } from '../../components/ui';
 import { createGame, type Color, type MoveInput } from '../../chess/game';
 import { flipOrientation, type Orientation } from '../../chess/position';
+import { threatFen, threatMarks, threatSan } from '../../chess/threats';
 import type { NodePath } from '../../chess/tree';
 import {
   applyMoveAt,
@@ -50,7 +56,8 @@ import {
   sideToMoveAt,
   startColorOf,
   startMoveNumberOf,
-  stepBack,
+  setThreatsAt,
+  threatsAt,
   type TreeHistoryState,
 } from '../../chess/treeHistory';
 import { allFolderPaths, folderLabel } from '../../storage/folders';
@@ -155,6 +162,7 @@ function seedState(
 export function LineEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const theme = useTheme();
   // Where the user came from in the list, and (for a new line) the folder to file it in.
   const [params] = useSearchParams();
   const fromFolder = normaliseFolderPath(params.get('folder'));
@@ -179,8 +187,11 @@ export function LineEditor() {
   const [pendingLeave, setPendingLeave] = useState<string | null>(null);
   /** Non-null while "Delete from here" waits for confirmation. */
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null);
-  /** After "New branch": the move (`12…Nf3`) the next move played becomes an alternative to. */
-  const [branchOf, setBranchOf] = useState<string | null>(null);
+  /**
+   * While adding threats: the cursor (as `pathKey`) they are being added to. Moving the cursor
+   * ends the mode by derivation, without a state-resetting effect.
+   */
+  const [threatModeAt, setThreatModeAt] = useState<string | null>(null);
 
   // `Routes` renders `<LineEditor />` at the same position for both /new and /:id/edit, so the
   // component instance can survive an id change. Re-seed during render (React's documented
@@ -196,7 +207,7 @@ export function LineEditor() {
     setPositionNotice(null);
     setPendingLeave(null);
     setPendingRemoval(null);
-    setBranchOf(null);
+    setThreatModeAt(null);
   }
 
   const { draft, baseline, status } = state;
@@ -235,11 +246,24 @@ export function LineEditor() {
   const fen = useMemo(() => fenAt(history), [history]);
   const lastMove = useMemo(() => lastMoveAt(history), [history]);
   const cursorLabel = moveLabelAt(history, history.cursor);
+  const threats = threatsAt(history);
+  /** The position with the turn handed back, where threats are played; null when impossible. */
+  const threatBoardFen = useMemo(() => threatFen(fen), [fen]);
+  const addingThreat =
+    threatModeAt === pathKey(history.cursor) && !isAtStart(history) && threatBoardFen !== null;
+  const threatArrows = useMemo(
+    () =>
+      threatMarks(fen, threats).map((threat) => ({
+        from: threat.from,
+        to: threat.to,
+        color: theme.board.threat,
+      })),
+    [fen, threats, theme],
+  );
 
   const onMove = useCallback(
     (move: MoveInput) => {
       setError(null);
-      setBranchOf(null);
       setState((prev) => {
         const next = applyMoveAt(prev.draft.history, move);
         if (next === null) return prev;
@@ -254,9 +278,18 @@ export function LineEditor() {
     setState((prev) => ({ ...prev, draft: { ...prev.draft, history: fn(prev.draft.history) } }));
   }, []);
 
+  /** A move played while adding threats: recorded on the selected move, the tree is untouched. */
+  const onThreat = useCallback(
+    (move: MoveInput) => {
+      const san = threatSan(fen, move);
+      if (san === null || threats.includes(san)) return;
+      setHistory((h) => setThreatsAt(h, [...threatsAt(h), san]));
+    },
+    [fen, threats, setHistory],
+  );
+
   /** Pure navigation: never clears a save error, since nothing that is saved changed. */
   const onSelect = useCallback((path: NodePath) => {
-    setBranchOf(null);
     setState((prev) => ({
       ...prev,
       draft: { ...prev.draft, history: jumpTo(prev.draft.history, path) },
@@ -277,16 +310,6 @@ export function LineEditor() {
     if (removal === null) return;
     setHistory(deleteFromCursor);
   }, [pendingRemoval, setHistory]);
-
-  /**
-   * "New branch": go back to the selected move's parent, so the next move played on the board
-   * becomes an alternative to it rather than a continuation. Deletes nothing.
-   */
-  const onNewBranch = useCallback(() => {
-    if (isAtStart(history)) return;
-    setBranchOf(moveLabelAt(history, history.cursor));
-    setHistory(stepBack);
-  }, [history, setHistory]);
 
   const onChooseColor = useCallback(
     (color: Color) => {
@@ -435,22 +458,15 @@ export function LineEditor() {
               </Caption>
               <BoardCell>
                 <Board
-                  fen={fen}
+                  fen={addingThreat && threatBoardFen !== null ? threatBoardFen : fen}
                   orientation={orientation}
-                  onMove={onMove}
+                  onMove={addingThreat ? onThreat : onMove}
                   movableFor="both"
                   lastMove={lastMove}
+                  arrows={threatArrows}
                 />
               </BoardCell>
               <ButtonRow>
-                <Button
-                  data-testid="new-branch"
-                  disabled={atStart}
-                  title="Play an alternative to this move"
-                  onClick={onNewBranch}
-                >
-                  New branch
-                </Button>
                 <Button
                   data-testid="make-main-line"
                   disabled={!canPromote(history)}
@@ -469,11 +485,6 @@ export function LineEditor() {
                   Delete from here
                 </Button>
               </ButtonRow>
-              {branchOf !== null && (
-                <Hint data-testid="branch-hint">
-                  Play an alternative to <MoveRef>{branchOf}</MoveRef> on the board.
-                </Hint>
-              )}
               <MoveTree
                 tree={history.tree}
                 cursor={history.cursor}
@@ -509,6 +520,56 @@ export function LineEditor() {
                 {atStart && (
                   <Hint>Comments belong to a move — play or select one in the tree above.</Hint>
                 )}
+              </Field>
+              <Field>
+                <FieldLabel as="span" id="move-threats-label">
+                  {cursorLabel === null ? (
+                    'Threats'
+                  ) : (
+                    <>
+                      Threats after <MoveRef>{cursorLabel}</MoveRef>
+                    </>
+                  )}
+                </FieldLabel>
+                <ThreatRow role="group" aria-labelledby="move-threats-label">
+                  {threats.map((move) => (
+                    <ThreatChip key={move} data-testid="threat-chip">
+                      <MoveRef>{move}</MoveRef>
+                      <ThreatRemove
+                        type="button"
+                        aria-label={`Remove threat ${move}`}
+                        title="Remove this threat"
+                        onClick={() =>
+                          setHistory((h) => setThreatsAt(h, threatsAt(h).filter((t) => t !== move)))
+                        }
+                      >
+                        ×
+                      </ThreatRemove>
+                    </ThreatChip>
+                  ))}
+                  <Button
+                    variant={addingThreat ? 'primary' : undefined}
+                    data-testid="add-threat"
+                    disabled={atStart || threatBoardFen === null}
+                    title={
+                      threatBoardFen === null && !atStart
+                        ? 'The side to move is in check — there is nothing to threaten'
+                        : 'Play the moves this position threatens on the board'
+                    }
+                    onClick={() =>
+                      setThreatModeAt(addingThreat ? null : pathKey(history.cursor))
+                    }
+                  >
+                    {addingThreat ? 'Done' : 'Add threat'}
+                  </Button>
+                </ThreatRow>
+                {addingThreat && (
+                  <Hint data-testid="threat-hint">
+                    Play a move {colorLabel(turn === 'w' ? 'b' : 'w')} threatens on the board; it
+                    is recorded as a threat, not added to the line.
+                  </Hint>
+                )}
+                {atStart && <Hint>Threats belong to a move, like comments.</Hint>}
               </Field>
             </BoardStack>
           </Panel>
@@ -680,6 +741,11 @@ export function LineEditor() {
   );
 }
 
+/** A cursor as a comparable string. */
+function pathKey(path: NodePath): string {
+  return path.join('.');
+}
+
 /** Board orientation that puts the trained colour at the bottom. */
 function seedOrientation(color: Color): Orientation {
   return color === 'b' ? 'black' : 'white';
@@ -803,6 +869,47 @@ const MoveRef = styled.span`
   font-family: ${(p) => p.theme.font.mono};
   letter-spacing: 0;
   text-transform: none;
+`;
+
+const ThreatRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: ${(p) => p.theme.space.sm};
+`;
+
+const ThreatChip = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: ${(p) => p.theme.space.xs};
+  min-height: 36px;
+  padding: 0 ${(p) => p.theme.space.xs} 0 ${(p) => p.theme.space.sm};
+  background: ${(p) => p.theme.color.bg};
+  border: 1px solid ${(p) => p.theme.color.border};
+  border-radius: ${(p) => p.theme.radius.md};
+`;
+
+const ThreatRemove = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: ${(p) => p.theme.radius.sm};
+  color: ${(p) => p.theme.color.textMuted};
+  font-size: ${(p) => p.theme.font.size.md};
+  cursor: pointer;
+
+  &:hover {
+    color: ${(p) => p.theme.color.text};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${(p) => p.theme.color.focus};
+  }
 `;
 
 const Hint = styled.p`

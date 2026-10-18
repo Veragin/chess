@@ -14,7 +14,7 @@
  * Versions:
  *  - **1** — a line was linear: `moves: string[]`.
  *  - **2** — a line is a move tree, stored PGN-like (`treeFormat.ts`): `tree` is the main line
- *    as an array of moves (`"e4"` or `{ "san": "e4", "comment": "…" }`), and an array after a
+ *    as an array of moves (`"e4"` or `{ "san": "e4", "comment": "…", "threats": ["Qh5"] }`), and an array after a
  *    move is an alternative to it; `moves` is gone. In memory a `Line` holds a `MoveTree` (see
  *    `chess/tree.ts`); only `serialiseLinesFile` writes the stored form. A v1 payload is still
  *    read: each line becomes a single-branch tree, and `migrate` reports `changed` so the next
@@ -129,7 +129,7 @@ function isFiniteNumber(v: unknown): v is number {
 
 /**
  * Checks a stored tree (`treeFormat.ts`): every item a non-empty SAN string, a
- * `{ san, comment? }` object, or a non-empty array (a variation) that follows a move. Returns
+ * `{ san, comment?, threats? }` object, or a non-empty array (a variation) that follows a move. Returns
  * the first problem, or `null`. Iterative, and capped by `MAX_TREE_DEPTH` / `MAX_TREE_NODES`, so
  * a hostile payload is refused rather than overflowing the stack; variation nesting is capped by
  * `MAX_TREE_DEPTH` too, since an alternative does not advance the ply.
@@ -182,6 +182,13 @@ function storedTreeShapeError(raw: unknown): string | null {
       }
       if (isPlainObject(item) && item.comment !== undefined && typeof item.comment !== 'string') {
         return `"${at}.comment" must be a string when present`;
+      }
+      if (
+        isPlainObject(item) &&
+        item.threats !== undefined &&
+        (!Array.isArray(item.threats) || item.threats.some((t) => typeof t !== 'string'))
+      ) {
+        return `"${at}.threats" must be an array of move strings when present`;
       }
       moves++;
     }

@@ -30,7 +30,8 @@
 import { createGame, type Color, type MoveInput } from './game';
 import { plyColor } from './history';
 import type { Orientation, Square } from './position';
-import { branchComments, branchesOf, branchMoves, type MoveTree } from './tree';
+import { threatMarks, type ThreatMark } from './threats';
+import { branchComments, branchesOf, branchMoves, branchThreats, type MoveTree } from './tree';
 
 /**
  * One linear line — for a stored (tree-shaped) `Line`, one of its branches, which `branchSpec`
@@ -44,10 +45,15 @@ export interface LineSpec {
   userColor: Color;
   /** Per-move comments, parallel to `moves`. Absent ⇒ no move has one. */
   comments?: (string | undefined)[];
+  /** Per-move threats (see `threats.ts`), parallel to `moves`. Absent ⇒ no move has any. */
+  threats?: (string[] | undefined)[];
 }
 
-/** A branch of a stored line, as a linear `LineSpec` that always carries its comments. */
-export type BranchSpec = LineSpec & { comments: (string | undefined)[] };
+/** A branch of a stored line, as a linear `LineSpec` that always carries its comments and threats. */
+export type BranchSpec = LineSpec & {
+  comments: (string | undefined)[];
+  threats: (string[] | undefined)[];
+};
 
 /**
  * Branch `branchIndex` (an index into `branchesOf(line.tree)`, 0 = main line) of a stored line,
@@ -65,6 +71,7 @@ export function branchSpec(
     moves: branchMoves(line.tree, path),
     userColor: line.userColor,
     comments: branchComments(line.tree, path),
+    threats: branchThreats(line.tree, path),
   };
 }
 
@@ -91,6 +98,11 @@ export interface ResolvedLine {
   squares: PlySquares[];
   /** `comments[i]` is the comment on ply `i` (`undefined` when it has none); parallel to `sans`. */
   comments: (string | undefined)[];
+  /**
+   * `threats[i]` are the threats of the position after ply `i`, placed on the board (empty when it
+   * has none); parallel to `sans`.
+   */
+  threats: ThreatMark[][];
 }
 
 /** A stored line we refuse to run, with enough detail to tell the user where it breaks. */
@@ -201,7 +213,16 @@ export function resolveLine(spec: LineSpec): LineModel {
     fens: replayed.fens,
     squares: replayed.squares,
     comments: replayed.sans.map((_, i) => commentOf(spec, i)),
+    threats: replayed.sans.map((_, i) =>
+      threatMarks(replayed.fens[i + 1] as string, threatsOf(spec, i)),
+    ),
   };
+}
+
+/** The spec's threats on ply `i`, or `undefined` (also for a malformed `threats` array). */
+function threatsOf(spec: LineSpec, i: number): string[] | undefined {
+  const threats: unknown = Array.isArray(spec.threats) ? spec.threats[i] : undefined;
+  return Array.isArray(threats) ? threats.filter((t): t is string => typeof t === 'string') : undefined;
 }
 
 /** The spec's comment on ply `i`, or `undefined` (also for a malformed `comments` array). */
@@ -443,6 +464,12 @@ export function sessionExpectedSan(s: LineSession): string | null {
 export function sessionExpectedComment(s: LineSession): string | null {
   if (isSessionComplete(s)) return null;
   return s.line.comments[s.ply] ?? null;
+}
+
+/** Threats of the position after the line's move at the current ply; empty at the end too. */
+export function sessionExpectedThreats(s: LineSession): ThreatMark[] {
+  if (isSessionComplete(s)) return [];
+  return s.line.threats[s.ply] ?? [];
 }
 
 /** Squares of the move at the current ply, or `null` at the end of the line. */

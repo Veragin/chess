@@ -42,6 +42,8 @@ export const theme = {
     /** Border of an arrow whose lines are all trained for White / for Black. */
     arrowWhite: '#f5f5f5',
     arrowBlack: '#111111',
+    /** Arrows of the moves a position threatens (a move's `threats`). */
+    threat: 'rgb(128, 128, 128)',
   },
   space: {
     xs: '4px',

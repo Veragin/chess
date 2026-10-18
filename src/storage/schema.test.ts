@@ -146,6 +146,8 @@ describe('move trees (stored PGN-like)', () => {
     expect(bad(['e4', 5])).toContain('tree[1]');
     expect(bad(['e4', { san: '' }])).toContain('tree[1].san');
     expect(bad(['e4', { san: 'e5', comment: 7 }])).toContain('tree[1].comment');
+    expect(bad(['e4', { san: 'e5', threats: 'Qh5' }])).toContain('tree[1].threats');
+    expect(bad(['e4', { san: 'e5', threats: [3] }])).toContain('tree[1].threats');
     expect(bad([['e4']])).toContain('no move before it');
     expect(bad(['e4', []])).toContain('empty variation');
     expect(bad(['e4', ['d4', null]])).toContain('tree[1][1]');
@@ -168,6 +170,18 @@ describe('move trees (stored PGN-like)', () => {
   it('trims SANs and drops blank comments when reading', () => {
     const line = toLine({ ...makeStored(), tree: [{ san: ' e4 ', comment: '  ' }, { san: 'e5', comment: ' ok ' }] });
     expect(line?.tree).toEqual([{ san: 'e4', next: [{ san: 'e5', comment: 'ok', next: [] }] }]);
+  });
+
+  it('stores threats with the move and reads them back trimmed, without blanks or repeats', () => {
+    const tree: MoveNode[] = [
+      { san: 'e4', next: [{ san: 'e5', next: [{ san: 'Bc4', threats: ['Qh5', 'Bxf7+'], next: [] }] }] },
+    ];
+    expect(encodeTree(tree)).toEqual(['e4', 'e5', { san: 'Bc4', threats: ['Qh5', 'Bxf7+'] }]);
+    expect(toLine(makeStored({ tree }))?.tree).toEqual(tree);
+    const messy = toLine({ ...makeStored(), tree: [{ san: 'e4', threats: [' d4 ', '', 'd4'] }] });
+    expect(messy?.tree).toEqual([{ san: 'e4', threats: ['d4'], next: [] }]);
+    const empty = toLine({ ...makeStored(), tree: [{ san: 'e4', threats: [] }] });
+    expect(empty?.tree).toEqual([{ san: 'e4', next: [] }]);
   });
 
   it('round-trips through migrate unchanged', () => {

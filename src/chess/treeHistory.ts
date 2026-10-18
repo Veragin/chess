@@ -31,6 +31,7 @@ import {
   type MoveTree,
   type NodePath,
 } from './tree';
+import { normaliseThreats } from './threats';
 
 export interface TreeHistoryState {
   startFen: string;
@@ -270,6 +271,30 @@ export function commentAt(h: TreeHistoryState): string {
   return nodeAt(h.tree, cursorOf(h))?.comment ?? '';
 }
 
+/**
+ * Sets the threats of the cursor's move (see `threats.ts`); an empty list removes them. No-op at
+ * the start position.
+ */
+export function setThreatsAt(h: TreeHistoryState, threats: readonly string[]): TreeHistoryState {
+  const cursor = cursorOf(h);
+  if (cursor.length === 0) return h;
+  const edit = (children: MoveNode[], depth: number): MoveNode[] =>
+    children.map((node, i) => {
+      if (i !== cursor[depth]) return node;
+      if (depth < cursor.length - 1) return { ...node, next: edit(node.next, depth + 1) };
+      const copy: MoveNode = { ...node };
+      if (threats.length === 0) delete copy.threats;
+      else copy.threats = threats.slice();
+      return copy;
+    });
+  return { ...h, tree: edit(h.tree, 0), cursor };
+}
+
+/** The threats of the cursor's move, `[]` when it has none or the cursor is at the start. */
+export function threatsAt(h: TreeHistoryState): string[] {
+  return nodeAt(h.tree, cursorOf(h))?.threats ?? [];
+}
+
 /** Removes every move; the start position stays. */
 export function clearTree(h: TreeHistoryState): TreeHistoryState {
   return { ...h, tree: [], cursor: [] };
@@ -309,19 +334,22 @@ export function rebaseTree(
  * Comparing
  * ------------------------------------------------------------------------------------- */
 
-/** Every comment trimmed, blank ones removed — what gets persisted. */
+/** Every comment trimmed, blank ones removed (threats likewise) — what gets persisted. */
 export function normaliseComments(tree: MoveTree): MoveTree {
   return tree.map((node) => {
     const copy: MoveNode = { san: node.san, next: normaliseComments(node.next) };
     const comment = node.comment?.trim() ?? '';
     if (comment.length > 0) copy.comment = comment;
+    const threats = normaliseThreats(node.threats);
+    if (threats !== undefined) copy.threats = threats;
     return copy;
   });
 }
 
 /**
  * Canonical string of everything the editor persists about a tree: moves, **sibling order**
- * (the first child is the main line, so "Make main line" is a real change) and trimmed comments.
+ * (the first child is the main line, so "Make main line" is a real change), trimmed comments
+ * and threats.
  * Unlike `treeKey`, two trees differing only in order or comments get different keys.
  */
 export function treeContentKey(tree: MoveTree): string {

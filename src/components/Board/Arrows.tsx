@@ -8,6 +8,8 @@ export interface BoardArrow {
   weight?: number;
   /** Colour of a border drawn around the arrow; none when omitted. */
   outline?: string;
+  /** Fill colour; the theme's arrow colour when omitted. */
+  color?: string;
 }
 
 export interface ArrowsProps {
@@ -74,7 +76,7 @@ export function Arrows({ arrows, orientation }: ArrowsProps) {
         const weight = Math.min(1, Math.max(0, arrow.weight ?? 1));
         return (
           <polygon
-            key={`${arrow.from}${arrow.to}`}
+            key={`${arrow.from}${arrow.to}${arrow.color ?? ''}`}
             data-testid="board-arrow"
             data-from={arrow.from}
             data-to={arrow.to}
@@ -83,7 +85,7 @@ export function Arrows({ arrows, orientation }: ArrowsProps) {
               centre(arrow.to, orientation),
               0.1 + 0.08 * weight,
             )}
-            fill={theme.board.arrow}
+            fill={arrow.color ?? theme.board.arrow}
             fillOpacity={0.45 + 0.4 * weight}
             stroke={arrow.outline}
             strokeWidth={arrow.outline === undefined ? undefined : 0.05}

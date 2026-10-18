@@ -43,6 +43,7 @@ import {
   pendingAutoMove,
   revealNextMove,
   sessionExpectedComment,
+  sessionExpectedThreats,
   sessionExpectedSan,
   sessionExpectedSquares,
   sessionFen,
@@ -55,6 +56,7 @@ import {
   type ResolvedLine,
 } from './line';
 import type { Orientation } from './position';
+import type { ThreatMark } from './threats';
 import { branchesOf, childrenAt, type MoveTree } from './tree';
 
 /* ------------------------------------------------------------------------------------- *
@@ -644,6 +646,15 @@ export function drillRevealedSan(s: DrillState): string | null {
 export function drillRevealedComment(s: DrillState): string | null {
   if (s.session.revealed === null) return null;
   return sessionExpectedComment(s.session);
+}
+
+/**
+ * Threats of the position after the revealed move (see `threats.ts`); empty when no hint is
+ * showing. Like the comment, they describe the answer, so they wait for the hint.
+ */
+export function drillRevealedThreats(s: DrillState): ThreatMark[] {
+  if (s.session.revealed === null) return [];
+  return sessionExpectedThreats(s.session);
 }
 
 /** Squares of the revealed move, for hint highlights; `null` when no hint is showing. */

@@ -24,6 +24,7 @@ import {
   restartSession,
   revealNextMove,
   sessionExpectedComment,
+  sessionExpectedThreats,
   sessionExpectedSan,
   sessionFen,
   sessionLastMove,
@@ -660,9 +661,29 @@ describe('branchSpec', () => {
       moves: ['e4', 'e5', 'Nf3'],
       userColor: 'w',
       comments: [undefined, undefined, 'develop'],
+      threats: [undefined, undefined, undefined],
     });
     expect(branchSpec(stored, 1)?.moves).toEqual(['e4', 'c5', 'Nf3']);
     expect(branchSpec(stored, 1)?.comments).toEqual([undefined, 'Sicilian', undefined]);
+  });
+
+  it('feeds the threats through resolveLine to the session, placed on the board', () => {
+    const threatened: MoveTree = [
+      { san: 'e4', next: [{ san: 'e5', next: [{ san: 'Bc4', threats: ['Qh5'], next: [] }] }] },
+    ];
+    // Qh5 is written for White, though Black is to move after 2.Bc4.
+    const spec = branchSpec({ ...stored, tree: threatened }, 0) as LineSpec;
+    expect(spec.threats).toEqual([undefined, undefined, ['Qh5']]);
+    const line = resolved(spec);
+    expect(line.threats).toEqual([[], [], [{ move: 'Qh5', from: 'd1', to: 'h5' }]]);
+
+    let s = attemptMove(createSession(line), 'e4').session;
+    expect(sessionExpectedThreats(s)).toEqual([]);
+    s = play(s, 1);
+    expect(sessionExpectedThreats(s)).toEqual([{ move: 'Qh5', from: 'd1', to: 'h5' }]);
+    s = attemptMove(s, 'Bc4').session;
+    expect(isSessionComplete(s)).toBe(true);
+    expect(sessionExpectedThreats(s)).toEqual([]);
   });
 
   it('is null past the last branch, and branch 0 of an empty tree is empty', () => {

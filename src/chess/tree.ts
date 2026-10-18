@@ -28,6 +28,11 @@ export interface MoveNode {
   san: string;
   /** What to know about playing this move. Absent rather than empty. */
   comment?: string;
+  /**
+   * Moves the position after this move threatens (see `threats.ts`), e.g. `["Bxf7+"]`. Absent
+   * rather than empty.
+   */
+  threats?: string[];
   /** Continuations after this move; the first one is the main line. */
   next: MoveNode[];
 }
@@ -56,6 +61,7 @@ export function cloneTree(tree: MoveTree): MoveTree {
   return tree.map((node) => {
     const copy: MoveNode = { san: node.san, next: cloneTree(node.next) };
     if (node.comment !== undefined) copy.comment = node.comment;
+    if (node.threats !== undefined) copy.threats = node.threats.slice();
     return copy;
   });
 }
@@ -132,6 +138,11 @@ export function branchMoves(tree: MoveTree, path: NodePath): string[] {
 /** Comments of one branch, parallel to `branchMoves`; `undefined` where a move has none. */
 export function branchComments(tree: MoveTree, path: NodePath): (string | undefined)[] {
   return nodesAlong(tree, path).map((node) => node.comment);
+}
+
+/** Threats of one branch, parallel to `branchMoves`; `undefined` where a move has none. */
+export function branchThreats(tree: MoveTree, path: NodePath): (string[] | undefined)[] {
+  return nodesAlong(tree, path).map((node) => node.threats);
 }
 
 /* ------------------------------------------------------------------------------------- *
@@ -247,10 +258,17 @@ function mergeComments(a: string | undefined, b: string | undefined): string | u
   return `${a}\n${b}`;
 }
 
+/** The threats of both copies of a move, each once. */
+function mergeThreats(a: string[] | undefined, b: string[] | undefined): string[] | undefined {
+  if (a === undefined || a.length === 0) return b?.slice();
+  if (b === undefined || b.length === 0) return a.slice();
+  return [...a, ...b.filter((move) => !a.includes(move))];
+}
+
 /**
  * The union of two trees. Siblings are matched by SAN (exact string), so a shared prefix is kept
  * once and the trees diverge where their moves do; `a`'s order comes first, `b`'s new moves are
- * appended. Comments on a shared move are concatenated when they differ.
+ * appended. Comments on a shared move are concatenated when they differ; threats are united.
  */
 export function mergeTrees(a: MoveTree, b: MoveTree): MoveTree {
   const out: MoveNode[] = cloneTree(a);
@@ -264,6 +282,8 @@ export function mergeTrees(a: MoveTree, b: MoveTree): MoveTree {
     const merged: MoveNode = { san: existing.san, next: mergeTrees(existing.next, node.next) };
     const comment = mergeComments(existing.comment, node.comment);
     if (comment !== undefined) merged.comment = comment;
+    const threats = mergeThreats(existing.threats, node.threats);
+    if (threats !== undefined) merged.threats = threats;
     out[index] = merged;
   }
   return out;
@@ -404,6 +424,7 @@ export function replayTree(startFen: string, tree: MoveTree): TreeReplay {
       nodes.push({ path, san: applied.san, from: applied.from, to: applied.to, fenBefore, fenAfter });
       const node: MoveNode = { san: applied.san, next: walk(child.next, path) };
       if (child.comment !== undefined) node.comment = child.comment;
+      if (child.threats !== undefined) node.threats = child.threats.slice();
       kept.push(node);
       game.undo();
     });

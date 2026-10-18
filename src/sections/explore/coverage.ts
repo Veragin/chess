@@ -37,6 +37,7 @@
 
 
 import { createGame, sanToUci } from '../../chess/game';
+import { threatMarks, type ThreatMark } from '../../chess/threats';
 import { replayTree, type MoveNode, type NodePath } from '../../chess/tree';
 import type { Line } from '../../storage/schema';
 
@@ -50,6 +51,8 @@ export interface Arrival {
   /** `positionKey` of the position the move was played from. */
   fromKey: string;
   comment?: string;
+  /** The move's threats (see `chess/threats.ts`), as stored. */
+  threats?: string[];
 }
 
 /**
@@ -283,6 +286,7 @@ export function buildCoverageIndex(lines: readonly Line[]): CoverageIndex {
 
         const next: Arrival = { san: node.san, fromKey: key };
         if (commented) next.comment = child.comment;
+        if (child.threats !== undefined && child.threats.length > 0) next.threats = child.threats;
         visit(child.next, nextPath, node.fenAfter, next);
       });
     };
@@ -482,6 +486,29 @@ export function arrivalComments(
     out.push({ line: reach.line, text: arrival.comment });
   }
   return out;
+}
+
+/**
+ * Threats of the board's position `fen`: those of the move that led there (matched as in
+ * `arrivalComments`), united over every line that played it. Empty at the start position.
+ */
+export function arrivalThreats(
+  index: CoverageIndex,
+  fen: string,
+  lastMove: { san: string; fenBefore: string } | null,
+): ThreatMark[] {
+  if (lastMove === null) return [];
+  const found = index.byPosition.get(positionKey(fen));
+  if (found === undefined) return [];
+  const fromKey = positionKey(lastMove.fenBefore);
+  const moves: string[] = [];
+  for (const reach of found.slice().sort(byReach)) {
+    const arrival = reach.arrival;
+    if (arrival === null || arrival.threats === undefined) continue;
+    if (arrival.san !== lastMove.san || arrival.fromKey !== fromKey) continue;
+    for (const move of arrival.threats) if (!moves.includes(move)) moves.push(move);
+  }
+  return threatMarks(fen, moves);
 }
 
 /** Which side's lines count: those trained for White, for Black, or every line. */

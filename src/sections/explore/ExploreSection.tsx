@@ -60,6 +60,7 @@ import { moveCountLabel } from '../training/lines/lineFormat';
 import { CoveragePanel } from './CoveragePanel';
 import {
   arrivalComments,
+  arrivalThreats,
   buildCoverageIndex,
   coverageArrows,
   coverageAt,
@@ -95,11 +96,24 @@ export function ExploreSection() {
   // Built from the scope, not from the position: one replay of each line, then a lookup per move.
   const index = useMemo(() => buildCoverageIndex(scope), [scope]);
   const coverage = useMemo(() => coverageAt(index, fen), [index, fen]);
+  // The board's last move, as the lines' nodes know it: what reached this position, from where.
+  const lastMove = useMemo(() => {
+    const entry = history.cursor >= 0 ? history.entries[history.cursor] : undefined;
+    if (entry === undefined) return null;
+    const previous = history.cursor === 0 ? undefined : history.entries[history.cursor - 1];
+    return { san: entry.san, fenBefore: previous?.fenAfter ?? history.startFen };
+  }, [history]);
   // The known continuations, drawn on the board so coverage reads without looking at the panel.
   // Outlined by the side the move's lines are trained for; a move both sides train stays plain.
+  // The last move's threats are added in grey, under the continuations.
   const arrows = useMemo(
-    () =>
-      coverageArrows(coverage, fen).map((arrow) => ({
+    () => [
+      ...arrivalThreats(index, fen, lastMove).map((threat) => ({
+        from: threat.from,
+        to: threat.to,
+        color: theme.board.threat,
+      })),
+      ...coverageArrows(coverage, fen).map((arrow) => ({
         ...arrow,
         outline:
           arrow.side === 'w'
@@ -108,16 +122,14 @@ export function ExploreSection() {
               ? theme.board.arrowBlack
               : undefined,
       })),
-    [coverage, fen, theme],
+    ],
+    [index, coverage, fen, lastMove, theme],
   );
   // The board's last move, matched against the reaching lines' nodes for its comment.
-  const arrival = useMemo(() => {
-    const entry = history.cursor >= 0 ? history.entries[history.cursor] : undefined;
-    if (entry === undefined) return [];
-    const previous = history.cursor === 0 ? undefined : history.entries[history.cursor - 1];
-    const fenBefore = previous?.fenAfter ?? history.startFen;
-    return arrivalComments(index, fen, { san: entry.san, fenBefore });
-  }, [index, fen, history]);
+  const arrival = useMemo(
+    () => arrivalComments(index, fen, lastMove),
+    [index, fen, lastMove],
+  );
 
   const onMove = useCallback(
     (move: MoveInput | string) => {

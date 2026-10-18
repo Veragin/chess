@@ -21,6 +21,8 @@ import {
   promoteToMainLine,
   rebaseTree,
   setCommentAt,
+  setThreatsAt,
+  threatsAt,
   sideToMoveAt,
   stepBack,
   stepForward,
@@ -188,6 +190,19 @@ describe('editing at the cursor', () => {
     expect('comment' in (setCommentAt(typed, '').tree[0]?.next[0]?.next[1] ?? {})).toBe(false);
     expect(setCommentAt(toStart(h), 'x').tree).toBe(h.tree);
     expect(commentAt(toStart(typed))).toBe('');
+  });
+
+  it('sets and clears the threats of the cursor move', () => {
+    const h = jumpTo(branched(), [0, 0, 1]);
+    const threatened = setThreatsAt(h, ['Bxf7+', 'Ng5']);
+    expect(threatsAt(threatened)).toEqual(['Bxf7+', 'Ng5']);
+    expect(threatened.tree[0]?.next[0]?.next[1]?.threats).toEqual(['Bxf7+', 'Ng5']);
+    expect(threatsAt(jumpTo(threatened, [0, 0]))).toEqual([]);
+    expect('threats' in (setThreatsAt(threatened, []).tree[0]?.next[0]?.next[1] ?? {})).toBe(false);
+    expect(setThreatsAt(toStart(h), ['e4']).tree).toBe(h.tree);
+    expect(normaliseComments(setThreatsAt(h, [' Ng5 ', '']).tree)[0]?.next[0]?.next[1]?.threats).toEqual([
+      'Ng5',
+    ]);
   });
 
   it('clears every move', () => {

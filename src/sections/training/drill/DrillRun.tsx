@@ -31,7 +31,7 @@
 
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import styled from 'styled-components';
+import styled, { useTheme } from 'styled-components';
 import type { Color } from '../../../chess/game';
 import type { Square } from '../../../chess/position';
 import { Board } from '../../../components/Board';
@@ -102,6 +102,7 @@ export function DrillRun({
   onReplay,
 }: DrillRunProps) {
   const navigate = useNavigate();
+  const theme = useTheme();
   const { run, attempt, hint } = useDrillRun(lineId, branch, servedBranches);
   const playedBranch = run.status === 'ready' ? run.view.branch : branch;
   const nextLabel = last ? 'Finish drill' : moreInLine ? 'Next branch' : 'Next line';
@@ -218,6 +219,11 @@ export function DrillRun({
             movableFor={view.userColor}
             lastMove={view.lastMove}
             highlights={highlights}
+            arrows={view.hintThreats.map((t) => ({
+              from: t.from,
+              to: t.to,
+              color: theme.board.threat,
+            }))}
           />
         </BoardCell>
       </BoardArea>
@@ -234,6 +240,11 @@ export function DrillRun({
           The line plays <strong>{view.hint.san}</strong>. This counts as a miss.
           {view.hintComment !== null && (
             <HintComment data-testid="drill-hint-comment">{view.hintComment}</HintComment>
+          )}
+          {view.hintThreats.length > 0 && (
+            <HintComment data-testid="drill-hint-threats">
+              Threatens {view.hintThreats.map((t) => t.move).join(', ')}
+            </HintComment>
           )}
         </Notice>
       )}
