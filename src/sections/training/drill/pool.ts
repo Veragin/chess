@@ -18,25 +18,30 @@ import type { DrillPoolEntry } from '../../../chess/drill';
 import { branchSpec, resolveLine, type ResolvedLine } from '../../../chess/line';
 import { countBranches, replayTree, type MoveTree } from '../../../chess/tree';
 import { linesUnderFolder } from '../../../storage/folders';
-import { getLine, listLines } from '../../../storage/lines';
+import { getLine } from '../../../storage/lines';
+import type { LineSet } from '../lines/folderNav';
+import { linesOfSet } from '../lines/lineSet';
 
 /**
  * Ids of every saved line whose start position is legal and whose moves all replay.
  *
  * `folder` scopes the pool to one folder **and everything beneath it** — drilling `Black` drills
  * `Black/Sicilian` too, which is the point of nesting a repertoire. The root (`''`, the default)
- * is every line, so an unscoped drill behaves exactly as before folders existed.
+ * is every line of `set`, so an unscoped Database drill behaves exactly as before folders existed.
  */
-export function drillablePool(folder = ''): string[] {
-  return drillableBranchPool(folder).map((entry) => entry.id);
+export function drillablePool(folder = '', set: LineSet = 'database'): string[] {
+  return drillableBranchPool(folder, set).map((entry) => entry.id);
 }
 
 /**
  * `drillablePool` with each line's branch count — the pool `pickNextBranch` draws from. A branch
  * count is as opaque as an id: it says how big a line is, not what it plays.
+ *
+ * `set` picks the lines before the folder narrows them: Personal is only the picked lines (stale
+ * picks already dropped by `linesOfSet`), Database every saved line.
  */
-export function drillableBranchPool(folder = ''): DrillPoolEntry[] {
-  return linesUnderFolder(listLines(), folder)
+export function drillableBranchPool(folder = '', set: LineSet = 'database'): DrillPoolEntry[] {
+  return linesUnderFolder(linesOfSet(set), folder)
     .filter((line) => replayTree(line.startFen, line.tree).ok)
     .map((line) => ({ id: line.id, branches: countBranches(line.tree) }));
 }

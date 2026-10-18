@@ -19,6 +19,25 @@ export interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
+/** One button of an `ActionDialog`, rendered after Cancel in the order given. */
+export interface DialogAction {
+  label: string;
+  /** 'danger' renders the button as destructive. */
+  tone: 'danger' | 'primary';
+  testId: string;
+  onClick: () => void;
+}
+
+export interface ActionDialogProps {
+  title: string;
+  children?: ReactNode;
+  actions: readonly DialogAction[];
+  cancelLabel?: string;
+  /** See `ConfirmDialogProps.autoFocusCancel`. */
+  autoFocusCancel?: boolean;
+  onCancel: () => void;
+}
+
 /**
  * Modal confirmation. Used for "delete this line?" (README Phase 5: delete with confirmation)
  * and for "discard unsaved changes?" in the editor.
@@ -28,15 +47,31 @@ export interface ConfirmDialogProps {
  * stray Enter never destroys anything.
  */
 export function ConfirmDialog({
+  confirmLabel,
+  tone = 'danger',
+  onConfirm,
+  ...rest
+}: ConfirmDialogProps) {
+  return (
+    <ActionDialog
+      {...rest}
+      actions={[{ label: confirmLabel, tone, testId: 'confirm-accept', onClick: onConfirm }]}
+    />
+  );
+}
+
+/**
+ * The same modal with several ways forward besides Cancel ("Refresh data": delete or keep the
+ * user's lines). `ConfirmDialog` is this with exactly one action.
+ */
+export function ActionDialog({
   title,
   children,
-  confirmLabel,
+  actions,
   cancelLabel = 'Cancel',
-  tone = 'danger',
   autoFocusCancel = true,
-  onConfirm,
   onCancel,
-}: ConfirmDialogProps) {
+}: ActionDialogProps) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -63,13 +98,16 @@ export function ConfirmDialog({
           <Button autoFocus={autoFocusCancel} data-testid="confirm-cancel" onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button
-            variant={tone === 'danger' ? 'danger' : 'primary'}
-            data-testid="confirm-accept"
-            onClick={onConfirm}
-          >
-            {confirmLabel}
-          </Button>
+          {actions.map((action) => (
+            <Button
+              key={action.testId}
+              variant={action.tone === 'danger' ? 'danger' : 'primary'}
+              data-testid={action.testId}
+              onClick={action.onClick}
+            >
+              {action.label}
+            </Button>
+          ))}
         </Actions>
       </Sheet>
     </Backdrop>

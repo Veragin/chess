@@ -8,7 +8,7 @@
  */
 
 import type { ImportResult } from '../../../storage/lines';
-import type { ResetResult, ResetSummary } from '../../../storage/reset';
+import type { RefreshOptions, RefreshResult, ResetSummary } from '../../../storage/reset';
 import type { SeedReport } from '../../../storage/seed';
 
 export type ReportTone = 'ok' | 'warn' | 'error';
@@ -59,28 +59,60 @@ export function describeImport(result: ImportResult): ImportReportView {
   return { tone: skipped > 0 ? 'warn' : 'ok', headline: counts, details };
 }
 
+function count(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? '' : 's'}`;
+}
+
 /**
- * What "Clear data" did, in the same notice the import uses. The custom count is the part worth
- * repeating afterwards: the bundled lines are all still there, those are gone.
+ * What "Refresh data" did, in the same notice the import uses. The headline repeats what became
+ * of the user's own lines and of their Personal list — the two things the dialog asked about.
  */
-export function describeReset(summary: ResetSummary, result: ResetResult): ImportReportView {
+export function describeRefresh(
+  summary: ResetSummary,
+  options: Pick<RefreshOptions, 'mode' | 'clearPersonal'>,
+  result: RefreshResult,
+): ImportReportView {
+  const deleted = options.mode === 'delete-user-lines';
   const details: string[] = [];
-  if (summary.blindGame) details.push('The saved blind game was deleted.');
-  details.push('Every bundled line is back, including any you had deleted or edited.');
+  if (summary.hidden > 0) {
+    details.push(
+      `${count(summary.hidden, 'bundled line')} you had deleted or edited ${summary.hidden === 1 ? 'is' : 'are'} back.`,
+    );
+    if (!deleted && summary.custom > 0) {
+      details.push('Edited copies of bundled lines are kept alongside the originals.');
+    }
+  }
 
   if (!result.ok) {
     return {
       tone: 'error',
-      headline: 'Browser storage could not be fully cleared.',
+      headline: 'Bundled lines refreshed, but browser storage could not be fully updated.',
       details: result.error === undefined ? details : [result.error, ...details],
     };
   }
 
-  const headline =
-    summary.custom === 0
-      ? 'Cleared stored data. Nothing of your own was lost.'
-      : `Deleted ${summary.custom} line(s) of your own. That cannot be undone.`;
-  return { tone: summary.custom === 0 ? 'ok' : 'warn', headline, details };
+  const parts = ['Bundled lines refreshed.'];
+  if (summary.custom > 0) {
+    parts.push(
+      deleted
+        ? `Deleted ${count(summary.custom, 'line')} of your own. That cannot be undone.`
+        : `${summary.custom} of your lines kept.`,
+    );
+  }
+  if (result.personalCleared) {
+    if (summary.personal > 0) {
+      parts.push(`Your Personal list (${count(summary.personal, 'line')}) was cleared.`);
+    }
+  } else if (result.personalRemoved > 0) {
+    const n = result.personalRemoved;
+    parts.push(
+      `${count(n, 'personal line')} no longer exist${n === 1 ? 's' : ''} and ${n === 1 ? 'was' : 'were'} removed.`,
+    );
+  }
+
+  const lost =
+    (deleted && summary.custom > 0) || (result.personalCleared && summary.personal > 0);
+  return { tone: lost ? 'warn' : 'ok', headline: parts.join(' '), details };
 }
 
 /**
@@ -113,5 +145,24 @@ export function describeSeed(report: SeedReport | null): ImportReportView | null
     tone: 'error',
     headline: 'Bundled lines could not be loaded — your own lines were left untouched.',
     details,
+  };
+}
+
+const TONE_RANK: Record<ReportTone, number> = { ok: 0, warn: 1, error: 2 };
+
+/**
+ * One notice for two reports — "Refresh data" says what it did, and the bundled reload it ran
+ * may have problems of its own (`describeSeed`). The first headline leads; the second becomes the
+ * first of its details, and the tone is the worse of the two.
+ */
+export function combineReports(
+  first: ImportReportView,
+  second: ImportReportView | null,
+): ImportReportView {
+  if (second === null) return first;
+  return {
+    tone: TONE_RANK[second.tone] > TONE_RANK[first.tone] ? second.tone : first.tone,
+    headline: first.headline,
+    details: [...first.details, second.headline, ...second.details],
   };
 }

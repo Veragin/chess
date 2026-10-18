@@ -253,6 +253,57 @@ describe('clearLines', () => {
   });
 });
 
+describe('clearHiddenServerLines', () => {
+  const HIDDEN_KEY = 'chess-trainer.hiddenServerLines.v1';
+
+  function bundled(id: string): Line {
+    return {
+      id,
+      name: `Bundled ${id}`,
+      startFen: START_FEN,
+      tree: treeFromMoves(['d4']),
+      userColor: 'w',
+      createdAt: 1,
+      updatedAt: 1,
+    };
+  }
+
+  it('restores hidden bundled lines and keeps the user lines', async () => {
+    const lines = await load();
+    lines.setServerLines([bundled('s1'), bundled('s2')]);
+    const mine = lines.createLine(ITALIAN);
+    lines.deleteLine('s1');
+    const fork = lines.updateLine('s2', { name: 'Edited' });
+    expect(lines.hiddenServerLineCount()).toBe(2);
+
+    expect(lines.clearHiddenServerLines()).toBe(true);
+    expect(store.map.has(HIDDEN_KEY)).toBe(false);
+    expect(lines.hiddenServerLineCount()).toBe(0);
+    expect(lines.listLines().map((l) => l.id).sort()).toEqual(
+      [mine.id, fork?.id ?? '', 's1', 's2'].sort(),
+    );
+
+    // And after a reload, from what is on disk.
+    vi.resetModules();
+    const reloaded = await load();
+    reloaded.setServerLines([bundled('s1'), bundled('s2')]);
+    expect(reloaded.listLines()).toHaveLength(4);
+  });
+
+  it('reports failure, and still un-hides for the session, when storage is unavailable', async () => {
+    const first = await load();
+    first.setServerLines([bundled('s1')]);
+    first.deleteLine('s1');
+
+    vi.resetModules();
+    uninstall();
+    const lines = await load();
+    lines.setServerLines([bundled('s1')]);
+    expect(lines.clearHiddenServerLines()).toBe(false);
+    expect(lines.listLines().map((l) => l.id)).toEqual(['s1']);
+  });
+});
+
 describe('export / import', () => {
   it('exportAll stamps the current schema version and an exportedAt', async () => {
     const lines = await load();

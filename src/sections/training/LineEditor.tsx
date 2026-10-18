@@ -26,6 +26,13 @@
  * Threats (`chess/threats.ts`) are entered on the board too: "Add threat" hands the turn back to
  * the side that just moved, and every move played is recorded as a threat of the selected move
  * instead of joining the tree, until "Done".
+ *
+ * `?set=` is the section the editor was opened from (`lines/folderNav.ts`). Like `?folder=` it is
+ * where "Back" and the post-save navigation return to; the line itself is always the database
+ * line, so editing never adds to or removes from Personal (an edited bundled line is forked under
+ * a new id, and `storage/lines.ts` moves the pick with it). The one exception is creating: a new
+ * line saved from the Personal section is added to Personal, since that is where the user is
+ * building their repertoire.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -62,10 +69,11 @@ import {
 } from '../../chess/treeHistory';
 import { allFolderPaths, folderLabel } from '../../storage/folders';
 import { createLine, getLine, isServerLine, listLines, updateLine } from '../../storage/lines';
+import { addPersonal } from '../../storage/personal';
 import { normaliseFolderPath } from '../../storage/schema';
 import { clearStagedLine, peekStagedLine, type StagedLine } from '../../state/newLine';
 import { ConfirmDialog } from './lines/ConfirmDialog';
-import { linesPath } from './lines/folderNav';
+import { linesPath, parseLineSet } from './lines/folderNav';
 import { Notice, NoticeTitle } from './lines/Notice';
 import {
   draftFromLine,
@@ -166,7 +174,8 @@ export function LineEditor() {
   // Where the user came from in the list, and (for a new line) the folder to file it in.
   const [params] = useSearchParams();
   const fromFolder = normaliseFolderPath(params.get('folder'));
-  const backTo = linesPath(fromFolder);
+  const set = parseLineSet(params);
+  const backTo = linesPath(fromFolder, set);
   // Only a hand-off that says so may claim the staged moves (see `state/newLine.ts`); peeking is
   // side-effect-free, so it is safe here and under StrictMode's double-invoked initialisers.
   const handoff = params.get('from');
@@ -351,14 +360,17 @@ export function LineEditor() {
         return;
       }
     } else {
-      createLine(input);
+      const created = createLine(input);
+      // Created from the Personal section: file it there too. A failed write only reached
+      // memory, which the list reports through its storage warning like any other write.
+      if (set === 'personal') addPersonal([created.id]);
     }
     // A write that only reached the in-memory fallback still counts as saved for this session;
     // the list surfaces `storageWarning()` prominently, so it is reported there, not here.
     // Return to the line's *own* folder rather than where the user came from: after moving a
     // line to another folder, an empty list at the old location looks like the save failed.
-    goTo(linesPath(input.folder ?? ''));
-  }, [draft, goTo, id, status]);
+    goTo(linesPath(input.folder ?? '', set));
+  }, [draft, goTo, id, status, set]);
 
   const leave = useCallback(
     (to: string) => {

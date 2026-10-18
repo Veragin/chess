@@ -16,6 +16,12 @@
  *  - `?line=` drills exactly that one line — the list's per-row Drill button. A pool of one, so
  *    it is over once every branch of that line has come up, which is what the button promises.
  *
+ * `?set=` names the section the drill was opened from (`lines/folderNav.ts`). A folder drill
+ * draws from that section's lines — Personal is only the picked lines, Database every saved
+ * line — and the set is part of the scope, so switching section re-seeds the cycle. A `?line=`
+ * drill ignores it (a single line is a single line); there `set` only sends "Exit drill" back to
+ * the right section.
+ *
  * The pool is ids only (see `drill/pool.ts`) so no line name or move ever reaches this
  * component's state, and the run itself lives outside React (see `drill/useDrillRun.ts`).
  */
@@ -40,7 +46,7 @@ import { storageWarning } from '../../storage/lines';
 import { normaliseFolderPath } from '../../storage/schema';
 import { DrillRun } from './drill/DrillRun';
 import { drillableBranchPool, drillPoolEntry } from './drill/pool';
-import { linesPath } from './lines/folderNav';
+import { drillPath, linesPath, parseLineSet, type LineSet } from './lines/folderNav';
 import { lineCountLabel } from './lines/lineFormat';
 
 interface Served {
@@ -60,8 +66,8 @@ interface Served {
 }
 
 /** Identifies the pool, so navigating from one drill to another re-seeds the cycle. */
-function scopeKey(folder: string, lineId: string): string {
-  return `${lineId}@${folder}`;
+function scopeKey(folder: string, lineId: string, set: LineSet): string {
+  return `${set}:${lineId}@${folder}`;
 }
 
 function firstServe(pool: DrillPoolEntry[], scope: string, run = 0): Served {
@@ -80,16 +86,17 @@ export function Drill() {
   const folder = normaliseFolderPath(params.get('folder'));
   const lineId = params.get('line') ?? '';
   const single = lineId.length > 0;
-  const exitTo = linesPath(folder);
-  const scope = scopeKey(folder, lineId);
+  const set = parseLineSet(params);
+  const exitTo = linesPath(folder, set);
+  const scope = scopeKey(folder, lineId, set);
 
   // Read once per mount: drill never writes, so there is nothing to invalidate, and re-reading
   // storage mid-cycle would let a rename or edit change the pool under the current cycle.
   // A `?line=` pool is not filtered here — if that one line is gone or broken, the runner says
   // so, which is more use than an empty-pool screen that cannot explain itself.
   const pool = useMemo(
-    () => (single ? [drillPoolEntry(lineId)] : drillableBranchPool(folder)),
-    [folder, lineId, single],
+    () => (single ? [drillPoolEntry(lineId)] : drillableBranchPool(folder, set)),
+    [folder, lineId, single, set],
   );
 
   const [served, setServed] = useState<Served>(() => firstServe(pool, scope));
@@ -139,10 +146,24 @@ export function Drill() {
     if (served.cycle.served.length === 0) {
       const warning = storageWarning();
       const scoped = folder.length > 0;
+      const personal = set === 'personal';
       return (
         <Empty data-testid="drill-empty">
           <Title>Drill</Title>
-          {scoped ? (
+          {personal ? (
+            <p>
+              {scoped ? (
+                <>
+                  None of your personal lines are in <strong>{folderLabel(folder)}</strong> or its
+                  subfolders.
+                </>
+              ) : (
+                <>You haven&rsquo;t picked any lines to learn yet.</>
+              )}{' '}
+              Open the Database and add the lines you want to drill with ☆ — the Personal drill
+              serves only those.
+            </p>
+          ) : scoped ? (
             <p>
               There is nothing to drill in <strong>{folderLabel(folder)}</strong> — this folder and
               its subfolders hold no saved lines. Drill serves the lines of one folder in random
@@ -155,11 +176,16 @@ export function Drill() {
             </p>
           )}
           {warning !== null && <Muted data-testid="drill-storage-warning">{warning}</Muted>}
+          {personal && (
+            <Link to={linesPath('', 'database')} data-testid="drill-database-link">
+              Pick lines in the Database ›
+            </Link>
+          )}
           <Link to={exitTo} data-testid="drill-empty-link">
             Go to line management ›
           </Link>
           {scoped && (
-            <Link to="/training/drill" data-testid="drill-all-link">
+            <Link to={drillPath('', set)} data-testid="drill-all-link">
               Drill every folder instead ›
             </Link>
           )}

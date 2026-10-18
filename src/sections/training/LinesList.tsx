@@ -1,37 +1,49 @@
 /**
  * `#/training` — the saved repertoire (README §7 Phase 5).
  *
+ * Two sections, picked with the **Personal | Database** switch at the top and held in `?set=`
+ * (see `./lines/folderNav.ts`): Database is every saved line, Personal only the lines the user
+ * picked to learn (`storage/personal.ts` — ids, never copies). Both show the same folder structure,
+ * because both derive it from the lines' own `folder` paths (`./lines/lineSet.ts`). The section is
+ * remembered for the tab (`sessionStorage`): opening `#/training` without `?set=` after leaving
+ * Personal goes back to Personal.
+ *
  * The list is **one folder at a time**: breadcrumbs up, subfolder cards down, and the lines filed
  * directly here in between. Folders are implicit in each line's `folder` path (see
  * `storage/folders.ts`), so this screen never creates or deletes one — it only navigates them,
  * and a folder disappears when its last line leaves.
  *
- * The open folder lives in `?folder=` (see `./lines/folderNav.ts`), which is what lets "Drill this
- * folder" and the editor's Back button land where the user actually was.
+ * The open folder lives in `?folder=`, and every link out of here carries `set` too, which is
+ * what lets "Drill this folder", explore and the editor's Back button land where the user
+ * actually was.
  *
  * Every row shows what the spec asks for (name, start position, move count, trained-as colour,
- * updated date) and offers Drill / Explore / Edit / Open in analyze / Delete. A row's Drill
+ * updated date) and offers Drill / Explore / Edit / Open in analyze, a Personal toggle (in the
+ * Personal section it only removes from Personal), and — in Database only — Delete. A row's Drill
  * button is the same drill screen as the header's, with a pool of exactly that one line (see
  * `drillLinePath`); its Explore button opens `#/training/explore` on the line, scoped to its own
  * folder — the lines it could transpose with are its siblings, not whichever folder the list
- * happened to be showing.
+ * happened to be showing. Folder cards (and the open folder's header) add or remove a whole folder
+ * from Personal in one write.
+ *
  * Export and import go straight through `storage/lines.ts`; all this file does is turn the
  * result into a `Blob` or a report. Export follows the open folder — inside one it writes that
- * folder and its subfolders (the Drill/Explore scope), at the root the whole repertoire.
- * "Clear data…" is the one action that ignores the open folder: it empties every key the app
- * stores (`storage/reset.ts`), so its confirmation counts the user's own lines — the only part
- * of the store the reset destroys for good.
+ * folder and its subfolders (the Drill/Explore scope), at the root the whole section; in Personal
+ * that is the picked lines only. Import, "Refresh data…" and folder rename belong to the database
+ * and are offered only there. "Refresh data…" is the one action that ignores the open folder: it
+ * reinstalls the bundled lines and optionally deletes the user's own (`storage/reset.ts`), so its
+ * dialog (`./lines/RefreshDialog.tsx`) counts what it would change.
  *
  * Bundled ("server") lines and the user's own are listed together; own lines carry a "Custom"
  * badge, and the "My lines" filter hides the bundled ones. The filter is remembered for the tab
  * (`sessionStorage`), so it survives a round trip through the editor or a drill.
  *
  * No logic worth testing lives here: filtering, folder arithmetic, labelling, the export filename
- * and the import wording are pure functions in `./lines/` and `storage/folders.ts` with their own
+ * and the report wording are pure functions in `./lines/` and `storage/folders.ts` with their own
  * unit tests (README §9).
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import styled from 'styled-components';
 import { branchSpec } from '../../chess/line';
@@ -51,30 +63,46 @@ import {
     exportFolder,
     importFile,
     isServerLine,
-    listLines,
     renameFolder,
     storageWarning,
 } from '../../storage/lines';
-import { clearAll, resetSummary, type ResetSummary } from '../../storage/reset';
-import { normaliseFolderPath, type Line } from '../../storage/schema';
+import { addPersonal, personalIds, removePersonal } from '../../storage/personal';
+import {
+    refreshData,
+    resetSummary,
+    type RefreshMode,
+    type ResetSummary,
+} from '../../storage/reset';
+import {
+    LINES_SCHEMA_VERSION,
+    normaliseFolderPath,
+    type Line,
+    type LinesFile,
+} from '../../storage/schema';
 import { seedReport } from '../../storage/seed';
 import { ConfirmDialog } from './lines/ConfirmDialog';
 import { LinkButton } from './lines/LinkButton';
 import { Notice, NoticeList, NoticeTitle } from './lines/Notice';
+import { RefreshDialog } from './lines/RefreshDialog';
 import { downloadText, serialiseLinesFile } from './lines/download';
 import {
     drillLinePath,
     drillPath,
     editLinePath,
     explorePath,
+    linesPath,
     newLinePath,
+    parseLineSet,
+    type LineSet,
 } from './lines/folderNav';
 import {
+    combineReports,
     describeImport,
-    describeReset,
+    describeRefresh,
     describeSeed,
     type ImportReportView,
 } from './lines/importReport';
+import { linesOfSet } from './lines/lineSet';
 import {
     colorLabel,
     describeLine,
@@ -89,8 +117,10 @@ import {
     startPositionLabel,
     subfolderCountLabel,
 } from './lines/lineFormat';
+import { folderPersonalStatus, personalToggleLabel } from './lines/personalStatus';
 
 const MINE_ONLY_KEY = 'chess-trainer.linesMineOnly';
+const SET_KEY = 'chess-trainer.linesSet';
 
 /** Per-tab convenience only, so any storage failure just means "filter off". */
 function readMineOnly(): boolean {
@@ -110,12 +140,77 @@ function writeMineOnly(on: boolean): void {
     }
 }
 
+/** The section last shown in this tab; any storage failure just means "Database". */
+function readRememberedSet(): LineSet {
+    try {
+        return globalThis.sessionStorage?.getItem(SET_KEY) === 'personal' ? 'personal' : 'database';
+    } catch {
+        return 'database';
+    }
+}
+
+function writeRememberedSet(set: LineSet): void {
+    try {
+        if (set === 'personal') globalThis.sessionStorage?.setItem(SET_KEY, 'personal');
+        else globalThis.sessionStorage?.removeItem(SET_KEY);
+    } catch {
+        // Not remembered; `#/training` simply opens on Database next time.
+    }
+}
+
+/** Shown when a Personal write only reached memory (`addPersonal`/`removePersonal` → false). */
+const PERSONAL_NOT_SAVED =
+    'Your Personal list could not be saved in this browser (private browsing or blocked storage). ' +
+    'The change holds until the page is reloaded.';
+
+/** Everything the list reads from storage for one section, re-read together by `refresh`. */
+interface Snapshot {
+    set: LineSet;
+    lines: Line[];
+    personal: Set<string>;
+}
+
+function readSnapshot(set: LineSet): Snapshot {
+    return { set, lines: linesOfSet(set), personal: personalIds() };
+}
+
+/** A folder waiting for "Remove from Personal?" to be confirmed. */
+interface PendingFolderRemoval {
+    path: string;
+    ids: string[];
+}
+
 export function LinesList() {
     const navigate = useNavigate();
     const [params, setParams] = useSearchParams();
     const folder = normaliseFolderPath(params.get('folder'));
+    /**
+     * `?set=` wins; without it, the section this tab was last in. Database is spelled as no
+     * parameter, so only a remembered Personal needs the URL rewritten (the effect below) — the
+     * screen already renders it on this paint.
+     */
+    const urlHasSet = params.has('set');
+    const set: LineSet = urlHasSet ? parseLineSet(params) : readRememberedSet();
+    const inPersonal = set === 'personal';
 
-    const [allLines, setAllLines] = useState<Line[]>(() => listLines());
+    useEffect(() => {
+        if (!urlHasSet && set === 'personal') {
+            const next = new URLSearchParams(params);
+            next.set('set', 'personal');
+            setParams(next, { replace: true });
+        } else if (urlHasSet) {
+            // Arriving on an explicit section (a Back link from drill or the editor) counts as
+            // being there.
+            writeRememberedSet(set);
+        }
+    }, [params, set, setParams, urlHasSet]);
+
+    const [snapshot, setSnapshot] = useState<Snapshot>(() => readSnapshot(set));
+    // A section switch (or Back/Forward across one) re-reads the store for the new section right
+    // away, rather than a frame later from an effect.
+    if (snapshot.set !== set) setSnapshot(readSnapshot(set));
+    const allLines = snapshot.lines;
+    const personal = snapshot.personal;
     /** Show only the user's own lines, hiding the bundled ones. */
     const [mineOnly, setMineOnly] = useState(readMineOnly);
     /** What every count, folder and search below works on. */
@@ -124,14 +219,19 @@ export function LinesList() {
         [allLines, mineOnly],
     );
     const [warning, setWarning] = useState<string | null>(() => storageWarning());
+    /** Set when a Personal add/remove only reached memory; Personal has no warning of its own. */
+    const [personalWarning, setPersonalWarning] = useState<string | null>(null);
     const [query, setQuery] = useState('');
     const [pendingDelete, setPendingDelete] = useState<Line | null>(null);
+    const [pendingFolderRemoval, setPendingFolderRemoval] = useState<PendingFolderRemoval | null>(
+        null,
+    );
     /**
-     * Non-null while the "clear data" dialog is open, holding what the reset would destroy. Counted
-     * when the dialog opens rather than on every render: it validates every bundled file to work
-     * out which stored lines are the user's own (see `storage/reset.ts`).
+     * Non-null while the "refresh data" dialog is open, holding what the refresh would touch.
+     * Counted when the dialog opens rather than on every render: it walks every stored line to
+     * work out which are the user's own (see `storage/reset.ts`).
      */
-    const [pendingReset, setPendingReset] = useState<ResetSummary | null>(null);
+    const [pendingRefresh, setPendingRefresh] = useState<ResetSummary | null>(null);
     /** Non-null while the rename dialog is open; holds the name being typed. */
     const [renameTo, setRenameTo] = useState<string | null>(null);
     const [renameError, setRenameError] = useState<string | null>(null);
@@ -142,9 +242,9 @@ export function LinesList() {
 
     /** Re-reads the store. Also refreshes the storage warning, which any write can raise. */
     const refresh = useCallback(() => {
-        setAllLines(listLines());
+        setSnapshot(readSnapshot(set));
         setWarning(storageWarning());
-    }, []);
+    }, [set]);
 
     const toggleMineOnly = useCallback(() => {
         setMineOnly((on) => {
@@ -155,14 +255,40 @@ export function LinesList() {
 
     const openFolder = useCallback(
         (path: string) => {
-            const next = normaliseFolderPath(path);
             // A search is scoped to the folder it was typed in, so moving folders clears it rather
-            // than silently re-running it somewhere else.
+            // than silently re-running it somewhere else. The section stays.
             setQuery('');
-            if (next.length === 0) setParams({});
-            else setParams({ folder: next });
+            const next = normaliseFolderPath(path);
+            const nextParams: Record<string, string> = {};
+            if (next.length > 0) nextParams.folder = next;
+            if (set === 'personal') nextParams.set = 'personal';
+            setParams(nextParams);
+        },
+        [set, setParams],
+    );
+
+    /** The Personal | Database switch: back to that section's root, search cleared. */
+    const switchSet = useCallback(
+        (next: LineSet) => {
+            writeRememberedSet(next);
+            setQuery('');
+            // Database is spelled out here, though every other URL leaves it implicit: the history
+            // entry must still mean Database when Back returns to it after the remembered section
+            // has become Personal (a bare `#/training` would be sent on to Personal).
+            setParams({ set: next });
         },
         [setParams],
+    );
+
+    /** Adds or removes lines from Personal, saying so when the change only reached memory. */
+    const changePersonal = useCallback(
+        (ids: readonly string[], add: boolean) => {
+            if (ids.length === 0) return;
+            const saved = add ? addPersonal(ids) : removePersonal(ids);
+            setPersonalWarning(saved ? null : PERSONAL_NOT_SAVED);
+            refresh();
+        },
+        [refresh],
     );
 
     const searching = normaliseQuery(query).length > 0;
@@ -190,16 +316,23 @@ export function LinesList() {
             // Same hand-off as "Open in analyze", into explore's own store: the board opens at the end
             // of the line, and its move list is how the user walks back to where it branches.
             loadExploration(line.startFen, branchSpec(line, 0)?.moves ?? []);
-            navigate(explorePath(lineFolder(line)));
+            navigate(explorePath(lineFolder(line), set));
         },
-        [navigate],
+        [navigate, set],
     );
 
     const onExport = useCallback(() => {
         // Scoped to the open folder — the same lines Drill and Explore would use from here, so the
         // file holds what the screen is showing rather than the whole repertoire. At the root that
-        // is still everything.
-        const file = exportFolder(folder);
+        // is still everything in the section. Personal has no export of its own in storage: it is
+        // the same file shape, holding only the picked lines.
+        const file: LinesFile = inPersonal
+            ? {
+                  schemaVersion: LINES_SCHEMA_VERSION,
+                  exportedAt: Date.now(),
+                  lines: linesUnderFolder(allLines, folder),
+              }
+            : exportFolder(folder);
         const ok = downloadText(exportFileName(file.exportedAt, folder), serialiseLinesFile(file));
         setWarning(storageWarning());
         if (!ok) {
@@ -209,7 +342,7 @@ export function LinesList() {
                 details: [],
             });
         }
-    }, [folder]);
+    }, [allLines, folder, inPersonal]);
 
     const onImportPicked = useCallback(
         async (file: File) => {
@@ -233,23 +366,40 @@ export function LinesList() {
     );
 
     const confirmDelete = useCallback(() => {
+        // `deleteLine` also drops the id from Personal (`storage/lines.ts`).
         if (pendingDelete !== null) deleteLine(pendingDelete.id);
         setPendingDelete(null);
         refresh();
     }, [pendingDelete, refresh]);
 
-    const confirmReset = useCallback(() => {
-        if (pendingReset === null) return;
-        const result = clearAll();
-        setPendingReset(null);
-        setReport(describeReset(pendingReset, result));
-        // The store is empty and any degraded-session warning went with it, so the list and the
-        // storage notice are both re-read from scratch.
-        refresh();
-        // Back to the root: the folder in `?folder=` no longer contains anything.
-        setQuery('');
-        setParams({});
-    }, [pendingReset, refresh, setParams]);
+    const confirmFolderRemoval = useCallback(() => {
+        if (pendingFolderRemoval !== null) changePersonal(pendingFolderRemoval.ids, false);
+        setPendingFolderRemoval(null);
+    }, [changePersonal, pendingFolderRemoval]);
+
+    const confirmRefresh = useCallback(
+        (mode: RefreshMode, clearPersonal: boolean) => {
+            if (pendingRefresh === null) return;
+            const options = { mode, clearPersonal };
+            const result = refreshData(options);
+            setPendingRefresh(null);
+            // The bundled set was reloaded, so its own problems (if any) are new news too.
+            setReport(
+                combineReports(
+                    describeRefresh(pendingRefresh, options, result),
+                    describeSeed(seedReport()),
+                ),
+            );
+            // Lines, Personal and any degraded-session warning may all have changed, so everything
+            // is re-read from scratch.
+            refresh();
+            setPersonalWarning(null);
+            // Back to the root: the folder in `?folder=` may no longer contain anything.
+            setQuery('');
+            setParams({});
+        },
+        [pendingRefresh, refresh, setParams],
+    );
 
     const confirmRename = useCallback(() => {
         if (renameTo === null) return;
@@ -276,25 +426,50 @@ export function LinesList() {
     const noneOfMine = mineOnly && !storeEmpty && lines.length === 0;
     const inFolder = folder.length > 0;
     const nothingHere = here.length === 0 && subfolders.length === 0;
+    /** How much of the open folder is in Personal — only asked in Database, inside a folder. */
+    const folderStatus = folderPersonalStatus(scope, personal);
 
     return (
-        <Wrap data-testid="lines-list" data-folder={folder}>
+        <Wrap data-testid="lines-list" data-folder={folder} data-set={set}>
+            {/* Two sections of one list, not two screens: a switch rather than links, and each
+          press lands on that section's root. */}
+            <SetTabs role="group" aria-label="Section" data-testid="set-switch">
+                <SetTab
+                    type="button"
+                    $active={inPersonal}
+                    aria-pressed={inPersonal}
+                    data-testid="set-personal"
+                    onClick={() => switchSet('personal')}
+                >
+                    Personal
+                </SetTab>
+                <SetTab
+                    type="button"
+                    $active={!inPersonal}
+                    aria-pressed={!inPersonal}
+                    data-testid="set-database"
+                    onClick={() => switchSet('database')}
+                >
+                    Database
+                </SetTab>
+            </SetTabs>
+
             <TopBar>
-                <Heading>{inFolder ? folderName(folder) : 'Lines'}</Heading>
+                <Heading>{inFolder ? folderName(folder) : inPersonal ? 'Personal' : 'Lines'}</Heading>
                 <Grow />
                 <Button
                     variant="primary"
                     data-testid="new-line"
-                    onClick={() => navigate(newLinePath(folder))}
+                    onClick={() => navigate(newLinePath(folder, set))}
                 >
                     New line
                 </Button>
-                <LinkButton to={drillPath(folder)} data-testid="drill-link">
+                <LinkButton to={drillPath(folder, set)} data-testid="drill-link">
                     {inFolder ? 'Drill folder' : 'Drill'}
                 </LinkButton>
                 {/* The same scope as Drill, asked the other way round: not "can I play these lines"
             but "what do they cover". */}
-                <LinkButton to={explorePath(folder)} data-testid="explore-link">
+                <LinkButton to={explorePath(folder, set)} data-testid="explore-link">
                     Explore
                 </LinkButton>
             </TopBar>
@@ -329,19 +504,58 @@ export function LinesList() {
                 </Notice>
             )}
 
+            {personalWarning !== null && (
+                <Notice $tone="warn" role="alert" data-testid="personal-warning">
+                    <NoticeTitle>Storage problem</NoticeTitle>
+                    {personalWarning}
+                </Notice>
+            )}
+
             <Panel
                 title={
                     storeEmpty
-                        ? 'No saved lines'
+                        ? inPersonal
+                            ? 'No personal lines'
+                            : 'No saved lines'
                         : inFolder
                           ? folderCountLabel(here.length, scope.length)
                           : mineOnly
                             ? `${lineCountLabel(lines.length)} of your own`
-                            : `${lineCountLabel(lines.length)} saved`
+                            : `${lineCountLabel(lines.length)} ${inPersonal ? 'picked' : 'saved'}`
                 }
                 actions={
                     <FileActions>
-                        {inFolder && (
+                        {/* The open folder's own Personal controls; its subfolders have theirs on
+                their cards. */}
+                        {inFolder && !inPersonal && scope.length > 0 && (
+                            <Button
+                                size="sm"
+                                data-testid="header-personal-add"
+                                disabled={folderStatus === 'all'}
+                                onClick={() =>
+                                    changePersonal(
+                                        scope.map((line) => line.id),
+                                        true,
+                                    )
+                                }
+                                title={`Add the ${lineCountLabel(scope.length)} in ${folderName(folder)} to Personal, subfolders included`}
+                            >
+                                {folderStatus === 'all'
+                                    ? '★ All in personal'
+                                    : 'Add folder to personal'}
+                            </Button>
+                        )}
+                        {inFolder && scope.length > 0 && (inPersonal || folderStatus !== 'none') && (
+                            <Button
+                                size="sm"
+                                data-testid="header-personal-remove"
+                                onClick={() => askFolderRemoval(folder, scope)}
+                            >
+                                Remove folder from personal
+                            </Button>
+                        )}
+                        {/* Folders belong to the database lines, so they are renamed there. */}
+                        {inFolder && !inPersonal && (
                             <Button
                                 size="sm"
                                 data-testid="rename-folder"
@@ -357,53 +571,58 @@ export function LinesList() {
                             size="sm"
                             data-testid="export-button"
                             onClick={onExport}
-                            // Nothing in scope, nothing to write — at the root that means an empty store.
+                            // Nothing in scope, nothing to write — at the root that means an empty section.
                             disabled={scope.length === 0}
                             title={
                                 inFolder
                                     ? `Export the ${lineCountLabel(scope.length)} in ${folderName(folder)}, ` +
                                       `subfolders included`
-                                    : 'Export every saved line'
+                                    : inPersonal
+                                      ? 'Export every line in Personal'
+                                      : 'Export every saved line'
                             }
                         >
                             {inFolder ? 'Export folder' : 'Export'}
                         </Button>
-                        <Button
-                            size="sm"
-                            data-testid="import-button"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            Import
-                        </Button>
-                        {/* Not scoped to the open folder like Export is: this empties every key the app
-                stores, so offering it "for this folder" would be a lie. */}
-                        <Button
-                            variant="danger"
-                            size="sm"
-                            data-testid="clear-storage-button"
-                            onClick={() => setPendingReset(resetSummary())}
-                            title="Delete everything this app has stored in the browser"
-                        >
-                            Clear data
-                        </Button>
-                        <HiddenFileInput
-                            ref={fileInputRef}
-                            type="file"
-                            accept="application/json,.json"
-                            data-testid="import-input"
-                            onChange={(event) => {
-                                const picked = event.target.files?.[0];
-                                // Clear the value so picking the same file twice still fires a change event.
-                                event.target.value = '';
-                                if (picked !== undefined) void onImportPicked(picked);
-                            }}
-                        />
+                        {!inPersonal && (
+                            <>
+                                <Button
+                                    size="sm"
+                                    data-testid="import-button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
+                                    Import
+                                </Button>
+                                {/* Not scoped to the open folder like Export is: the bundled set and
+                    the user's own lines are reset as a whole. */}
+                                <Button
+                                    size="sm"
+                                    data-testid="refresh-data"
+                                    onClick={() => setPendingRefresh(resetSummary())}
+                                    title="Reinstall the bundled lines, keeping or deleting your own"
+                                >
+                                    Refresh data…
+                                </Button>
+                                <HiddenFileInput
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="application/json,.json"
+                                    data-testid="import-input"
+                                    onChange={(event) => {
+                                        const picked = event.target.files?.[0];
+                                        // Clear the value so picking the same file twice still fires a change event.
+                                        event.target.value = '';
+                                        if (picked !== undefined) void onImportPicked(picked);
+                                    }}
+                                />
+                            </>
+                        )}
                     </FileActions>
                 }
                 padded={false}
             >
                 <Body>
-                    {/* Nothing to search through while the store is empty. */}
+                    {/* Nothing to search through while the section is empty. */}
                     {!storeEmpty && (
                         <SearchRow>
                             <SearchLabel htmlFor="lines-search">
@@ -458,7 +677,24 @@ export function LinesList() {
                         </Notice>
                     )}
 
-                    {storeEmpty ? (
+                    {storeEmpty && inPersonal ? (
+                        <EmptyState data-testid="personal-empty">
+                            <p>
+                                You haven’t picked any lines yet. Open the Database, and add the
+                                lines you want to learn with ☆.
+                            </p>
+                            <LinkButton
+                                to={linesPath('', 'database')}
+                                $variant="primary"
+                                data-testid="personal-empty-database"
+                                // The bare Database URL would otherwise be sent back to the
+                                // remembered Personal section.
+                                onClick={() => writeRememberedSet('database')}
+                            >
+                                Open the Database
+                            </LinkButton>
+                        </EmptyState>
+                    ) : storeEmpty ? (
                         <EmptyState data-testid="lines-empty">
                             <p>No lines saved yet.</p>
                             <p>
@@ -470,7 +706,7 @@ export function LinesList() {
                             <Button
                                 variant="primary"
                                 data-testid="empty-new-line"
-                                onClick={() => navigate(newLinePath(folder))}
+                                onClick={() => navigate(newLinePath(folder, set))}
                             >
                                 Create your first line
                             </Button>
@@ -478,8 +714,11 @@ export function LinesList() {
                     ) : noneOfMine ? (
                         <EmptyState data-testid="lines-none-mine">
                             <p>
-                                You have no lines of your own yet. Create one, import a file, or
-                                edit a bundled line — editing saves your own copy.
+                                {inPersonal
+                                    ? 'None of your personal lines are your own — they are all bundled lines.'
+                                    : 'You have no lines of your own yet.'}{' '}
+                                Create one, import a file, or edit a bundled line — editing saves
+                                your own copy.
                             </p>
                             <Button data-testid="filter-mine-off" onClick={toggleMineOnly}>
                                 Show all lines
@@ -503,55 +742,7 @@ export function LinesList() {
                         <>
                             {subfolders.length > 0 && (
                                 <Rows data-testid="folder-rows">
-                                    {subfolders.map((node) => (
-                                        <FolderCard
-                                            key={node.path}
-                                            data-testid="folder-row"
-                                            data-folder={node.path}
-                                        >
-                                            <FolderButton
-                                                type="button"
-                                                data-testid="folder-open"
-                                                onClick={() => openFolder(node.path)}
-                                            >
-                                                <FolderIcon aria-hidden="true">📁</FolderIcon>
-                                                <FolderText>
-                                                    <FolderNameText>{node.name}</FolderNameText>
-                                                    <Meta>
-                                                        <span data-testid="folder-count">
-                                                            {lineCountLabel(node.lineCount)}
-                                                        </span>
-                                                        {node.subfolderCount > 0 && (
-                                                            <>
-                                                                <MetaSep>·</MetaSep>
-                                                                <span>
-                                                                    {subfolderCountLabel(
-                                                                        node.subfolderCount,
-                                                                    )}
-                                                                </span>
-                                                            </>
-                                                        )}
-                                                    </Meta>
-                                                </FolderText>
-                                            </FolderButton>
-                                            <LinkButton
-                                                to={drillPath(node.path)}
-                                                $size="sm"
-                                                data-testid="folder-drill"
-                                                aria-label={`Drill ${node.name}`}
-                                            >
-                                                Drill
-                                            </LinkButton>
-                                            <LinkButton
-                                                to={explorePath(node.path)}
-                                                $size="sm"
-                                                data-testid="folder-explore"
-                                                aria-label={`Explore ${node.name}`}
-                                            >
-                                                Explore
-                                            </LinkButton>
-                                        </FolderCard>
-                                    ))}
+                                    {subfolders.map((node) => renderFolderCard(node))}
                                 </Rows>
                             )}
 
@@ -563,13 +754,14 @@ export function LinesList() {
                                 <EmptyState data-testid="folder-empty">
                                     <p>
                                         There is nothing in {folderName(folder)}. Its lines may have
-                                        been moved, renamed or deleted.
+                                        been moved, renamed{inPersonal ? ', removed from Personal' : ''}{' '}
+                                        or deleted.
                                     </p>
                                     <ButtonRow>
                                         <Button
                                             variant="primary"
                                             data-testid="folder-empty-new-line"
-                                            onClick={() => navigate(newLinePath(folder))}
+                                            onClick={() => navigate(newLinePath(folder, set))}
                                         >
                                             New line here
                                         </Button>
@@ -599,46 +791,36 @@ export function LinesList() {
                             ? 'Untitled line'
                             : pendingDelete.name}
                     </strong>{' '}
-                    ({lineSizeLabel(pendingDelete.tree)}) will be removed.{' '}
+                    ({lineSizeLabel(pendingDelete.tree)}) will be removed
+                    {personal.has(pendingDelete.id) ? ' — from Personal too' : ''}.{' '}
                     {isServerLine(pendingDelete)
-                        ? 'It is a bundled line, so it only comes back after "Clear data".'
+                        ? 'It is a bundled line, so it only comes back after "Refresh data".'
                         : 'This cannot be undone — export first if you want a copy.'}
                 </ConfirmDialog>
             )}
 
-            {pendingReset !== null && (
+            {pendingFolderRemoval !== null && (
                 <ConfirmDialog
-                    title="Clear stored data?"
-                    confirmLabel="Clear data"
-                    onCancel={() => setPendingReset(null)}
-                    onConfirm={confirmReset}
+                    title="Remove folder from Personal?"
+                    confirmLabel="Remove"
+                    onCancel={() => setPendingFolderRemoval(null)}
+                    onConfirm={confirmFolderRemoval}
                 >
-                    <ResetBody>
-                        <p>
-                            Everything this app keeps in the browser will be deleted
-                            {pendingReset.blindGame && ', the saved blind game included'}.
-                        </p>
-                        <p>
-                            {pendingReset.custom === 0 ? (
-                                <>
-                                    You have no lines of your own, so nothing is lost: the bundled
-                                    repertoires stay, and any bundled line you deleted comes back.
-                                </>
-                            ) : (
-                                <>
-                                    <strong data-testid="reset-custom">
-                                        {lineCountLabel(pendingReset.custom)}
-                                    </strong>{' '}
-                                    {pendingReset.custom === 1 ? 'was' : 'were'} created, imported
-                                    or edited by you and cannot be recovered. The bundled
-                                    repertoires stay — any bundled line you deleted or edited comes
-                                    back in its original form.
-                                </>
-                            )}
-                        </p>
-                        {pendingReset.custom > 0 && <p>Export first if you want a copy.</p>}
-                    </ResetBody>
+                    <span data-testid="folder-removal-count">
+                        {lineCountLabel(pendingFolderRemoval.ids.length)}
+                    </span>{' '}
+                    in <strong>{folderName(pendingFolderRemoval.path)}</strong>, subfolders included,{' '}
+                    {pendingFolderRemoval.ids.length === 1 ? 'leaves' : 'leave'} your Personal list.
+                    The lines themselves stay in the Database.
                 </ConfirmDialog>
+            )}
+
+            {pendingRefresh !== null && (
+                <RefreshDialog
+                    summary={pendingRefresh}
+                    onCancel={() => setPendingRefresh(null)}
+                    onRefresh={confirmRefresh}
+                />
             )}
 
             {renameTo !== null && (
@@ -685,11 +867,99 @@ export function LinesList() {
     );
 
     /**
+     * Opens "Remove folder from Personal?" for every line of `folderLines` that is personal. A
+     * dialog even in Database: one press can unpick a whole repertoire.
+     */
+    function askFolderRemoval(path: string, folderLines: readonly Line[]) {
+        const ids = folderLines.filter((line) => personal.has(line.id)).map((line) => line.id);
+        if (ids.length > 0) setPendingFolderRemoval({ path, ids });
+    }
+
+    /** One subfolder card. A plain function for the same reason as `renderRow`. */
+    function renderFolderCard(node: ReturnType<typeof childFolders>[number]) {
+        const folderLines = linesUnderFolder(lines, node.path);
+        const status = folderPersonalStatus(folderLines, personal);
+        return (
+            <FolderCard key={node.path} data-testid="folder-row" data-folder={node.path}>
+                <FolderButton
+                    type="button"
+                    data-testid="folder-open"
+                    onClick={() => openFolder(node.path)}
+                >
+                    <FolderIcon aria-hidden="true">📁</FolderIcon>
+                    <FolderText>
+                        <FolderNameText>{node.name}</FolderNameText>
+                        <Meta>
+                            <span data-testid="folder-count">{lineCountLabel(node.lineCount)}</span>
+                            {node.subfolderCount > 0 && (
+                                <>
+                                    <MetaSep>·</MetaSep>
+                                    <span>{subfolderCountLabel(node.subfolderCount)}</span>
+                                </>
+                            )}
+                        </Meta>
+                    </FolderText>
+                </FolderButton>
+                <FolderActions>
+                    <LinkButton
+                        to={drillPath(node.path, set)}
+                        $size="sm"
+                        data-testid="folder-drill"
+                        aria-label={`Drill ${node.name}`}
+                    >
+                        Drill
+                    </LinkButton>
+                    <LinkButton
+                        to={explorePath(node.path, set)}
+                        $size="sm"
+                        data-testid="folder-explore"
+                        aria-label={`Explore ${node.name}`}
+                    >
+                        Explore
+                    </LinkButton>
+                    {!inPersonal && (
+                        <Button
+                            size="sm"
+                            data-testid="folder-personal-add"
+                            data-status={status}
+                            disabled={status === 'all'}
+                            aria-label={
+                                status === 'all'
+                                    ? `${node.name}: all in personal`
+                                    : `Add ${node.name} to personal`
+                            }
+                            onClick={() =>
+                                changePersonal(
+                                    folderLines.map((line) => line.id),
+                                    true,
+                                )
+                            }
+                        >
+                            {status === 'all' ? '★ All added' : '☆ Add to personal'}
+                        </Button>
+                    )}
+                    {(inPersonal || status !== 'none') && (
+                        <Button
+                            size="sm"
+                            data-testid="folder-personal-remove"
+                            aria-label={`Remove ${node.name} from personal`}
+                            onClick={() => askFolderRemoval(node.path, folderLines)}
+                        >
+                            {inPersonal ? 'Remove' : 'Remove from personal'}
+                        </Button>
+                    )}
+                </FolderActions>
+            </FolderCard>
+        );
+    }
+
+    /**
      * One line row. Declared inside the component because it needs the handlers; it stays a plain
      * function (not a nested component) so React never sees a new component type per render.
      */
     function renderRow(line: Line) {
         const path = lineFolder(line);
+        const picked = personal.has(line.id);
         return (
             <RowCard
                 key={line.id}
@@ -751,7 +1021,7 @@ export function LinesList() {
 
                 <Actions>
                     <LinkButton
-                        to={drillLinePath(line.id, folder)}
+                        to={drillLinePath(line.id, folder, set)}
                         $variant="primary"
                         $size="sm"
                         data-testid="line-drill"
@@ -765,8 +1035,10 @@ export function LinesList() {
                     >
                         Explore
                     </Button>
+                    {/* Always the database line: Personal holds ids, and an edited bundled line
+            stays personal under its new id (`storage/lines.ts`). */}
                     <LinkButton
-                        to={editLinePath(line.id, folder)}
+                        to={editLinePath(line.id, folder, set)}
                         $size="sm"
                         data-testid="line-edit"
                     >
@@ -780,13 +1052,26 @@ export function LinesList() {
                         Open in analyze
                     </Button>
                     <Button
-                        variant="danger"
                         size="sm"
-                        data-testid="line-delete"
-                        onClick={() => setPendingDelete(line)}
+                        variant={picked && !inPersonal ? 'primary' : 'secondary'}
+                        aria-pressed={inPersonal ? undefined : picked}
+                        data-testid="line-personal"
+                        title={inPersonal ? 'Remove from Personal — the line stays in the Database' : undefined}
+                        onClick={() => changePersonal([line.id], !picked)}
                     >
-                        Delete
+                        {personalToggleLabel(picked, set)}
                     </Button>
+                    {/* Deleting is a database operation; Personal only ever unpicks. */}
+                    {!inPersonal && (
+                        <Button
+                            variant="danger"
+                            size="sm"
+                            data-testid="line-delete"
+                            onClick={() => setPendingDelete(line)}
+                        >
+                            Delete
+                        </Button>
+                    )}
                 </Actions>
             </RowCard>
         );
@@ -800,6 +1085,38 @@ const Wrap = styled.div`
     flex-direction: column;
     gap: ${(p) => p.theme.space.md};
     min-width: 0;
+`;
+
+const SetTabs = styled.div`
+    display: flex;
+    align-self: flex-start;
+    padding: 2px;
+    background: ${(p) => p.theme.color.surfaceAlt};
+    border: 1px solid ${(p) => p.theme.color.border};
+    border-radius: ${(p) => p.theme.radius.md};
+`;
+
+const SetTab = styled.button<{ $active: boolean }>`
+    min-height: 44px;
+    padding: 0 ${(p) => p.theme.space.md};
+    border: 0;
+    border-radius: ${(p) => p.theme.radius.sm};
+    background: ${(p) => (p.$active ? p.theme.color.accent : 'none')};
+    color: ${(p) => (p.$active ? p.theme.color.accentText : p.theme.color.textMuted)};
+    font-family: inherit;
+    font-size: ${(p) => p.theme.font.size.md};
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+
+    @media ${(p) => p.theme.media.wide} {
+        min-height: 36px;
+    }
+
+    &:focus-visible {
+        outline: 2px solid ${(p) => p.theme.color.focus};
+        outline-offset: 2px;
+    }
 `;
 
 const TopBar = styled.div`
@@ -942,17 +1259,6 @@ const DialogField = styled.div`
     }
 `;
 
-const ResetBody = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: ${(p) => p.theme.space.sm};
-    min-width: 0;
-
-    p {
-        margin: 0;
-    }
-`;
-
 const ReportHeader = styled.div`
     display: flex;
     align-items: flex-start;
@@ -999,6 +1305,7 @@ const RowCard = styled.li`
 
 const FolderCard = styled.li`
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: ${(p) => p.theme.space.sm};
     min-width: 0;
@@ -1006,6 +1313,15 @@ const FolderCard = styled.li`
     background: ${(p) => p.theme.color.surfaceAlt};
     border: 1px solid ${(p) => p.theme.color.border};
     border-radius: ${(p) => p.theme.radius.md};
+`;
+
+/** Wraps under the folder name on a narrow screen rather than squeezing it. */
+const FolderActions = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: ${(p) => p.theme.space.xs};
+    min-width: 0;
 `;
 
 const FolderButton = styled.button`

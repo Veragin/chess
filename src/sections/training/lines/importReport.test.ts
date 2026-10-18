@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { ImportResult } from '../../../storage/lines';
 import type { SeedReport } from '../../../storage/seed';
-import type { ResetSummary } from '../../../storage/reset';
-import { describeImport, describeReset, describeSeed } from './importReport';
+import type { RefreshResult, ResetSummary } from '../../../storage/reset';
+import { combineReports, describeImport, describeRefresh, describeSeed } from './importReport';
 
 function result(partial: Partial<ImportResult>): ImportResult {
   return { added: 0, skipped: 0, rejections: [], ...partial };
 }
 
 function summary(partial: Partial<ResetSummary> = {}): ResetSummary {
-  return { total: 0, custom: 0, blindGame: false, ...partial };
+  return { total: 0, custom: 0, hidden: 0, personal: 0, ...partial };
 }
 
 describe('describeImport', () => {
@@ -119,39 +119,94 @@ describe('describeSeed', () => {
   });
 });
 
-describe('describeReset', () => {
-  it('says nothing of the user’s own was lost when every line was bundled', () => {
-    const view = describeReset(summary({ total: 12 }), { ok: true });
+describe('describeRefresh', () => {
+  const KEEP = { mode: 'keep-user-lines', clearPersonal: false } as const;
+  const DELETE = { mode: 'delete-user-lines', clearPersonal: false } as const;
+
+  function refreshed(partial: Partial<RefreshResult> = {}): RefreshResult {
+    return { ok: true, personalRemoved: 0, personalCleared: false, ...partial };
+  }
+
+  it('reports kept lines and pruned personal lines in one sentence', () => {
+    const view = describeRefresh(
+      summary({ total: 40, custom: 12 }),
+      KEEP,
+      refreshed({ personalRemoved: 3 }),
+    );
     expect(view.tone).toBe('ok');
-    expect(view.headline).toMatch(/nothing of your own/i);
-    expect(view.details).toEqual([
-      'Every bundled line is back, including any you had deleted or edited.',
-    ]);
+    expect(view.headline).toBe(
+      'Bundled lines refreshed. 12 of your lines kept. 3 personal lines no longer exist and were removed.',
+    );
   });
 
-  it('warns, and repeats the custom count, when the user lost their own lines', () => {
-    const view = describeReset(summary({ total: 12, custom: 5 }), { ok: true });
+  it('uses the singular for one pruned personal line', () => {
+    const view = describeRefresh(summary(), KEEP, refreshed({ personalRemoved: 1 }));
+    expect(view.headline).toBe(
+      'Bundled lines refreshed. 1 personal line no longer exists and was removed.',
+    );
+  });
+
+  it('says only that the bundled lines were refreshed when nothing else changed', () => {
+    const view = describeRefresh(summary({ total: 12 }), KEEP, refreshed());
+    expect(view.tone).toBe('ok');
+    expect(view.headline).toBe('Bundled lines refreshed.');
+    expect(view.details).toEqual([]);
+  });
+
+  it('warns, and repeats the count, when the user deleted their own lines', () => {
+    const view = describeRefresh(summary({ custom: 5 }), DELETE, refreshed());
     expect(view.tone).toBe('warn');
-    expect(view.headline).toContain('5');
+    expect(view.headline).toContain('Deleted 5 lines of your own');
     expect(view.headline).toMatch(/cannot be undone/i);
   });
 
-  it('mentions the blind game only when there was one', () => {
-    expect(describeReset(summary({ blindGame: true }), { ok: true }).details).toContain(
-      'The saved blind game was deleted.',
+  it('warns when the Personal list was cleared', () => {
+    const view = describeRefresh(
+      summary({ personal: 7 }),
+      { mode: 'keep-user-lines', clearPersonal: true },
+      refreshed({ personalCleared: true }),
     );
-    expect(describeReset(summary(), { ok: true }).details).not.toContain(
-      'The saved blind game was deleted.',
-    );
+    expect(view.tone).toBe('warn');
+    expect(view.headline).toContain('Your Personal list (7 lines) was cleared.');
   });
 
-  it('leads with the reason when the store could not be fully cleared', () => {
-    const view = describeReset(summary({ total: 3, custom: 3 }), {
-      ok: false,
-      error: 'Browser storage is unavailable',
-    });
+  it('mentions restored bundled lines, and kept edited copies in keep mode', () => {
+    const keep = describeRefresh(summary({ custom: 2, hidden: 3 }), KEEP, refreshed());
+    expect(keep.details).toEqual([
+      '3 bundled lines you had deleted or edited are back.',
+      'Edited copies of bundled lines are kept alongside the originals.',
+    ]);
+    const del = describeRefresh(summary({ custom: 2, hidden: 1 }), DELETE, refreshed());
+    expect(del.details).toEqual(['1 bundled line you had deleted or edited is back.']);
+  });
+
+  it('leads with the reason when storage could not be fully updated', () => {
+    const view = describeRefresh(
+      summary({ custom: 3 }),
+      DELETE,
+      refreshed({ ok: false, error: 'Browser storage is unavailable' }),
+    );
     expect(view.tone).toBe('error');
-    expect(view.headline).toMatch(/could not be fully cleared/i);
+    expect(view.headline).toMatch(/could not be fully updated/i);
     expect(view.details[0]).toBe('Browser storage is unavailable');
+  });
+});
+
+describe('combineReports', () => {
+  const ok = { tone: 'ok' as const, headline: 'Bundled lines refreshed.', details: ['a'] };
+
+  it('returns the first report alone when there is no second', () => {
+    expect(combineReports(ok, null)).toBe(ok);
+  });
+
+  it('appends the second headline and details, keeping the worse tone', () => {
+    const seed = { tone: 'error' as const, headline: 'Seed failed.', details: ['x.json — bad'] };
+    expect(combineReports(ok, seed)).toEqual({
+      tone: 'error',
+      headline: 'Bundled lines refreshed.',
+      details: ['a', 'Seed failed.', 'x.json — bad'],
+    });
+    const warn = { tone: 'warn' as const, headline: 'W', details: [] };
+    expect(combineReports(warn, { ...ok, details: [] }).tone).toBe('warn');
   });
 });

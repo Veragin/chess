@@ -22,6 +22,9 @@
  * both, marked by `Line.origin`. A server line is never written to: editing one stores an edited
  * copy under a fresh id and hides the original, and deleting one only hides it. The hidden ids
  * live under their own key (`HIDDEN_KEY`).
+ *
+ * **Personal.** The user's Personal set (`personal.ts`) refers to lines by id, so the operations
+ * here that change or drop an id — a fork, a delete — keep it in step through `personalIds.ts`.
  */
 
 import { validateFenRules } from '../chess/game';
@@ -33,6 +36,7 @@ import {
   linesUnderFolder,
   renameFolderPath,
 } from './folders';
+import { removePersonalIds, replacePersonalIds } from './personalIds';
 import {
   LINES_SCHEMA_VERSION,
   lineLabel,
@@ -240,6 +244,29 @@ function hideServerLines(ids: readonly string[]): void {
   }
 }
 
+/**
+ * Removes only the hidden-ids record — every bundled line is visible again, the user's own lines
+ * stay. Returns false when the key could not be removed from disk; the session un-hides them
+ * either way, so the caller reports it rather than retrying.
+ */
+export function clearHiddenServerLines(): boolean {
+  hiddenIds = new Set();
+  const store = localStore();
+  if (store === null) return false;
+  try {
+    store.removeItem(HIDDEN_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Bundled lines currently hidden — deleted by the user, or replaced by an edited copy. */
+export function hiddenServerLineCount(): number {
+  const hidden = readHidden();
+  return serverLines.filter((line) => hidden.has(line.id)).length;
+}
+
 function visibleServerLines(): Line[] {
   const hidden = readHidden();
   return serverLines.filter((line) => !hidden.has(line.id));
@@ -257,6 +284,11 @@ function forkServerLine(line: Line): Line {
   const copy: Line = { ...line, id: newId(), createdAt: Date.now() };
   delete copy.origin;
   return copy;
+}
+
+/** Ids that resolve right now — what a write to the Personal set keeps. */
+function liveIds(): Set<string> {
+  return new Set([...loadFile().lines, ...visibleServerLines()].map((line) => line.id));
 }
 
 // ---------------------------------------------------------------------------------------
@@ -343,20 +375,27 @@ export function updateLine(
   next[index] = updated;
   const persisted = saveFile(next);
   // Only once the copy is stored: hiding the original after a failed write would lose the line.
-  if (forkedFrom !== null && persisted) hideServerLines([forkedFrom]);
+  if (forkedFrom !== null && persisted) {
+    hideServerLines([forkedFrom]);
+    replacePersonalIds(new Map([[forkedFrom, updated.id]]), liveIds());
+  }
   return updated;
 }
 
-/** Deletes a user line, or hides a server line (it stays hidden across builds). */
+/**
+ * Deletes a user line, or hides a server line (it stays hidden across builds). Either way it
+ * leaves the Personal set too.
+ */
 export function deleteLine(id: string): boolean {
   const file = loadFile();
   const next = file.lines.filter((l) => l.id !== id);
   if (next.length === file.lines.length) {
     if (findServerLine(id) === null) return false;
     hideServerLines([id]);
-    return true;
+  } else {
+    saveFile(next);
   }
-  saveFile(next);
+  removePersonalIds([id], liveIds());
   return true;
 }
 
@@ -420,8 +459,9 @@ export function renameFolder(from: string, to: string): FolderOpResult {
 
   const file = loadFile();
   const forked = visibleServerLines().filter((line) => isWithinFolder(lineFolder(line), from));
+  const copies = forked.map(forkServerLine);
   let moved = 0;
-  const next = [...file.lines, ...forked.map(forkServerLine)].map((line) => {
+  const next = [...file.lines, ...copies].map((line) => {
     const current = lineFolder(line);
     if (!isWithinFolder(current, from)) return line;
     const folder = renameFolderPath(current, from, to);
@@ -435,7 +475,13 @@ export function renameFolder(from: string, to: string): FolderOpResult {
 
   if (moved === 0) return { ok: true, moved: 0 };
   const persisted = saveFile(next);
-  if (persisted) hideServerLines(forked.map((line) => line.id));
+  if (persisted) {
+    hideServerLines(forked.map((line) => line.id));
+    replacePersonalIds(
+      new Map(forked.map((line, i) => [line.id, (copies[i] as Line).id])),
+      liveIds(),
+    );
+  }
   const result: FolderOpResult = { ok: true, moved };
   if (!persisted) result.error = warning ?? WRITE_FAILED;
   return result;

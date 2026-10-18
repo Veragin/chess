@@ -9,6 +9,7 @@ import { encodeTree } from '../../../storage/treeFormat';
  * same way `storage/lines.test.ts` does it and the modules are re-imported per test.
  */
 const STORAGE_KEY = 'chess-trainer.lines.v1';
+const PERSONAL_KEY = 'chess-trainer.personalLines.v1';
 
 let store: Map<string, string>;
 
@@ -91,6 +92,50 @@ describe('drillablePool', () => {
       { folder: 'White', tree: treeFromMoves(['d4']) },
     ]);
     expect(await pool('White')).toEqual(['id-1']);
+  });
+});
+
+describe('drillablePool in the Personal set', () => {
+  function pick(ids: string[]): void {
+    store.set(PERSONAL_KEY, JSON.stringify(ids));
+  }
+
+  async function personalPool(folder = ''): Promise<string[]> {
+    const { drillablePool } = await import('./pool');
+    return drillablePool(folder, 'personal');
+  }
+
+  it('serves only the picked lines', async () => {
+    seed([{}, { folder: 'White' }, { folder: 'Black' }]);
+    pick(['id-2', 'id-0']);
+    expect(await personalPool()).toEqual(['id-0', 'id-2']);
+    // The Database pool is unaffected by the picks.
+    expect(await pool()).toEqual(['id-0', 'id-1', 'id-2']);
+  });
+
+  it('is empty when nothing is picked', async () => {
+    seed([{}, { folder: 'White' }]);
+    expect(await personalPool()).toEqual([]);
+  });
+
+  it('scopes to a folder within the picked lines', async () => {
+    seed([
+      { folder: 'Black' },
+      { folder: 'Black/Sicilian' },
+      { folder: 'Black/Sicilian' },
+      { folder: 'White' },
+    ]);
+    pick(['id-1', 'id-3']);
+    expect(await personalPool('Black')).toEqual(['id-1']);
+    expect(await personalPool('Black/Sicilian')).toEqual(['id-1']);
+    expect(await personalPool('White')).toEqual(['id-3']);
+  });
+
+  it('ignores a picked id whose line no longer exists, without writing', async () => {
+    seed([{}, {}]);
+    pick(['gone', 'id-1']);
+    expect(await personalPool()).toEqual(['id-1']);
+    expect(store.get(PERSONAL_KEY)).toBe(JSON.stringify(['gone', 'id-1']));
   });
 });
 

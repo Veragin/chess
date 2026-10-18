@@ -19,6 +19,10 @@
  * - **No UI.** The offline-ready and update transitions are silent by design; the only visible
  *   effect is one reload after a deploy. Status is reported on `window` as
  *   `chess-trainer:pwa` events for anything that later wants to surface it.
+ *
+ * - **`checkForUpdate()` on demand.** "Refresh data" (`storage/reset.ts`) asks the worker to look
+ *   for a newer build; if there is one, the usual `onNeedReload` path reloads the page. Offline, or
+ *   with no worker at all (dev, tests, unsupported browsers), it does nothing.
  */
 
 import { registerSW } from 'virtual:pwa-register';
@@ -34,6 +38,17 @@ function emit(detail: PwaEvent): void {
 /** Guards against a reload loop if activation were ever to fire more than once. */
 let reloading = false;
 
+/** Set once the worker is registered; `checkForUpdate` has nothing to ask before that. */
+let registration: ServiceWorkerRegistration | null = null;
+
+/** Asks the service worker to check for a newer build. Never throws, never waits. */
+export function checkForUpdate(): void {
+  if (registration === null) return;
+  registration.update().catch(() => {
+    // Offline or the host is unreachable: the current build keeps running.
+  });
+}
+
 export function registerPwa(): void {
   if (typeof window === 'undefined') return;
   if (!('serviceWorker' in navigator)) return;
@@ -41,6 +56,9 @@ export function registerPwa(): void {
   registerSW({
     // Defer to the `load` event so precaching cannot compete with first paint.
     immediate: false,
+    onRegisteredSW(_swUrl: string, registered: ServiceWorkerRegistration | undefined) {
+      registration = registered ?? null;
+    },
     onOfflineReady() {
       // First install finished: shell, pieces and engine are in the precache.
       emit('offline-ready');

@@ -16,7 +16,9 @@ at runtime.
   Drill one line, one folder or the whole repertoire from a board that shows nothing else —
   random order, every branch of a line before the next line, and every branch comes up exactly
   once per drill; a hint shows the move and its comment; when a branch is done you can take the
-  next branch or line, replay that same branch, or open it in Analyze. See
+  next branch or line, replay that same branch, or open it in Analyze. Two sections: **Database**
+  (every saved line) and **Personal** (just the lines picked to learn, in the same folders), each
+  with its own Drill and Explore — see [Personal lines](#personal-lines). See
   [Lines, branches and comments](#lines-branches-and-comments). Files in `public/data/` ship as
   a starter repertoire, kept apart from the user's own lines — see
   [Bundled lines](#bundled-lines-publicdata).
@@ -149,13 +151,32 @@ Rules (`src/storage/seed.ts`, `src/storage/lines.ts`):
 In Training, the user's own lines carry a **Custom** badge, and **My lines only** hides the
 bundled ones.
 
-**Clear data…** (Training, beside Export / Import) empties every key the app owns: the user's
-lines, the hidden server ids and the blind-game resume record. The bundled lines stay — every one
-of them visible again, in its original form — so the only permanent loss is the user's own
-lines, which the confirmation counts first.
+**Refresh data…** (Training's Database section, beside Export / Import; it replaced **Clear
+data…**) un-hides every bundled line, reloads the bundled set and asks the service worker to check
+for a newer build. It offers **Delete my lines & refresh** or **Keep my lines & refresh** — with
+the second, an edited copy of a bundled line is kept and shows up next to the restored original.
+Personal is only pruned of lines that no longer exist, unless **Also clear my Personal list** is
+ticked. The blind-game resume record is not touched. The dialog counts what each choice affects
+first.
 
 Browsers that used the old seed-once model still have the bundled lines copied into their store;
-those copies now show up as custom lines next to the server ones. **Clear data…** removes them.
+those copies now show up as custom lines next to the server ones. **Refresh data…** with **Delete
+my lines** removes them.
+
+### Personal lines
+
+Training has two sections, switched at the top of the lines screen and kept in the URL as
+`?set=personal` (absent means Database, so older links still work):
+
+- **Database** — every saved line, bundled and the user's own.
+- **Personal** — the lines picked to learn (☆ on a line's row, or a whole folder at once), shown
+  in their own folders. Drill and Explore opened from Personal work on those lines only; a new
+  line saved from Personal is added to it.
+
+Personal is a list of line **ids** under `chess-trainer.personalLines.v1`, never copies: **Edit**
+always edits the database line (an edited bundled line keeps its pick under its new id), deleting
+a line drops it from Personal, and a pick whose line is gone is ignored on read and pruned on the
+next write. Removing a line from Personal leaves it in the database.
 
 ### Regenerating the bundled data (`scripts/migrate-data.ts`)
 
@@ -234,6 +255,9 @@ A bookmarked `#/explore?folder=…` still works — it redirects, folder and all
   a folder checks that repertoire and nothing else. The scope is also a dropdown on the screen.
   From a line's row it opens on that line, scoped to the line's own folder — the lines it could
   transpose with are its siblings.
+- **`?set=personal` compares against Personal only** — explore opened from the Personal section
+  reads just the picked lines (and lists only their folders), and Back / "Save as new line" stay in
+  that section.
 - **A damaged line is reported, not hidden.** A stored line whose moves no longer replay (a
   hand-edited `localStorage`, an edited start position) is indexed as far as it goes — only the
   unplayable move's subtree is lost, its playable siblings still count — and named under "cannot

@@ -24,6 +24,11 @@
  * helpers) as the rest of Training, so "Explore" from inside a folder checks *that* repertoire —
  * and the way back out lands in that same folder.
  *
+ * `?set=` does the same for the section (`training/lines/folderNav.ts`): exploring from Personal
+ * compares against the picked lines only (and offers only their folders), exploring from Database
+ * against every saved line. Back, the folder picker and "Save as new line" all keep it, so a line
+ * saved while exploring Personal lands in Personal (see `LineEditor`).
+ *
  * Layout follows analyse and the single 900px breakpoint (README §6): a thin eval strip and
  * stacked panels on a phone, eval strip beside the board with a side column on a wide screen.
  */
@@ -51,11 +56,11 @@ import { useEngine } from '../../engine/useEngine';
 import { useExploration, useTrainedFor } from '../../state/explore';
 import { stageNewLine } from '../../state/newLine';
 import { allFolderPaths, folderLabel, linesUnderFolder } from '../../storage/folders';
-import { listLines } from '../../storage/lines';
 import { normaliseFolderPath } from '../../storage/schema';
 import { useIsWideLayout } from '../analyze/useIsWideLayout';
 import { draftMoves } from '../training/lines/draft';
-import { linesPath, newLineFromExplorePath } from '../training/lines/folderNav';
+import { linesPath, newLineFromExplorePath, parseLineSet } from '../training/lines/folderNav';
+import { linesOfSet } from '../training/lines/lineSet';
 import { moveCountLabel } from '../training/lines/lineFormat';
 import { CoveragePanel } from './CoveragePanel';
 import {
@@ -72,6 +77,7 @@ export function ExploreSection() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const folder = normaliseFolderPath(params.get('folder'));
+  const set = parseLineSet(params);
   const { history, setHistory, loadExploration } = useExploration();
   const [trainedFor, setTrainedFor] = useTrainedFor();
   const [orientation, setOrientation] = useState<Orientation>('white');
@@ -87,7 +93,7 @@ export function ExploreSection() {
 
   // Read once per visit: the section unmounts on navigation, so going to Training, saving a
   // line and coming back re-reads the store — while a walk through the tree never does.
-  const lines = useMemo(() => listLines(), []);
+  const lines = useMemo(() => linesOfSet(set), [set]);
   const folders = useMemo(() => allFolderPaths(lines), [lines]);
   const scope = useMemo(
     () => linesTrainedFor(linesUnderFolder(lines, folder), trainedFor),
@@ -149,10 +155,12 @@ export function ExploreSection() {
   const setScope = useCallback(
     (next: string) => {
       const normalised = normaliseFolderPath(next);
-      if (normalised.length === 0) setParams({});
-      else setParams({ folder: normalised });
+      const query: Record<string, string> = {};
+      if (normalised.length > 0) query.folder = normalised;
+      if (set === 'personal') query.set = set;
+      setParams(query);
     },
-    [setParams],
+    [setParams, set],
   );
 
   /** Hands the moves up to the cursor to the line editor (see `state/newLine.ts`). */
@@ -165,8 +173,8 @@ export function ExploreSection() {
       // editor shows it as a choice either way.
       userColor: startColor(history),
     });
-    navigate(newLineFromExplorePath(folder));
-  }, [folder, history, navigate]);
+    navigate(newLineFromExplorePath(folder, set));
+  }, [folder, history, navigate, set]);
 
   const savable = draftMoves(history).length;
   const caption = useMemo(() => describePosition(fen), [fen]);
@@ -189,7 +197,7 @@ export function ExploreSection() {
     <Toolbar>
       {/* Explore is not a tab, so the way back to the lines it compares against has to be on the
           screen — and it returns to the folder that scoped this exploration. */}
-      <BackLink to={linesPath(folder)} data-testid="explore-back">
+      <BackLink to={linesPath(folder, set)} data-testid="explore-back">
         ‹ Lines
       </BackLink>
       <Button data-testid="explore-start" onClick={() => loadExploration(START_FEN)}>
@@ -245,6 +253,7 @@ export function ExploreSection() {
       coverage={coverage}
       scopeSize={scope.length}
       folder={folder}
+      set={set}
       onPlay={onMove}
       brokenCount={index.broken.length}
       arrival={arrival}

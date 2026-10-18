@@ -17,7 +17,7 @@
 import styled from 'styled-components';
 import { Link } from 'react-router';
 import { Panel } from '../../components/ui';
-import { editLinePath } from '../training/lines/folderNav';
+import { editLinePath, type LineSet } from '../training/lines/folderNav';
 import { lineCountLabel } from '../training/lines/lineFormat';
 import type { Coverage, CoverageComment, LineReach } from './coverage';
 import type { Line } from '../../storage/schema';
@@ -28,6 +28,8 @@ export interface CoveragePanelProps {
   scopeSize: number;
   /** Folder the scope came from; only used to bring the user back to it from the editor. */
   folder: string;
+  /** Section the scope came from; like `folder`, only where the editor's "Back" returns to. */
+  set: LineSet;
   /** Play a continuation on the board. */
   onPlay: (san: string) => void;
   /** Lines in scope that could not be replayed in full, so partial coverage is never silent. */
@@ -55,6 +57,7 @@ export function CoveragePanel({
   coverage,
   scopeSize,
   folder,
+  set,
   onPlay,
   brokenCount,
   arrival = [],
@@ -63,7 +66,9 @@ export function CoveragePanel({
   const intoRepertoire = coverage.moves.length;
   const summary =
     scopeSize === 0
-      ? 'No saved lines to compare against.'
+      ? set === 'personal'
+        ? 'No personal lines to compare against.'
+        : 'No saved lines to compare against.'
       : reaching === 0
         ? intoRepertoire === 0
           ? 'No saved line reaches this position.'
@@ -120,7 +125,7 @@ export function CoveragePanel({
                     {move.lines.map((line) => (
                       <NameLink
                         key={line.id}
-                        to={editLinePath(line.id, folder)}
+                        to={editLinePath(line.id, folder, set)}
                         title={`Edit ${lineTitle(line)}`}
                         data-testid="coverage-line"
                       >
@@ -154,7 +159,7 @@ export function CoveragePanel({
               {coverage.endsHere.map((reach) => (
                 <NameLink
                   key={reach.line.id}
-                  to={editLinePath(reach.line.id, folder)}
+                  to={editLinePath(reach.line.id, folder, set)}
                   title={`Edit ${lineTitle(reach.line)}`}
                 >
                   {lineTitle(reach.line)}
@@ -171,7 +176,7 @@ export function CoveragePanel({
               {coverage.breaksHere.map((reach) => (
                 <NameLink
                   key={reach.line.id}
-                  to={editLinePath(reach.line.id, folder)}
+                  to={editLinePath(reach.line.id, folder, set)}
                   title={reachLabel(reach)}
                 >
                   {lineTitle(reach.line)}

@@ -322,7 +322,7 @@ export function maxDepth(tree: MoveTree): number {
 /**
  * Canonical string of the tree's *moves*: siblings sorted by SAN, comments ignored. Two trees
  * with the same key hold the same moves whatever their sibling order — the content comparison
- * behind the seed guard and "Clear data…"'s count of hand-made lines.
+ * behind the seed guard and "Refresh data…"'s count of hand-made lines.
  */
 export function treeKey(tree: MoveTree): string {
   return tree
