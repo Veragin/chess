@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "9e0dc170-9854-5e72-9868-eead2421c5bd",
+      "name": "White Reti Opening - Nf3 d5 c4 Nf6 g3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "Nf3", "d5", {"san": "c4", "comment": "The Réti Opening"}, "Nf6", "g3", "Bf5", "cxd5",
+        "Nxd5", "e4", "Bxe4",
+        {"san": "Qa4+", "comment": "White wins the bishop and probably the game."}
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Reti Opening/White"
+    }
+  ]
+}

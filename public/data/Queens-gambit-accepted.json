@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "749df526-8800-5442-9950-122ae4814725",
+      "name": "White Queen's Gambit Accepted - d4 d5 c4 dxc4 e3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "d5", "c4", {"san": "dxc4", "comment": "The Queen's Gambit Accepted"}, "e3",
+        [
+          "Nf3", "Nf6", "e3", "e6", "Bxc4", "c5", "O-O", "a6", "Qe2", "b5", "Bd3", "Bb7", "dxc5",
+          "Bxc5", "Bxb5+", "axb5", "Qxb5+"
+        ],
+        "e5", "Nf3", "exd4", "Bxc4",
+        {
+          "san": "Nf6",
+          "comment": "Can you imagine that this normal looking move is actually a mistake?"
+        },
+        [{"san": "Bb4+", "comment": "has to be played"}], "Qb3", "Qe7",
+        {
+          "san": "O-O",
+          "comment": "If you fall for this trap, don't be ashamed, even Kasparov did so against Mamedyarov and resigned in this position."
+        },
+        "d3", "Ng5"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Queen's Gambit Accepted/White"
+    }
+  ]
+}

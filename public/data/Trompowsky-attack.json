@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "115b31e9-d903-5d6e-bfa8-178fc25ef593",
+      "name": "Trompowsky Attack - d4 Nf6 Bg5 Ne4 Bf4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "Nf6", "Bg5", "Ne4", "Bf4", "c5", "c3", "Qb6", "Qb3", "cxd4", "Qxb6", "axb6", "Bxb8",
+        "dxc3", "Be5", "Rxa2", "Rxa2", "c2"
+      ],
+      "userColor": "b",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Trompowsky Attack/Black"
+    },
+    {
+      "id": "b98f41e3-d340-5d0f-bd35-94a01f473eac",
+      "name": "White Trompowsky Attack - d4 Nf6 Bg5 Ne4 Bf4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "Nf6", {"san": "Bg5", "comment": "The Trompowsky Attack"}, "Ne4", "Bf4", "d5", "e3",
+        "Bf5", "f3", "Nf6", "c4",
+        {
+          "san": "c5",
+          "comment": "With this normal move, the Dutch Grandmaster Loek Van Wely fell into a trap setup by the English Grandmaster Michael Adams."
+        },
+        {"san": "cxd5", "comment": "Black cannot recapture the pawn because:"}, "Nxd5",
+        ["cxd4", {"san": "e4", "comment": "White controls the center and has the better position"}],
+        "Bxb8", "Rxb8", "e4"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Trompowsky Attack/White"
+    }
+  ]
+}

@@ -1,7 +1,100 @@
 {
   "schemaVersion": 2,
-  "exportedAt": 1791700004157,
+  "exportedAt": 1792267801162,
   "lines": [
+    {
+      "id": "f1f700f7-0822-5bc3-b5b1-46b03389e7d5",
+      "name": "Stafford reject Bc4 - Nxe4 O-O d5 Bb3 Nc6",
+      "startFen": "rnbqkb1r/pppp1ppp/5n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 0 1",
+      "tree": [
+        "Nxe4", "O-O", "d5", "Bb3", "Nc6", "Re1", "Bc5", "d4", "Nxd4", "Be3", "Nxb3", "axb3",
+        "Bxe3", "Rxe3", "f6"
+      ],
+      "userColor": "b",
+      "createdAt": 1788810069173,
+      "updatedAt": 1788810069173,
+      "folder": "Stafford/Black/reject Bc4"
+    },
+    {
+      "id": "1592cde5-0e60-529f-b4e8-9c435700b25d",
+      "name": "Stafford reject Bc4 - Nxe4 Nxe5 d5 Bd3 Qg5",
+      "startFen": "rnbqkb1r/pppp1ppp/5n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 0 1",
+      "tree": ["Nxe4", "Nxe5", "d5", "Bd3", ["Bb3", "Qg5", "d4", "Qxg2"], "Qg5"],
+      "userColor": "b",
+      "createdAt": 1788806684331,
+      "updatedAt": 1788809003996,
+      "folder": "Stafford/Black/reject Bc4"
+    },
+    {
+      "id": "19bd8f37-16c0-539a-84ba-935bd2296640",
+      "name": "Stafford reject Bc4 - Nxe4 Qe2 d5 Bb3 Nc6",
+      "startFen": "rnbqkb1r/pppp1ppp/5n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 0 1",
+      "tree": [
+        "Nxe4", "Qe2", "d5", "Bb3", "Nc6", "d3", "Nc5", "Nxe5", "Nd4", "Qh5",
+        [
+          "Qe3", "Ncxb3", "Nc6+", "Be7", "Nxd8", "Nxc2+", "Ke2", "Nxe3", "axb3",
+          {"san": "Nf5", "comment": "white knight cant escape at the end"}
+        ],
+        ["Nc6+", "Nxe2", "Nxd8", "Nxb3", "axb3", "Nxc1", "Kd1", "Nxd3", "cxd3", "Kxd8"], "Qf6",
+        "Bxd5", "Be6", "Bxe6", "Ncxe6", "Kd1",
+        {"san": "Qxf2", "comment": "if covered by ka3 => Bxa3 => bxa3 => kxc3# => Kd1 => kxa1"}
+      ],
+      "userColor": "b",
+      "createdAt": 1788806892185,
+      "updatedAt": 1788807376758,
+      "folder": "Stafford/Black/reject Bc4"
+    },
+    {
+      "id": "c2c3c262-24c8-5db3-9054-faec00717955",
+      "name": "Stafford reject Bc4 - Nxe4 d3 Nc5 Nxe5 d5",
+      "startFen": "rnbqkb1r/pppp1ppp/5n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 0 1",
+      "tree": ["Nxe4", "d3", "Nc5", "Nxe5", "d5", "Bb3", "Bd6", "d4", "Nxb3", "axb3", "O-O", "O-O"],
+      "userColor": "b",
+      "createdAt": 1788806588181,
+      "updatedAt": 1788806588181,
+      "folder": "Stafford/Black/reject Bc4"
+    },
+    {
+      "id": "40fc3003-0033-521e-847a-6cc1214627b6",
+      "name": "Stafford traps - e4 e5 Nf3 Nf6 Nxe5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e5", "Nf3", "Nf6", "Nxe5", "Nc6", "Nxc6", "dxc6", "e5",
+        [
+          "Nc3", "Bc5", "d3",
+          [
+            "h3", "Be6", "d3", "Qd6", "Be2", "O-O-O", "O-O", "Bxh3", "gxh3", "Qg3+", "Kh1", "Qxh3+",
+            "Kg1", {"san": "h5", "comment": "Next Ng4"}, "Be3", "Ng4", "Bxg4+", "hxg4", "Bxc5",
+            "Qh1#"
+          ],
+          "Ng4", "Be3", "Nxe3", "fxe3",
+          {"san": "Bxe3", "comment": "Not really a trap, but much better for Black"}
+        ],
+        [
+          "d3", "Bc5", "Bg5", ["h3", "Bxf2+", "Kxf2", "Nxe4+", "dxe4", "Qxd1"],
+          [
+            "Be2", "h5", "O-O",
+            [
+              "c3", "Ng4", "d4", "Qh4", "g3", "Qf6", "f3", "h4", "fxg4", "hxg3", "hxg3", "Rxh1+",
+              "Kd2"
+            ],
+            "Ng4", "h3", "Qd6", "hxg4", "hxg4", "Bxg4", ["g3", "Qxg3#"], "Qh2#"
+          ],
+          {"san": "Bxf2+", "comment": "6...Nxe4 is the stronger trap"},
+          [
+            "Nxe4", "Bxd8", ["dxe4", "Bxf2+", "Kxf2", ["Ke2", "Bg4+", "Kxf2", "Qxd1"], "Qxd1"],
+            "Bxf2+", "Ke2", "Bg4#"
+          ],
+          "Kxf2", "Nxe4+", "Ke1", "Nxg5"
+        ],
+        "Ne4", "d3", ["d4", "Qh4", "g3", "Nxg3", "hxg3", ["fxg3", "Qe4+", "Be2", "Qxh1+"], "Qxh1"],
+        "Bc5", "Be3", "Bxe3", "fxe3", "Qh4+", "Ke2", "Qf2#"
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Stafford/Black/traps"
+    },
     {
       "id": "a36f44c2-98b6-55fe-85fc-b838ddd4e6da",
       "name": "Stafford - Bc5 Na4 Bxf2+ Kxf2 Nxe4+",
@@ -13,7 +106,7 @@
       "userColor": "b",
       "createdAt": 1787600878525,
       "updatedAt": 1787600878525,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "1edccb79-8f6c-5264-819b-c8bf2b8a4df7",
@@ -64,7 +157,7 @@
       "userColor": "b",
       "createdAt": 1787422136495,
       "updatedAt": 1791668627534,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "229ed4d7-b591-5542-807d-fb714136bff7",
@@ -77,7 +170,7 @@
       "userColor": "b",
       "createdAt": 1787430499187,
       "updatedAt": 1787430591177,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "b11f3cf7-58b7-5ccc-8a94-04c3dada6cfd",
@@ -90,7 +183,7 @@
       "userColor": "b",
       "createdAt": 1787428472681,
       "updatedAt": 1787428472681,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "d5ccdf94-a741-5a39-ba92-b7840878ee31",
@@ -104,7 +197,7 @@
       "userColor": "b",
       "createdAt": 1787406270243,
       "updatedAt": 1787428319849,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "bbbe73ab-19d6-57c6-8118-0ef4146be8d3",
@@ -118,7 +211,7 @@
       "userColor": "b",
       "createdAt": 1787404736603,
       "updatedAt": 1787427794846,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "0e6d17c1-44ea-5415-acd2-5944cc02c06f",
@@ -128,7 +221,7 @@
       "userColor": "b",
       "createdAt": 1787427118483,
       "updatedAt": 1787427118483,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "1c50ea4a-283e-551e-b76b-69f5050b9ee1",
@@ -141,7 +234,7 @@
       "userColor": "b",
       "createdAt": 1787423046936,
       "updatedAt": 1787423046936,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "2cdb13b2-0e5d-5493-9cdb-cdd5dec5144f",
@@ -151,7 +244,7 @@
       "userColor": "b",
       "createdAt": 1787407565214,
       "updatedAt": 1787407565214,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "b28f6beb-ee99-5cc9-ac4e-e1f15dd65853",
@@ -161,7 +254,7 @@
       "userColor": "b",
       "createdAt": 1787407479617,
       "updatedAt": 1787407479617,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "23dc0b6e-08ea-5387-a4e8-7e2f24f7b574",
@@ -171,7 +264,7 @@
       "userColor": "b",
       "createdAt": 1787406892064,
       "updatedAt": 1787406892064,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "be8a2886-3288-5fba-81e6-c8ec568b128c",
@@ -184,7 +277,7 @@
       "userColor": "b",
       "createdAt": 1787406639851,
       "updatedAt": 1787406751348,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "226891b1-766d-5101-854d-f03c18b06bbb",
@@ -196,7 +289,7 @@
       "userColor": "b",
       "createdAt": 1787405438178,
       "updatedAt": 1787405438178,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "01ba420c-2791-5057-ad40-2feb419c8a06",
@@ -209,7 +302,7 @@
       "userColor": "b",
       "createdAt": 1787403293963,
       "updatedAt": 1787403777779,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "dde2e250-0cef-52a2-8e8a-19d92a4b100f",
@@ -219,7 +312,7 @@
       "userColor": "b",
       "createdAt": 1787401945700,
       "updatedAt": 1787401945700,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "24704ebe-704a-597d-af6f-87f18db8baa8",
@@ -229,7 +322,7 @@
       "userColor": "b",
       "createdAt": 1787396196476,
       "updatedAt": 1787401803306,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "a64913b3-497c-5951-ac2d-b08085c5c066",
@@ -239,7 +332,7 @@
       "userColor": "b",
       "createdAt": 1787401739984,
       "updatedAt": 1787401739984,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "d390e764-b196-57a7-a35e-4c9956cf30d3",
@@ -249,7 +342,7 @@
       "userColor": "b",
       "createdAt": 1787400246547,
       "updatedAt": 1787400246547,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "aa95010e-7237-5b9c-b3e9-0f0aaf9ccc67",
@@ -262,7 +355,7 @@
       "userColor": "b",
       "createdAt": 1789757292063,
       "updatedAt": 1789757292063,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "ffd17032-fb9e-57f9-b10e-752a07857e66",
@@ -282,7 +375,7 @@
       "userColor": "b",
       "createdAt": 1789754947908,
       "updatedAt": 1789756430822,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "5930c928-7381-5a8f-9fbc-b4b73052fa94",
@@ -295,7 +388,7 @@
       "userColor": "b",
       "createdAt": 1789755841051,
       "updatedAt": 1789755841051,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "14179770-5079-51e7-9b08-3879886ce440",
@@ -308,7 +401,7 @@
       "userColor": "b",
       "createdAt": 1789755628237,
       "updatedAt": 1789755628237,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "294d6432-eb67-596a-ad12-b05aedb937a5",
@@ -318,7 +411,7 @@
       "userColor": "b",
       "createdAt": 1789508284264,
       "updatedAt": 1789508284264,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "6fa9425d-17a9-5a1c-8a54-05eec0e339e8",
@@ -328,7 +421,7 @@
       "userColor": "b",
       "createdAt": 1789508094045,
       "updatedAt": 1789508094045,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "3f21acd6-01ff-5760-b5b3-2f65a8e54962",
@@ -341,7 +434,7 @@
       "userColor": "b",
       "createdAt": 1789339021286,
       "updatedAt": 1789339021286,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "c739e3e4-c6b4-514b-9db4-48ecfdbc5c10",
@@ -358,7 +451,7 @@
       "userColor": "b",
       "createdAt": 1789107818759,
       "updatedAt": 1790979782153,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "6d5624db-30c0-55ce-ad23-23ac45a8cc54",
@@ -372,7 +465,7 @@
       "userColor": "b",
       "createdAt": 1791108745626,
       "updatedAt": 1791108745626,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "ca2b56a7-59a3-527c-9ac3-aad96d2ec497",
@@ -385,7 +478,7 @@
       "userColor": "b",
       "createdAt": 1791107074151,
       "updatedAt": 1791107074151,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     },
     {
       "id": "d52c92bc-6a86-5286-a6c3-235652dab613",
@@ -398,7 +491,7 @@
       "userColor": "b",
       "createdAt": 1790286547184,
       "updatedAt": 1790286547184,
-      "folder": "Stafford"
+      "folder": "Stafford/Black"
     }
   ]
 }

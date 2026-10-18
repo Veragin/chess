@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "78a72f0b-2b79-5dc3-b02a-11a142eb4d50",
+      "name": "White Scandinavian Defense - e4 d5 exd5 Qxd5 Nc3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4",
+        {
+          "san": "d5",
+          "comment": "The Scandinavian Defense\nScandinavian Defense\nScandinavian Defense"
+        },
+        "exd5", "Qxd5",
+        [
+          {"san": "Nf6", "comment": "The main alternative to 2...Qxd5."}, "Nc3", "Nxd5", "Bc4",
+          "Nb6", "Bb3", "Nc6", "Nf3", "e5", "d3", "Bg4", "h3", "Bh5", "Nxe5", "Bxd1", "Bxf7+",
+          "Ke7", "Bg5+", "Kd6", "Ne4+", "Kxe5", "f4+", "Kd4", ["Kf5", "Ng3#"],
+          {
+            "san": "Rxd1",
+            "comment": "White, despite being a Queen down, is completely winning here, for example:"
+          },
+          "Be7", "Kf2", "Bxg5", "c3#"
+        ],
+        "Nc3", "Qa5",
+        [
+          "Qd8", "d4", {"san": "Nc6", "comment": "Nf6 is the right move for Black."}, "d5", "Ne5",
+          "Nf3", {"san": "Bg4", "comment": "This normal development move looses."}, "Nxe5", "Bxd1",
+          "Bb5+", "c6", "dxc6", "a6", "c7+", "axb5", "cxd8=Q+", "Rxd8",
+          {"san": "Nxd1", "comment": "White is up a full piece and completely winning here."}
+        ],
+        "d4",
+        [
+          "Nf3", "Bg4", "h3", "Bxf3", "Qxf3", "Nc6", "Bb5",
+          {"san": "Qb6", "comment": "Black wants to protect the knight, but falls for a trap."},
+          "Nd5", "Qxb5", {"san": "Nxc7+", "comment": "The famility fork ends the game."}
+        ],
+        "Nf6", "Nf3", "Bg4", "h3", "Bh5", "g4", "Bg6", "Ne5", "c6", "Nc4", "Qc7",
+        {"san": "Qf3", "comment": "The c2 pawn is poisoned."}, "Bxc2", "Bf4", "Qd8", "Qe2", "Bg6",
+        "Nd6+", "Kd7", "Nxb7"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Scandinavian Defense/White"
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "39276c02-99a2-5224-bdb5-739a0bacef97",
+      "name": "White London System - d4 d5 Bf4 Nf6 e3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "d5", {"san": "Bf4", "comment": "London System\nThe London System\nLondon System"},
+        "Nf6", "e3", "c5",
+        [
+          "g6", "Nc3", "Bg7", "h4", "O-O", [{"san": "h5", "comment": "is what Black should play."}],
+          "h5", "Nxh5", "Rxh5", "gxh5", "Qxh5", "c6", "Bd3", "f5", "Nf3", "Qe8", "Qh2", "Nd7",
+          ["Qg6", "Bxb8"], "O-O-O", "Nf6",
+          {
+            "san": "Rh1",
+            "comment": "White has a beautiful attacking position and is much better here."
+          }
+        ],
+        [
+          "e6", "Nf3", "c5", "Nc3",
+          {
+            "san": "Nc6",
+            "comment": "This move is the most often played one in the Lichess database in this position, but in fact a big mistake:"
+          },
+          "Nb5"
+        ],
+        "c3",
+        [
+          "Nf3", "Nc6", "Nbd2", "Bf5", "dxc5", "e6", "Nd4", "Bg6",
+          ["Bxc5", "Nxf5", "exf5", {"san": "c3", "comment": "White has the better pawn structure"}],
+          "Bb5", "Rc8", "b4", "Be7", "Nxc6", "bxc6", "Ba6", "Ra8",
+          {"san": "Bb7", "comment": "White wins the exchange."}
+        ],
+        "Nc6", "Nd2", "e6",
+        [
+          "Bg4", "Ngf3", "e6", "Qa4",
+          {
+            "san": "Bd6",
+            "comment": "Black plays the \"standard\" move Bd6 to exchange the Bishops, but it is a mistake."
+          },
+          "Ba6", "bxa6",
+          [
+            {"san": "Qa5", "comment": "is probably the best for Black:"}, "Qxa5", "Nxa5", "Bxd6",
+            "bxa6", "Bxc5"
+          ],
+          ["Bxf4", "Bxb7"], "Qxc6+", "Ke7", "Qb7+", "Qd7", "Bxd6+", "Kxd6", "Qxa6+", "Ke7", "Ne5",
+          "Qc8", "Qa3"
+        ],
+        "Ngf3", "Bd6", "Bg3", "O-O", "Bd3",
+        {
+          "san": "Qe7",
+          "comment": "So far very standard. Black now wants to play e5 to free the light-squared Bishop, a typical idea."
+        },
+        "Ne5", "Nd7", "Nxd7", "Bxd7", "Bxd6", "Qxd6", "dxc5",
+        {
+          "san": "Qxc5",
+          "comment": "A blunder. And a very common one. Check the Lichess database: even Super-GM Sam Shankland played this move against Gata Kamsky. But why is it so bad?"
+        },
+        "Bxh7+", "Kxh7", "Qh5+", "Kg8",
+        {
+          "san": "Ne4",
+          "comment": "The Queen is attacked and must move. The Knight cannot be taken, the Pawn is pinned. Next, White plays Ng5 and threatens checkmate. Black can avoid checkmate, but White ends up much better."
+        },
+        "g6", ["Qe7", "Ng5"], "Nxc5", "gxh5", "Nxd7"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "London System/White"
+    }
+  ]
+}

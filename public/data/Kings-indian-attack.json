@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "33f0b6f4-ebe8-56a3-bf9c-9a7361e0560f",
+      "name": "White King's Indian Attack - Nf3 Nf6 g3 b6 Bg2",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "Nf3", "Nf6", {"san": "g3", "comment": "White plays the King's Indian Attack"}, "b6", "Bg2",
+        "Bb7", "O-O", "e6",
+        [
+          "g6", "d3", "Bg7", {"san": "e4", "comment": "the King’s Indian Attack"}, "d6", "Nh4",
+          "O-O", "e5", "Bxg2", "exf6", "Bxf1", "fxg7", "Kxg7",
+          {
+            "san": "Qxf1",
+            "comment": "The two minor pieces are better here than the rook and the pawn."
+          }
+        ],
+        "d3", "d5", "Nbd2", "Be7", "e4", "dxe4", "dxe4", "Nxe4",
+        ["Bxe4", "Nxe4", "Nxe4", "Nd4", "f5", "Nxe6"],
+        [{"san": "O-O", "comment": "is the correct move for Black"}], "Ne5", "Nd6", "Bxb7", "Nxb7",
+        {"san": "Qf3", "comment": "Black loses a piece."}
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "King's Indian Attack/White"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "d3fbd489-aa03-5b30-9390-c3f82802450c",
+      "name": "English Opening - c4 b6 Nc3 Bb7 e4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        {"san": "c4", "comment": "The English Opening"}, "b6", "Nc3", "Bb7", "e4", "e6", "Nf3",
+        "Bb4", "Qb3", "Na6", "a3", "Nc5", {"san": "Qc2", "comment": "a sad necessity, since:"},
+        ["Qxb4", "a5", "Qb5", {"san": "Bc6", "comment": "traps the queen"}], "Bxc3", "Qxc3", "Bxe4",
+        "Qxg7", "Qf6", "Qxf6",
+        {
+          "san": "Nxf6",
+          "comment": "The material is equal, but White has concrete problems with the weakness on b3. If the a3 pawn could move backwards, he would be fine, but in this position Black has the much better position. For example:"
+        },
+        "b4",
+        {
+          "san": "Nb3",
+          "comment": "White can try to hold on with 12. Bb2, but the defence is difficult."
+        }
+      ],
+      "userColor": "b",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "English Opening/Black"
+    }
+  ]
+}

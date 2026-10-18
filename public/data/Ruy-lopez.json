@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "16975485-1d85-5e24-9e0f-2ca69dc8c75e",
+      "name": "Ruy Lopez - e4 e5 Nf3 Nc6 Bb5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e5", "Nf3", "Nc6",
+        {"san": "Bb5", "comment": "The Ruy Lopez Opening (or Spanish Game)\nThe Ruy Lopez Opening"},
+        "a6",
+        [
+          "Nf6", "O-O", "d6", "Re1", "Bd7", "c3", "Be7", "d4",
+          {
+            "san": "O-O",
+            "comment": "So far normal development, but in this position White can fall into a trap."
+          },
+          {"san": "Nbd2", "comment": "This innocent move allows Black to free the position with"},
+          "Nxd4", "cxd4", "Bxb5", "dxe5", "dxe5", "Nxe5",
+          {
+            "san": "Nd7",
+            "comment": "Black enjoys the Bishop pair and play against White's weakness on d3, Black is better here."
+          }
+        ],
+        "Ba4", "d6", "d4", "b5", "Bb3", "Nxd4", "Nxd4", "exd4",
+        {"san": "Qxd4", "comment": "A big blunder, White must not take this pawn."}, "c5", "Qd5",
+        "Be6", "Qc6+", "Bd7", "Qd5", {"san": "c4", "comment": "Black wins the White bishop."}
+      ],
+      "userColor": "b",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Ruy Lopez/Black"
+    },
+    {
+      "id": "1c6b53c4-4b5d-5f1c-8846-7ba72afc2be7",
+      "name": "White Ruy Lopez - e4 e5 Nf3 Nc6 Bb5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e5", "Nf3", "Nc6", "Bb5", "Nf6",
+        [
+          "a6", "Ba4", "Nf6", "O-O", "Nxe4", "d4", "b5", "Bb3", "d5", "dxe5", "Be6", "c3", "Be7",
+          "Re1", "O-O", "Nd4", "Qd7", "Nxe6", "fxe6", "Rxe4"
+        ],
+        "O-O", "Nxe4", "Re1", "Nd6", "Nc3", "Nxb5", "Nxe5", "Nxe5",
+        ["Nxc3", "Nxc6+", "Be7", "Nxe7", "Nxd1", "Ng6+", "Qe7", "Nxe7"], "Rxe5+", "Be7", "Nd5",
+        "O-O", "Nxe7+", "Kh8", "Qh5", "g6", "Qh6", "d6", "Rh5", "gxh5", "Qf6#"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Ruy Lopez/White"
+    }
+  ]
+}

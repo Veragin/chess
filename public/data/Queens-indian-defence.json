@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "59297ec1-a8d4-5d18-9752-bcc2b2d7007b",
+      "name": "Queen's Indian Defence - d4 Nf6 Nf3 e6 c4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "Nf6", "Nf3", "e6", "c4", {"san": "b6", "comment": "The Queen's Indian Defence"},
+        "Bg5", "Bb7", "e3", "h6", "Bh4",
+        {"san": "Bb4+", "comment": "And in this normal position, White can fall for a trap:"},
+        {"san": "Nbd2", "comment": "is a blunder! Why?"}, "g5", "Bg3",
+        {
+          "san": "g4",
+          "comment": "Black attacks the knight, which is needed on f3 to guard the knight on d2."
+        },
+        "Ne5",
+        [
+          {"san": "a3", "comment": "probably is White's best try, but even here:"}, "gxf3", "axb4",
+          "fxg2", "Bxg2", "Bxg2", "Rg1", {"san": "Bb7", "comment": "Black remains a piece up"}
+        ],
+        {"san": "Ne4", "comment": "Black wins a piece."}
+      ],
+      "userColor": "b",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Queen's Indian Defence/Black"
+    }
+  ]
+}

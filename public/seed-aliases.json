@@ -23,8 +23,20 @@
     "AntiLondon.json::a3e3020d-fa7c-4c00-bc1c-f15b06a42008",
     "AntiLondon.json::bced138d-9226-4364-a7bf-1ec48bb857a8"
   ],
+  "Bogo-indian-defense.json::12bfcc2e-146b-50cd-ba93-76cbe45c93ab": [
+    "White-Bogo-indian-defense.json::12bfcc2e-146b-50cd-ba93-76cbe45c93ab"
+  ],
   "Budapest.json::371d8451-25bb-5e43-840b-dbeb726452cb": [
     "Petroff-defense.json::d4495447-74a2-4d37-8f63-3f0fd905d056"
+  ],
+  "Caro-Kann.json::61821624-bbed-5fb1-b318-f15df1031ed1": [
+    "White-Caro-kann-defense.json::61821624-bbed-5fb1-b318-f15df1031ed1"
+  ],
+  "Caro-Kann.json::87213391-b174-5608-a923-c5f8725ee59a": [
+    "White-Caro-kann-defense.json::87213391-b174-5608-a923-c5f8725ee59a"
+  ],
+  "Caro-Kann.json::9ce632ae-bbf8-5c05-9e91-0c9fc7e671c0": [
+    "White-Caro-kann-defense.json::9ce632ae-bbf8-5c05-9e91-0c9fc7e671c0"
   ],
   "Center-game.json::050cff50-6f38-574f-9198-c4925bde1eb3": [
     "Center-game.json::112b7d0e-4fec-4eea-8028-c0783de4a111"
@@ -49,8 +61,29 @@
   "Dutch.json::95e5a0c0-e539-567f-a640-8db65fd3eabe": [
     "Dutch.json::d18de7ad-2da9-4433-885d-5cbdc8812074"
   ],
+  "Dutch.json::d7e90960-39b3-5587-9268-74b8bcd5fab9": [
+    "White-Dutch-defence.json::d7e90960-39b3-5587-9268-74b8bcd5fab9"
+  ],
+  "French.json::2255b089-c457-5198-99a6-6ce1ea1054ae": [
+    "White-French-defence.json::2255b089-c457-5198-99a6-6ce1ea1054ae"
+  ],
   "From-gambit.json::f609dbb8-500e-538d-82ed-7891379cc367": [
     "Petroff-defense.json::9b472043-c190-47aa-8cb9-48611dd408a8"
+  ],
+  "Italian-game.json::db36f074-da6f-5e04-afe2-cd67a7e06acf": [
+    "White-Italian-game.json::db36f074-da6f-5e04-afe2-cd67a7e06acf"
+  ],
+  "Kings-indian-attack.json::33f0b6f4-ebe8-56a3-bf9c-9a7361e0560f": [
+    "White-Kings-indian-attack.json::33f0b6f4-ebe8-56a3-bf9c-9a7361e0560f"
+  ],
+  "Kings-indian-defense.json::bee1b638-78ce-500b-a993-c6f8933b3f38": [
+    "White-Kings-indian-defense.json::bee1b638-78ce-500b-a993-c6f8933b3f38"
+  ],
+  "London-system.json::39276c02-99a2-5224-bdb5-739a0bacef97": [
+    "White-London-system.json::39276c02-99a2-5224-bdb5-739a0bacef97"
+  ],
+  "Modern-defense.json::1e81f8f5-ee5b-5d0c-9b6b-e6ebb58df240": [
+    "White-Modern-defense.json::1e81f8f5-ee5b-5d0c-9b6b-e6ebb58df240"
   ],
   "Nimzo-Indian.json::35468dc1-aa6c-50e0-98d9-a42c4a43be53": [
     "Nimzo-Indian.json::5a05ac00-db97-4a3f-b5ff-35d849f02157"
@@ -85,20 +118,29 @@
   "Petroff-defense.json::d1ab0cdd-a30e-5eba-adcb-30e1c0237c38": [
     "Petroff-defense.json::aca84e6a-2775-4caa-9ce2-121aaac20c1f"
   ],
-  "Stafford-reject-Bc4.json::1592cde5-0e60-529f-b4e8-9c435700b25d": [
-    "Stafford-reject-Bc4.json::2c1908ac-d1fd-4fc0-8665-cf120b6ecc1d",
-    "Stafford-reject-Bc4.json::6dc56225-b2c2-411a-8577-c9cb2ed257c4"
+  "Queens-gambit-accepted.json::749df526-8800-5442-9950-122ae4814725": [
+    "White-Queens-gambit-accepted.json::749df526-8800-5442-9950-122ae4814725"
   ],
-  "Stafford-reject-Bc4.json::19bd8f37-16c0-539a-84ba-935bd2296640": [
-    "Stafford-reject-Bc4.json::8ad4ca1e-6b49-498b-a627-8339ad0ee5e0",
-    "Stafford-reject-Bc4.json::b0d49392-5a00-4604-9092-496a6aeaafcc",
-    "Stafford-reject-Bc4.json::e72e2b19-3ce4-49a1-a3c5-1645b8d11c94"
+  "Queens-gambit-declined.json::866418b4-9328-5ab1-bdca-5fb0e38aa7dd": [
+    "White-Queens-gambit-declined.json::866418b4-9328-5ab1-bdca-5fb0e38aa7dd"
   ],
-  "Stafford-reject-Bc4.json::c2c3c262-24c8-5db3-9054-faec00717955": [
-    "Stafford-reject-Bc4.json::2b4a73a8-5c8b-444a-9f8c-c092af6dd3fa"
+  "Reti-opening.json::9e0dc170-9854-5e72-9868-eead2421c5bd": [
+    "White-Reti-opening.json::9e0dc170-9854-5e72-9868-eead2421c5bd"
   ],
-  "Stafford-reject-Bc4.json::f1f700f7-0822-5bc3-b5b1-46b03389e7d5": [
-    "Stafford-reject-Bc4.json::0b7c1ff3-8b26-4c61-89ea-60bac7a3fcca"
+  "Ruy-lopez.json::1c6b53c4-4b5d-5f1c-8846-7ba72afc2be7": [
+    "White-Ruy-lopez.json::1c6b53c4-4b5d-5f1c-8846-7ba72afc2be7"
+  ],
+  "Scandinavian-defense.json::78a72f0b-2b79-5dc3-b02a-11a142eb4d50": [
+    "White-Scandinavian-defense.json::78a72f0b-2b79-5dc3-b02a-11a142eb4d50"
+  ],
+  "Scotch-game.json::77a80385-20ac-510a-a9e6-bab07a67511b": [
+    "White-Scotch-game.json::77a80385-20ac-510a-a9e6-bab07a67511b"
+  ],
+  "Sicilian.json::64333a06-d531-5a0a-a93f-b71e6a243e77": [
+    "White-Sicilian-defense.json::64333a06-d531-5a0a-a93f-b71e6a243e77"
+  ],
+  "Sicilian.json::ed25c762-00b8-5b6b-88f2-76a464afa610": [
+    "White-Sicilian-defense.json::ed25c762-00b8-5b6b-88f2-76a464afa610"
   ],
   "Stafford.json::01ba420c-2791-5057-ad40-2feb419c8a06": [
     "Stafford.json::6f2fb861-3b2a-4753-a5a8-0b3651a2ec33",
@@ -109,6 +151,17 @@
   ],
   "Stafford.json::14179770-5079-51e7-9b08-3879886ce440": [
     "Stafford.json::f0ccc0e6-4826-4799-bc54-db8ba2c1cd31"
+  ],
+  "Stafford.json::1592cde5-0e60-529f-b4e8-9c435700b25d": [
+    "Stafford-reject-Bc4.json::2c1908ac-d1fd-4fc0-8665-cf120b6ecc1d",
+    "Stafford-reject-Bc4.json::6dc56225-b2c2-411a-8577-c9cb2ed257c4",
+    "Stafford-reject-Bc4.json::1592cde5-0e60-529f-b4e8-9c435700b25d"
+  ],
+  "Stafford.json::19bd8f37-16c0-539a-84ba-935bd2296640": [
+    "Stafford-reject-Bc4.json::8ad4ca1e-6b49-498b-a627-8339ad0ee5e0",
+    "Stafford-reject-Bc4.json::b0d49392-5a00-4604-9092-496a6aeaafcc",
+    "Stafford-reject-Bc4.json::e72e2b19-3ce4-49a1-a3c5-1645b8d11c94",
+    "Stafford-reject-Bc4.json::19bd8f37-16c0-539a-84ba-935bd2296640"
   ],
   "Stafford.json::1c50ea4a-283e-551e-b76b-69f5050b9ee1": [
     "Stafford.json::8be5b076-ee55-4e9b-aa4e-3b0323dca5c3"
@@ -154,6 +207,9 @@
   "Stafford.json::3f21acd6-01ff-5760-b5b3-2f65a8e54962": [
     "Stafford.json::8eb1b8b7-43ab-4762-ba70-a40e2bd9af3a"
   ],
+  "Stafford.json::40fc3003-0033-521e-847a-6cc1214627b6": [
+    "Stafford-traps.json::40fc3003-0033-521e-847a-6cc1214627b6"
+  ],
   "Stafford.json::5930c928-7381-5a8f-9fbc-b4b73052fa94": [
     "Stafford.json::7d87d5a5-f524-4000-9654-6b994f1c58aa"
   ],
@@ -187,6 +243,10 @@
     "Stafford.json::21ac76dc-36b6-4c78-9448-6dcab6ae9133",
     "Stafford.json::ca33d8d5-03a1-4318-b514-610b1d96cf91"
   ],
+  "Stafford.json::c2c3c262-24c8-5db3-9054-faec00717955": [
+    "Stafford-reject-Bc4.json::2b4a73a8-5c8b-444a-9f8c-c092af6dd3fa",
+    "Stafford-reject-Bc4.json::c2c3c262-24c8-5db3-9054-faec00717955"
+  ],
   "Stafford.json::c739e3e4-c6b4-514b-9db4-48ecfdbc5c10": [
     "Petroff-defense.json::b55d4eb6-6339-4302-b233-405933858ed8",
     "Stafford.json::0cbbcd90-c0e6-4d33-b054-da905ed5d522"
@@ -207,6 +267,10 @@
   ],
   "Stafford.json::dde2e250-0cef-52a2-8e8a-19d92a4b100f": [
     "Stafford.json::6aeff657-6836-4a87-b104-b3e7e9335223"
+  ],
+  "Stafford.json::f1f700f7-0822-5bc3-b5b1-46b03389e7d5": [
+    "Stafford-reject-Bc4.json::0b7c1ff3-8b26-4c61-89ea-60bac7a3fcca",
+    "Stafford-reject-Bc4.json::f1f700f7-0822-5bc3-b5b1-46b03389e7d5"
   ],
   "Stafford.json::ffd17032-fb9e-57f9-b10e-752a07857e66": [
     "Stafford.json::034205de-bc49-4845-b237-8909a87eeb2b",
@@ -233,5 +297,11 @@
   ],
   "Traxler.json::e9bb8813-7872-547a-99e8-e49b99ca746b": [
     "Petroff-defense.json::0e8bc197-cf9b-407d-b68e-85f0552abb16"
+  ],
+  "Trompowsky-attack.json::b98f41e3-d340-5d0f-bd35-94a01f473eac": [
+    "White-Trompowsky-attack.json::b98f41e3-d340-5d0f-bd35-94a01f473eac"
+  ],
+  "Vienna-game.json::ff752d41-eb40-599d-bfb2-280703c41612": [
+    "White-Vienna-game.json::ff752d41-eb40-599d-bfb2-280703c41612"
   ]
 }

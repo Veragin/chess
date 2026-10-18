@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "bee1b638-78ce-500b-a993-c6f8933b3f38",
+      "name": "White King's Indian Defense - d4 Nf6 c4 g6 Nc3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "Nf6", "c4", "g6", "Nc3", "Bg7", "Nf3", "O-O",
+        {"san": "Bg5", "comment": "The Smyslov System of the King's Indian Defense."}, "d6", "e3",
+        "Nbd7", "Be2", "c6",
+        {"san": "Qc2", "comment": "Playing Qc2 before 0-0 sets up a little trap."}, "h6", "Bh4",
+        "g5", "Bg3",
+        {
+          "san": "Nh5",
+          "comment": "A very common idea to win the bishop pair, but in this case it is a bad idea."
+        },
+        "Nxg5", "hxg5", "Bxh5"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "King's Indian Defense/White"
+    }
+  ]
+}

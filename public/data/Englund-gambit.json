@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "1104b220-81e1-5411-a5ff-e4605ae3f7cd",
+      "name": "Englund Gambit - d4 e5 dxe5 Nc6 Nf3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", {"san": "e5", "comment": "The \"unsound\" Englund Gambit"}, "dxe5", "Nc6", "Nf3",
+        "Qe7", "Bf4", "Qb4+", "Bd2", "Qxb2", "Bc3",
+        [
+          {"san": "Nc3", "comment": "White is better."}, "Bb4", "Rb1",
+          {
+            "san": "Qxc3",
+            "comment": "is a Gambit popularized by Aman Hambleton from the Chessbrahs:"
+          },
+          "Bxc3", "Bxc3+", "Nd2", {"san": "Bxe5", "comment": "with an interesting imbalance."}
+        ],
+        {"san": "Bb4", "comment": "Black is winning."}, "Qd2", ["Bxb4", "Nxb4"], "Bxc3", "Qxc3",
+        "Qc1#"
+      ],
+      "userColor": "b",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Englund Gambit/Black"
+    }
+  ]
+}

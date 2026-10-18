@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "12bfcc2e-146b-50cd-ba93-76cbe45c93ab",
+      "name": "White Bogo-Indian Defense - d4 Nf6 c4 e6 Nf3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "Nf6", "c4", "e6", "Nf3",
+        {"san": "Bb4+", "comment": "Black plays the Bogo–Indian Defence."}, "Bd2", "Bxd2+", "Qxd2",
+        "b6", "g3", "Bb7", "Bg2", "O-O", "Nc3", "Ne4", "Qc2", "Nxc3",
+        {
+          "san": "Ng5",
+          "comment": "This can be a shock for Black if he is not aware of this move: White threatens checkmate and to win the Bishop."
+        },
+        "Qxg5",
+        [
+          "Ne4", "Bxe4", "Bxe4", "Qxe4", "Qxg5", "Qxa8", "Nc6", "Qb7",
+          {"san": "Nxd4", "comment": "Black has good compensation in this variation, too."}
+        ],
+        {
+          "san": "Bxb7",
+          "comment": "White wins the exchange, but Black has good compensation and is not (much) worse."
+        }
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Bogo-Indian Defense/White"
+    }
+  ]
+}

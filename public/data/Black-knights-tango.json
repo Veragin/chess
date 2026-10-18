@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "4067e01d-74bf-54dd-86c0-4521c5de2220",
+      "name": "Black Knights Tango - d4 Nf6 c4 Nc6 Nc3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "Nf6", "c4",
+        {
+          "san": "Nc6",
+          "comment": "The Black Knights Tango, one of my favorite openings, has a hidden trap that many of my opponents already fell for:"
+        },
+        "Nc3", "e5", "d5", "Ne7", "e4", "Ng6", "Bd3", "Bc5",
+        {"san": "Nge2", "comment": "After these normal development moves, White is already lost:"},
+        "Ng4", "O-O", {"san": "Qh4", "comment": "Threatening mate, and after"}, "h3", "Nxf2",
+        "Rxf2", "Qxf2+", "Kh1",
+        {"san": "d6", "comment": "Black is an exchange and a pawn up and simply winning."}
+      ],
+      "userColor": "b",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Black Knights Tango/Black"
+    }
+  ]
+}

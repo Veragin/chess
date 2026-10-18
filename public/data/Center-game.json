@@ -13,7 +13,7 @@
       "userColor": "w",
       "createdAt": 1790951823044,
       "updatedAt": 1790951823044,
-      "folder": "Center Game"
+      "folder": "Center Game/White"
     },
     {
       "id": "794fa040-8d5e-54ca-b0cc-af505deb4849",
@@ -26,7 +26,7 @@
       "userColor": "w",
       "createdAt": 1790934230654,
       "updatedAt": 1790934230654,
-      "folder": "Center Game"
+      "folder": "Center Game/White"
     },
     {
       "id": "12a984a7-f449-535c-b8f5-4c354e72095e",
@@ -39,7 +39,7 @@
       "userColor": "b",
       "createdAt": 1790149937192,
       "updatedAt": 1790150020814,
-      "folder": "Center Game"
+      "folder": "Center Game/Black"
     }
   ]
 }

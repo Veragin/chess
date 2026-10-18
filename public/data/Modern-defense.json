@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "1e81f8f5-ee5b-5d0c-9b6b-e6ebb58df240",
+      "name": "White Modern Defense - e4 g6 d4 Bg7 Nf3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", {"san": "g6", "comment": "The Modern Defense"}, "d4", "Bg7", "Nf3", "d6",
+        {"san": "Bc4", "comment": "White puts pressure against the weakest point in Black's camp."},
+        {"san": "Nd7", "comment": "This innocent developing move is a mistake:"}, "Bxf7+", "Kxf7",
+        "Ng5+", "Ke8", [{"san": "Kf6", "comment": "leads to a cute checkmate-in-one:"}, "Qf3#"],
+        ["Kf8", "Ne6+"], {"san": "Ne6", "comment": "wins the Black queen"}
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Modern Defense/White"
+    }
+  ]
+}

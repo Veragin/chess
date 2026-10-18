@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "ff752d41-eb40-599d-bfb2-280703c41612",
+      "name": "White Vienna Game - e4 e5 Bc4 Nc6 Nc3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e5", "Bc4", "Nc6", "Nc3", "Bc5", "Qg4", "Qf6", "Nd5", "Qxf2+", "Kd1", "Kf8", "Nh3",
+        "Qd4", ["h5", "Qg5", "Qd4"], "d3", "d6", "Qf3", "Bxh3", "Rf1"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Vienna Game/White"
+    }
+  ]
+}

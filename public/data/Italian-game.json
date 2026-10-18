@@ -1,33 +1,148 @@
 {
   "schemaVersion": 2,
-  "exportedAt": 1792267801162,
+  "exportedAt": 1792269758926,
   "lines": [
     {
       "id": "adf0ee6a-1b8e-51a0-8a76-ee03313eaedb",
       "name": "Italian Game - e4 e5 Nf3 Nc6 Bc4",
       "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
       "tree": [
-        "e4", "e5", "Nf3", "Nc6", "Bc4", "Nd4",
+        "e4", "e5", "Nf3", "Nc6", {"san": "Bc4", "comment": "The Italian game"}, "Nd4",
         [
           "Nf6", "Ng5", "Nxe4",
           [
             "d5", "exd5", "Nd4", "d6", "Qxd6", "Nxf7", "Qc6", "Nxh8", "Qxg2", "Rf1", "Qe4+", "Be2",
             "Nf3#"
           ],
-          "Nxf7", "Qh4", "g3", "Nxg3", "fxg3", "Qe4+", "Kf2", "Bc5+", "d4", "Bxd4+", "Kf1", "Qxh1+",
-          "Ke2", "Qg2+", "Ke1", "Qf2#"
+          "Nxf7",
+          [
+            "Nxe4", {"san": "d5", "comment": "Forks the knight and bishop"}, "Bxd5", "Qxd5", "Nbc3",
+            "Qd8", "d3", "Be7", "O-O", "O-O", "f4", "f5", "Ng3", "exf4", "Bxf4", "Be6"
+          ],
+          [
+            "Bxf7+", "Ke7", "Nxe4", "Kxf7", "Qf3+",
+            [
+              "d3", "d5", "Qf3+", "Ke8", "Ng5", "Qf6", "Qxd5", "Nd4", "Qc4", "b5", "Qc3",
+              [
+                "Qxc7", {"san": "Bd6", "comment": "Traps the queen"}, "Qc3", "Bb4", "Qxb4", "Nxc2+",
+                "Kd1", "Nxb4"
+              ],
+              "Bb4", "O-O", "Bxc3", "bxc3", "Ne2+", "Kh1", "Nxc1"
+            ],
+            "Ke8", "d3", "d5", "Ng3",
+            [
+              "Ng5", "Qf6", "Qxd5", "Nd4", "Qc4", "b5", "Qxc7",
+              {"san": "Bd6", "comment": "Traps the queen"}, "Qc3", "Bb4", "Qxb4", "Nxc2+", "Kd1",
+              "Nxb4"
+            ],
+            "h5", "Nxh5", "Qh4", "Ng3", "Nd4", "Qd1", "Bg4", "f3", "Qxg3+", "hxg3", "Rxh1+", "Kd2",
+            "Rxd1+", "Kxd1", {"san": "Be6", "comment": "Black is up a piece"}
+          ],
+          "Qh4", "g3",
+          [
+            "Qf3", "Nd4", "Nd6+", "Bxd6", "Qf7+", "Kd8", "O-O", "Rf8", "Qxg7", "Nf5", "g3",
+            {"san": "Qh3", "comment": "The white queen is trapped"}
+          ],
+          [
+            "O-O", "Nxf2", "Rxf2", "Bc5", "Qf3", "Rf8", "g3", "Bxf2+", "Qxf2", "Qxc4", "d3", "Qxf7",
+            "Qxf7+", {"san": "Rxf7", "comment": "Black is up a rook"}
+          ],
+          "Nxg3", "fxg3", ["Nxh8", "Qe4+", "Be2", "Qxh1+", "Bf1", "Qxf1#"], "Qe4+", "Kf2",
+          [
+            "Qe2", "Qxh1+", "Qf1", "Qxf1+", "Kxf1", "d5", "Bxd5", "Bh3+", "Ke1", "Nd4", "Nxh8",
+            "Nxc2+", "Ke2", "Nxa1"
+          ],
+          "Bc5+", "d4",
+          ["Kf1", "Qxh1+", "Ke2", "Nd4+", "Kd3", {"san": "Qxd1", "comment": "Wins the queen"}],
+          "Bxd4+", "Kf1", "Qxh1+", "Ke2", "Qg2+", "Ke1", "Qf2#"
         ],
         [
-          "Bc5", "O-O", "d6", "d3", "Nf6", "Bg5", "h6", "Bh4", "g5", "Bg3", "h5", "Nxg5", "h4",
-          "Nxf7", "hxg3", "Nxd8", "Bg4", "Qd2", "Nd4", "h3", "Ne2+", "Kh1", "Rxh3+", "gxh3", "Bf3#"
+          "Bc5", "O-O",
+          [
+            "d3", "Nf6", "O-O",
+            {
+              "san": "d6",
+              "comment": "After d6, the Black bishop cannot come back to e7 to break the pin of the knight."
+            },
+            {
+              "san": "Bg5",
+              "comment": "However, since Black has not castled yet, there is another option of breaking this pin."
+            },
+            "h6", "Bh4", "g5", "Bg3", "h5", "Nxg5", "h4", "Nxf7", "hxg3", "Nxd8", "Bg4", "Qd2",
+            "Nd4", "h3",
+            ["Nc3", "Nf3+", "gxf3", {"san": "Bxf3", "comment": "checkmate is unstoppable"}],
+            {
+              "san": "Ne2+",
+              "comment": "White must give back the queen, otherwise a forced checkmate follows."
+            },
+            "Kh1", "Rxh3+", "gxh3", "Bf3#"
+          ],
+          "d6", "d3", "Nf6", "Bg5", "h6", "Bh4", "g5", "Bg3", "h5", "Nxg5", "h4", "Nxf7", "hxg3",
+          "Nxd8", "Bg4", "Qd2", "Nd4", "h3", "Ne2+", "Kh1", "Rxh3+", "gxh3", "Bf3#"
         ],
         "Nxe5", "Qg5", "Nxf7", ["Bxf7+", "Kd8", "Nf3", "Qxg2", "Nxd4", "Qxh1+", "Ke2", "Qxe4+"],
         "Qxg2", "Rf1", "Qxe4+", "Be2", "Nf3#"
       ],
       "userColor": "b",
       "createdAt": 1792267801162,
-      "updatedAt": 1792267801162,
-      "folder": "Italian Game"
+      "updatedAt": 1792269758926,
+      "folder": "Italian Game/Black"
+    },
+    {
+      "id": "db36f074-da6f-5e04-afe2-cd67a7e06acf",
+      "name": "White Italian Game - e4 e5 Nf3 Nc6 Bc4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e5", "Nf3", "Nc6",
+        {"san": "Bc4", "comment": "The Italian game\nThe Italien Opening"}, "Bc5",
+        [
+          "d6", "Nc3", {"san": "Bg4", "comment": "The Légall Trap"},
+          {"san": "h3", "comment": "5. h3 is important, the immediate 5. Nxe5 does not work."},
+          {
+            "san": "Bh5",
+            "comment": "This is the standard reaction to h3 but in this case a big mistake."
+          },
+          {"san": "Nxe5", "comment": "What a surprise!"}, "Bxd1",
+          [
+            {"san": "Nxe5", "comment": "is no remedy for Black:"}, "Qxh5", "Nxc4", "Qb5+", "Qd7",
+            {"san": "Qxc4", "comment": "White is up a pawn"}
+          ],
+          "Bxf7+", "Ke7", "Nd5#"
+        ],
+        "O-O",
+        [
+          {"san": "c3", "comment": "The classical Italian opening"}, "Nf6", "d4", "Bb6",
+          [{"san": "exd4", "comment": "is the correct move for Black"}], "dxe5", "Nxe4",
+          {"san": "Qd5", "comment": "The double attack wins a piece."}, "Bxf2+", "Kf1", "Qe7",
+          "Qxe4"
+        ],
+        [
+          {"san": "d4", "comment": "The Max Lange Attack"}, "exd4", "O-O", "Nf6", "e5",
+          {"san": "d5", "comment": "the correct move from Black"}, "exf6", "dxc4", "Re1+", "Be6",
+          "Ng5", "Qxf6",
+          [
+            "O-O", "fxg7", "Kxg7", {"san": "Rxe6", "comment": "White is a piece up, because"},
+            "fxe6", {"san": "Nxe6+", "comment": "wins the queen."}
+          ],
+          [
+            {"san": "Qd5", "comment": "is the correct move, but here White has another trap:"},
+            "Nc3", "Qf5", "Nce4", "gxf6", "g4", "Qe5",
+            {"san": "Nf3", "comment": "the queen is trapped"}
+          ],
+          "Nxe6", "fxe6", "Qh5+"
+        ],
+        "Nf6", "d4", "Bxd4", "Nxd4", "Nxd4", "Bg5", "h6", "Bh4", "g5",
+        {"san": "f4", "comment": "White blasts open the f-file."},
+        {
+          "san": "gxf4",
+          "comment": "This somewhat obvious move is a big blunder, White is winning now."
+        },
+        "Rxf4", "exf4", "Qxd4", "c5", "Qc3"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Italian Game/White"
     }
   ]
 }

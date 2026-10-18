@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "5d04ab5c-18c4-5e7b-b201-45c5a182fc6d",
+      "name": "Slav Defense - d4 d5 c4 c6 Nf3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "d5", "c4", "c6", "Nf3", "Nf6", "Nc3", "dxc4", "a4", "Bf5", "e3", "e6", "Bxc4", "Bb4",
+        "O-O", "Nbd7", "Bd3", "Bxd3", "Qxd3", "O-O", "e4", "Bxc3", "bxc3", "Nc5", "Qb1", "Ncxe4",
+        "Qxb7", "Qb6", "Qxb6", "axb6"
+      ],
+      "userColor": "b",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Slav Defense/Black"
+    }
+  ]
+}

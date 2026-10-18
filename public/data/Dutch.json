@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "exportedAt": 1788126058985,
+  "exportedAt": 1792269758926,
   "lines": [
     {
       "id": "50c2c21a-b0ea-5257-b3dd-0013a4504af4",
@@ -13,7 +13,7 @@
       "userColor": "b",
       "createdAt": 1788122971228,
       "updatedAt": 1788122971228,
-      "folder": "Dutch Defence"
+      "folder": "Dutch Defence/Black"
     },
     {
       "id": "95e5a0c0-e539-567f-a640-8db65fd3eabe",
@@ -27,7 +27,7 @@
       "userColor": "b",
       "createdAt": 1788122685994,
       "updatedAt": 1788122685994,
-      "folder": "Dutch Defence"
+      "folder": "Dutch Defence/Black"
     },
     {
       "id": "27a55a7d-1183-55d3-a097-2179da056c22",
@@ -37,7 +37,7 @@
       "userColor": "b",
       "createdAt": 1788122316762,
       "updatedAt": 1788122316762,
-      "folder": "Dutch Defence"
+      "folder": "Dutch Defence/Black"
     },
     {
       "id": "833df7ba-2436-5f0c-b60e-221902b645e8",
@@ -60,7 +60,36 @@
       "userColor": "b",
       "createdAt": 1788121368126,
       "updatedAt": 1788122066311,
-      "folder": "Dutch Defence"
+      "folder": "Dutch Defence/Black"
+    },
+    {
+      "id": "d7e90960-39b3-5587-9268-74b8bcd5fab9",
+      "name": "White Dutch Defence - d4 f5 Bg5 h6 Bh4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "f5",
+        {
+          "san": "Bg5",
+          "comment": "This move possibly is White's most dangerous try against Black's Dutch opening: we pin the e pawn and make it hard for Black to develop."
+        },
+        {
+          "san": "h6",
+          "comment": "Tries to kick out the Bishop, but weakens important squares around the Black king."
+        },
+        "Bh4", "g5", "e4", "Bg7", ["Nf6", "e5"], ["gxh4", "Qh5#"], "Bg3", "f4",
+        [
+          "fxe4", "Nc3", "Nf6",
+          {
+            "san": "h4",
+            "comment": "White has excellent compensation for the pawn and a scary attack."
+          }
+        ],
+        "Bxf4", "gxf4", "Qh5+", "Kf8", "Qf5+", "Ke8", "Be2", "Nf6", "e5", "Nd5", "Bh5#"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Dutch Defence/White"
     }
   ]
 }

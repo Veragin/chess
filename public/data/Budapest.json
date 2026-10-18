@@ -13,7 +13,25 @@
       "userColor": "b",
       "createdAt": 1790352532809,
       "updatedAt": 1790352532809,
-      "folder": "Budapest"
+      "folder": "Budapest/Black"
+    },
+    {
+      "id": "fe4ea484-973c-52f0-aedc-28ab2d90746c",
+      "name": "Budapest - d4 Nf6 c4 e5 dxe5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "Nf6", "c4", "e5", "dxe5", "Ne4", "a3",
+        {
+          "san": "b6",
+          "comment": "This move sets up a trap for White, who might think that Qd5 wins a piece."
+        },
+        "Qd5", {"san": "Bb7", "comment": "But isn't this Bishop simply hanging?"}, "Qxb7",
+        {"san": "Nc6", "comment": "No! The Queen is trapped."}, "Qa6", "Nc5", "Qb5", "a6"
+      ],
+      "userColor": "b",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Budapest/Black"
     }
   ]
 }

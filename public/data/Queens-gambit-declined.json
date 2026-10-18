@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "898a9f13-c37b-5520-8a05-0d98501a723b",
+      "name": "Queen's Gambit Declined - d4 d5 c4 e6 Nc3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "d5", "c4", {"san": "e6", "comment": "The Queen's Gambit Declined"}, "Nc3", "Nf6",
+        "Bg5", "Nbd7", "e3", "c6", "Nf3", "Qa5", "Qc2", "Ne4",
+        {"san": "Bd3", "comment": "This normal-looking development move is a blunder."}, "Nxg5",
+        "Nxg5", {"san": "dxc4", "comment": "Black wins a piece."}
+      ],
+      "userColor": "b",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Queen's Gambit Declined/Black"
+    },
+    {
+      "id": "866418b4-9328-5ab1-bdca-5fb0e38aa7dd",
+      "name": "White Queen's Gambit Declined - d4 d5 c4 e5 dxe5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "d5", "c4", "e5",
+        [
+          "e6", "Nc3", "Nf6", "cxd5", "exd5", "Bg5", "Be7", "e3", "c6", "Qc2", "Ne4", "Bxe7",
+          "Qxe7", "Nxd5", "cxd5", "Qxc8+"
+        ],
+        "dxe5", "d4", "Nf3", "Nc6", "g3", "Bg4", "Bg2", "Qd7", "O-O", "O-O-O", "Qb3", "Bh3", "e6",
+        "Bxe6", ["Qxe6", "Ng5"], "Ne5", "Qd6", "Nxc6", "bxc6", "Qa4"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Queen's Gambit Declined/White"
+    }
+  ]
+}

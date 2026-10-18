@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "d81d4e78-2b38-54a2-b97b-a697f72b2d6c",
+      "name": "Scotch Game - e4 e5 Nf3 Nc6 d4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e5", "Nf3", "Nc6", {"san": "d4", "comment": "The Scotch Opening"}, "exd4", "Bc4",
+        "Be7", "c3", "dxc3", "Qd5", "Nh6",
+        {
+          "san": "Bxh6",
+          "comment": "It seems that Black lost a piece and should resign, but in fact:"
+        },
+        "O-O", "Bc1", {"san": "Nb4", "comment": "attacking the queen and threatening a fork on c2"},
+        "Qd1", "c2"
+      ],
+      "userColor": "b",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Scotch Game/Black"
+    },
+    {
+      "id": "77a80385-20ac-510a-a9e6-bab07a67511b",
+      "name": "White Scotch Game - e4 e5 Nf3 Nc6 d4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e5", "Nf3", "Nc6", {"san": "d4", "comment": "The Scotch Game"}, "exd4",
+        {"san": "Bc4", "comment": "The Scotch Gambit"}, "Bc5", "Ng5", "Ne5",
+        [{"san": "Nh6", "comment": "After this difficult-to-find move, the game is equal."}],
+        "Nxf7", "Nxf7", "Bxf7+", "Kxf7",
+        {
+          "san": "Qh5+",
+          "comment": "White regains the Bishop and has the much better position in the end."
+        }
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Scotch Game/White"
+    }
+  ]
+}

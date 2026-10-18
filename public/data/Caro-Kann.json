@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "exportedAt": 1792267801162,
+  "exportedAt": 1792269758926,
   "lines": [
     {
       "id": "d4cdebfd-4dc4-5cd0-9177-2d9c69dcc7a3",
@@ -18,7 +18,7 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Caro-Kann Defense"
+      "folder": "Caro-Kann Defense/Black"
     },
     {
       "id": "d79ee334-2a89-511d-880c-1eedc955592f",
@@ -28,7 +28,7 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Caro-Kann Defense"
+      "folder": "Caro-Kann Defense/Black"
     },
     {
       "id": "bb524307-8051-510c-b7c6-53b5cdbf85f2",
@@ -46,7 +46,7 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Caro-Kann Defense"
+      "folder": "Caro-Kann Defense/Black"
     },
     {
       "id": "54f0a0e4-09a2-50f4-8cb4-bcd77fd06072",
@@ -59,7 +59,66 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Caro-Kann Defense"
+      "folder": "Caro-Kann Defense/Black"
+    },
+    {
+      "id": "87213391-b174-5608-a923-c5f8725ee59a",
+      "name": "White Caro-Kann Defense - e4 c6 d3 d5 Nf3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "c6", {"san": "d3", "comment": "The (unambitious) Breyer Variation"}, "d5", "Nf3",
+        "dxe4", "Ng5", "exd3", "Bxd3", "Nf6",
+        [
+          "Nd7", "Bc4", "e6", "O-O", "Be7", "Bxe6", "Bxg5", "Qh5", "g6", "Bxd7+", "Bxd7", "Qxg5",
+          "Qxg5", "Bxg5"
+        ],
+        "Nxf7", "Kxf7",
+        {"san": "Bg6+", "comment": "Black looses the queen, the best move here is resignation."}
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Caro-Kann Defense/White"
+    },
+    {
+      "id": "9ce632ae-bbf8-5c05-9e91-0c9fc7e671c0",
+      "name": "White Caro-Kann Defense - e4 c6 d4 d5 Nc3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", {"san": "c6", "comment": "Caro-Kann"}, "d4", "d5", "Nc3",
+        [
+          "Nd2", "dxe4", "Nxe4", "Nd7", "Ng5", "Ngf6", ["h6", "Ne6", "Qb6", "Nxf8"], "Bd3", "e6",
+          "N1f3",
+          {
+            "san": "h6",
+            "comment": "The player who played this mistake is no one else than Garry Kasparov in his match against the compute Deep Blue. It is the first time the world champion had been defeated in a match by a computer."
+          },
+          "Nxe6", "fxe6", "Bg6+", "Ke7", "O-O"
+        ],
+        "dxe4", "Nxe4", "Bf5", "Ng3", "Bg6", "h4", "h6", "h5", "Bh7", "Nf3", "Nd7", "Bd3", "Bxd3",
+        "Qxd3", "e6", "O-O", "Ngf6", "Re1",
+        {"san": "Qc7", "comment": "with the idea to prevent Bf4"}, "Ne5", "Be7", "Nxf7", "Kxf7",
+        "Qg6+", "Kg8", "Nf5", "exf5", "Rxe7", "Rh7", "Bxh6", "Nxh5", "Qf7+", "Kh8", "Re8+", "Rxe8",
+        "Qxe8+", "Nf8", "Qxf8#"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Caro-Kann Defense/White"
+    },
+    {
+      "id": "61821624-bbed-5fb1-b318-f15df1031ed1",
+      "name": "White Caro-Kann Defense - e4 c6 Nc3 d5 Nf3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "c6", "Nc3", "d5", "Nf3", "dxe4", "Nxe4", "Bf5", ["Nf6", "Qe2", "Nbd7", "Nd6#"],
+        "Ng3", "Bg6", "h4", "h6", "Ne5", "Bh7", "Qh5", "g6", "Bc4", "e6", "Qe2", "Ne7", "Nxf7",
+        "Kxf7", "Qxe6+", "Ke8", "Ne4"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Caro-Kann Defense/White"
     }
   ]
 }

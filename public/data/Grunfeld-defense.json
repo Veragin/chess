@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792269758926,
+  "lines": [
+    {
+      "id": "d3589d8e-9871-549b-87f8-28c4011e105c",
+      "name": "Grunfeld Defense - d4 Nf6 c4 g6 Nc3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "Nf6", "c4", "g6", "Nc3", "d5", "cxd5", "Nxd5", "e4", "Nxc3", "bxc3", "Bg7", "Bc4",
+        "O-O", "Ne2", "Nc6", "O-O", "b6", "Bg5", "Bb7", "Qd2", "Qd6", "e5", "Nxe5", "dxe5", "Qc6"
+      ],
+      "userColor": "b",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Grunfeld Defense/Black"
+    }
+  ]
+}

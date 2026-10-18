@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "exportedAt": 1792267801162,
+  "exportedAt": 1792269758926,
   "lines": [
     {
       "id": "dd9d2844-be13-52c3-99c2-0e4f9bc20ce6",
@@ -13,7 +13,7 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Sicilian Defense"
+      "folder": "Sicilian Defense/Black"
     },
     {
       "id": "58073713-cff1-554f-a4c2-bbc50e2aadae",
@@ -30,7 +30,7 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Sicilian Defense"
+      "folder": "Sicilian Defense/Black"
     },
     {
       "id": "ae678255-1662-5c7a-808b-42b0361d4d58",
@@ -40,7 +40,7 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Sicilian Defense"
+      "folder": "Sicilian Defense/Black"
     },
     {
       "id": "cc53c1a0-ac5f-53d7-b25b-6397c5b955d4",
@@ -61,7 +61,7 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Sicilian Defense"
+      "folder": "Sicilian Defense/Black"
     },
     {
       "id": "5a80579f-11b5-5ed3-bb34-43dd57713793",
@@ -71,17 +71,87 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Sicilian Defense"
+      "folder": "Sicilian Defense/Black"
     },
     {
       "id": "60f0a430-dbc8-50f6-9531-6d8b6709fa7d",
       "name": "Sicilian Defense - e4 c5 d4 cxd4 Nf3",
       "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-      "tree": ["e4", "c5", "d4", "cxd4", "Nf3", "e5", "Nxe5", "Qa5+", "Bd2", "Qxe5"],
+      "tree": [
+        "e4", "c5", "d4", "cxd4", "Nf3",
+        [
+          {"san": "c3", "comment": "The Smith-Morra Gambit"}, "dxc3", "Nxc3", "Nc6", "Nf3", "e6",
+          "Bc4", "Qc7", "O-O", "Nf6", "Qe2", "Ng4", "h3",
+          [
+            "g3", "a6", "Bf4",
+            {
+              "san": "d6",
+              "comment": "is what White should play, with enough compensation for the sacrificed pawn."
+            }
+          ],
+          {
+            "san": "Nd4",
+            "comment": "attacks the queen and the knight on f3 which is busy guarding the field h2. White is lost."
+          },
+          "Qd1", "Nxf3+", "Qxf3", "Qh2#"
+        ],
+        "e5", "Nxe5", "Qa5+", "Bd2", "Qxe5"
+      ],
       "userColor": "b",
       "createdAt": 1792267801162,
-      "updatedAt": 1792267801162,
-      "folder": "Sicilian Defense"
+      "updatedAt": 1792269758926,
+      "folder": "Sicilian Defense/Black"
+    },
+    {
+      "id": "ed25c762-00b8-5b6b-88f2-76a464afa610",
+      "name": "White Sicilian Defense - e4 c5 Nc3 Nc6 Bb5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "c5", {"san": "Nc3", "comment": "The Closed Sicilian"}, "Nc6", "Bb5", "Nd4", "Bc4",
+        "e6",
+        [
+          "g6", "Nf3", "Bg7", "Nxd4", "cxd4", "Qf3", "e6",
+          [{"san": "Nh6", "comment": "has to be played"}], "Nb5", "d6",
+          {"san": "Qa3", "comment": "White is better"}
+        ],
+        "Nge2", "Nf6", {"san": "O-O", "comment": "d5 is the move Black would like to play, but:"},
+        "d5", ["Nxe4", "Nxe4", "d5", "Nxd4", "cxd4", "Bb5+"], "exd5", "exd5", "Nxd5", "Nxd5",
+        ["Nf3+", "Kh1", "Nxd5", "Nc3", "Nxc3", "Qxf3"], "Nxd4",
+        {"san": "cxd4", "comment": "White is down a minor piece, but will win it back shortly."},
+        "Qh5", "Be6", "Re1", "Be7", "Rxe6", "O-O", "Re1"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Sicilian Defense/White"
+    },
+    {
+      "id": "64333a06-d531-5a0a-a93f-b71e6a243e77",
+      "name": "White Sicilian Defense - e4 c5 Nf3 Nc6 d4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "c5", "Nf3", "Nc6",
+        [
+          "d6", "d4", "cxd4", "Nxd4", "Nf6", "Nc3", "g6", "f4", "Bg7", "e5", "dxe5", "fxe5", "Ng4",
+          "Bb5+", "Bd7", ["Nc6", "Nxc6", "bxc6", "Bxc6+"], ["Kf8", "Ne6+", "fxe6", "Qxd8+"], "Qxg4"
+        ],
+        "d4", "cxd4", "Nxd4", "Nf6",
+        [
+          "g6", "Nc3", "Bg7", "Be3", "Nf6", "Bc4", "O-O", "Bb3", "Na5", "e5", "Ne8",
+          ["Nxb3", "exf6", "Nxa1", "fxg7"], "Bxf7+", "Rxf7",
+          ["Kxf7", "Ne6", "Kxe6", "Qd5+", "Kf5", "g4+", "Kxg4", "Rg1+", "Kh5", "Qg2"], "Ne6"
+        ],
+        "Nc3", "e5",
+        [
+          "g6", "Nxc6", "bxc6", "e5", "Nd5", "Nxd5", "cxd5", "Qxd5", "Rb8", "e6", "fxe6",
+          ["dxe6", "Qe5"], "Qe5"
+        ],
+        "Ndb5", "d6", "Nd5", "Nxd5", "exd5", "Ne7", "c4", "a6", "Qa4"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Sicilian Defense/White"
     }
   ]
 }
