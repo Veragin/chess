@@ -8,6 +8,7 @@ import {
   coverageArrows,
   coverageAt,
   EMPTY_COVERAGE,
+  linesTrainedFor,
   positionKey,
 } from './coverage';
 import { treeFromMoves, type MoveNode, type MoveTree } from '../../chess/tree';
@@ -174,7 +175,7 @@ describe('coverageAt with moves that transpose into a line', () => {
     expect(coverage.moves[0]?.lines.map((l) => l.name)).toEqual(['Stafford d3']);
     expect(coverage.moves[0]?.transpositions[0]?.nextSan).toBe('h5');
     expect(coverageArrows(coverage, after([...stafford, 'Be2', 'Bc5']))).toEqual([
-      { san: 'd3', from: 'd2', to: 'd3', weight: 1 },
+      { san: 'd3', from: 'd2', to: 'd3', weight: 1, side: 'w' },
     ]);
   });
 
@@ -335,8 +336,8 @@ describe('coverageArrows', () => {
   it('turns each continuation into squares, weighted by its share of the most-played move', () => {
     const arrows = coverageArrows(coverageAt(index, START_FEN), START_FEN);
     expect(arrows).toEqual([
-      { san: 'e4', from: 'e2', to: 'e4', weight: 1 },
-      { san: 'd4', from: 'd2', to: 'd4', weight: 1 / 3 },
+      { san: 'e4', from: 'e2', to: 'e4', weight: 1, side: 'w' },
+      { san: 'd4', from: 'd2', to: 'd4', weight: 1 / 3, side: 'w' },
     ]);
   });
 
@@ -344,10 +345,36 @@ describe('coverageArrows', () => {
     const castled = line('Castle', ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5', 'O-O']);
     const fen = after(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5']);
     const arrows = coverageArrows(coverageAt(buildCoverageIndex([castled]), fen), fen);
-    expect(arrows).toEqual([{ san: 'O-O', from: 'e1', to: 'g1', weight: 1 }]);
+    expect(arrows).toEqual([{ san: 'O-O', from: 'e1', to: 'g1', weight: 1, side: 'w' }]);
   });
 
   it('is empty where the repertoire says nothing', () => {
     expect(coverageArrows(EMPTY_COVERAGE, START_FEN)).toEqual([]);
+  });
+
+  it('marks each arrow with the side its lines are trained for', () => {
+    const lines = [
+      line('White e4', ['e4', 'e5']),
+      line('Black e4', ['e4', 'c5'], { userColor: 'b' }),
+      line('Black d4', ['d4', 'd5'], { userColor: 'b' }),
+      line('White c4', ['c4', 'e5']),
+    ];
+    const arrows = coverageArrows(coverageAt(buildCoverageIndex(lines), START_FEN), START_FEN);
+    expect(arrows.map((a) => [a.san, a.side])).toEqual([
+      ['e4', 'both'],
+      ['c4', 'w'],
+      ['d4', 'b'],
+    ]);
+  });
+});
+
+describe('linesTrainedFor', () => {
+  const white = line('White', ['e4']);
+  const black = line('Black', ['e4', 'e5'], { userColor: 'b' });
+
+  it('keeps only the lines trained for the chosen side', () => {
+    expect(linesTrainedFor([white, black], 'w')).toEqual([white]);
+    expect(linesTrainedFor([white, black], 'b')).toEqual([black]);
+    expect(linesTrainedFor([white, black], 'both')).toEqual([white, black]);
   });
 });

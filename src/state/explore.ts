@@ -14,6 +14,7 @@
 import { useSyncExternalStore } from 'react';
 import { createHistory, historyFromSan, type HistoryState } from '../chess/history';
 import { START_FEN } from '../chess/position';
+import type { TrainedFor } from '../sections/explore/coverage';
 
 let current: HistoryState = createHistory(START_FEN);
 
@@ -60,4 +61,35 @@ export function useExploration(): {
 } {
   const history = useSyncExternalStore(subscribeExploration, getExploration, getExploration);
   return { history, setHistory: setExploration, loadExploration };
+}
+
+/**
+ * Which side's lines the exploration compares against. Kept here, beside the position, so it
+ * survives a trip to Training and back just as the position does.
+ */
+let trainedFor: TrainedFor = 'both';
+
+const trainedForListeners = new Set<() => void>();
+
+function getTrainedFor(): TrainedFor {
+  return trainedFor;
+}
+
+function setTrainedFor(next: TrainedFor): void {
+  if (next === trainedFor) return;
+  trainedFor = next;
+  for (const fn of [...trainedForListeners]) fn();
+}
+
+function subscribeTrainedFor(fn: () => void): () => void {
+  trainedForListeners.add(fn);
+  return () => {
+    trainedForListeners.delete(fn);
+  };
+}
+
+/** React binding for the trained-for filter. */
+export function useTrainedFor(): [TrainedFor, (next: TrainedFor) => void] {
+  const value = useSyncExternalStore(subscribeTrainedFor, getTrainedFor, getTrainedFor);
+  return [value, setTrainedFor];
 }

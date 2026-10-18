@@ -484,6 +484,23 @@ export function arrivalComments(
   return out;
 }
 
+/** Which side's lines count: those trained for White, for Black, or every line. */
+export type TrainedFor = 'w' | 'b' | 'both';
+
+/** The lines trained for `side` (`'both'` keeps them all). */
+export function linesTrainedFor(lines: readonly Line[], side: TrainedFor): Line[] {
+  return side === 'both' ? lines.slice() : lines.filter((line) => line.userColor === side);
+}
+
+/** The side the lines behind a move are trained for: one colour, or `'both'` when they mix. */
+function sideOf(lines: readonly Line[]): TrainedFor {
+  const white = lines.some((line) => line.userColor === 'w');
+  const black = lines.some((line) => line.userColor === 'b');
+  if (white && !black) return 'w';
+  if (black && !white) return 'b';
+  return 'both';
+}
+
 /** A continuation drawn on the board: squares from the move, prominence from its line count. */
 export interface CoverageArrow {
   san: string;
@@ -491,6 +508,8 @@ export interface CoverageArrow {
   to: string;
   /** Lines playing this move relative to the most-played continuation, in (0, 1]. */
   weight: number;
+  /** Who the lines behind the move are trained for — the arrow's outline. */
+  side: TrainedFor;
 }
 
 /**
@@ -508,6 +527,7 @@ export function coverageArrows(coverage: Coverage, fen: string): CoverageArrow[]
       from: uci.slice(0, 2),
       to: uci.slice(2, 4),
       weight: most === 0 ? 1 : move.lines.length / most,
+      side: sideOf(move.lines),
     });
   }
   return out;

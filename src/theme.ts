@@ -39,6 +39,9 @@ export const theme = {
     coordinate: 'rgba(20, 24, 29, 0.65)',
     /** Move arrows drawn over the board (e.g. the repertoire's known moves). */
     arrow: 'rgb(56, 142, 60)',
+    /** Border of an arrow whose lines are all trained for White / for Black. */
+    arrowWhite: '#f5f5f5',
+    arrowBlack: '#111111',
   },
   space: {
     xs: '4px',

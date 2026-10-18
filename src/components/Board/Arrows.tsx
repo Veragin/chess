@@ -6,6 +6,8 @@ export interface BoardArrow {
   to: Square;
   /** 0..1 — how prominent the arrow is (opacity and width). Default 1. */
   weight?: number;
+  /** Colour of a border drawn around the arrow; none when omitted. */
+  outline?: string;
 }
 
 export interface ArrowsProps {
@@ -83,6 +85,9 @@ export function Arrows({ arrows, orientation }: ArrowsProps) {
             )}
             fill={theme.board.arrow}
             fillOpacity={0.45 + 0.4 * weight}
+            stroke={arrow.outline}
+            strokeWidth={arrow.outline === undefined ? undefined : 0.05}
+            strokeLinejoin="round"
           />
         );
       })}

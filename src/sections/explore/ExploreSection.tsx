@@ -30,7 +30,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import styled from 'styled-components';
+import styled, { useTheme } from 'styled-components';
 import { Board } from '../../components/Board';
 import { EngineLines } from '../../components/EngineLines';
 import { EvalBar } from '../../components/EvalBar';
@@ -48,7 +48,7 @@ import {
 } from '../../chess/history';
 import { flipOrientation, START_FEN, type Orientation } from '../../chess/position';
 import { useEngine } from '../../engine/useEngine';
-import { useExploration } from '../../state/explore';
+import { useExploration, useTrainedFor } from '../../state/explore';
 import { stageNewLine } from '../../state/newLine';
 import { allFolderPaths, folderLabel, linesUnderFolder } from '../../storage/folders';
 import { listLines } from '../../storage/lines';
@@ -58,14 +58,23 @@ import { draftMoves } from '../training/lines/draft';
 import { linesPath, newLineFromExplorePath } from '../training/lines/folderNav';
 import { moveCountLabel } from '../training/lines/lineFormat';
 import { CoveragePanel } from './CoveragePanel';
-import { arrivalComments, buildCoverageIndex, coverageArrows, coverageAt } from './coverage';
+import {
+  arrivalComments,
+  buildCoverageIndex,
+  coverageArrows,
+  coverageAt,
+  linesTrainedFor,
+  type TrainedFor,
+} from './coverage';
 
 export function ExploreSection() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const folder = normaliseFolderPath(params.get('folder'));
   const { history, setHistory, loadExploration } = useExploration();
+  const [trainedFor, setTrainedFor] = useTrainedFor();
   const [orientation, setOrientation] = useState<Orientation>('white');
+  const theme = useTheme();
   const wide = useIsWideLayout();
 
   const fen = currentFen(history);
@@ -79,12 +88,28 @@ export function ExploreSection() {
   // line and coming back re-reads the store — while a walk through the tree never does.
   const lines = useMemo(() => listLines(), []);
   const folders = useMemo(() => allFolderPaths(lines), [lines]);
-  const scope = useMemo(() => linesUnderFolder(lines, folder), [lines, folder]);
+  const scope = useMemo(
+    () => linesTrainedFor(linesUnderFolder(lines, folder), trainedFor),
+    [lines, folder, trainedFor],
+  );
   // Built from the scope, not from the position: one replay of each line, then a lookup per move.
   const index = useMemo(() => buildCoverageIndex(scope), [scope]);
   const coverage = useMemo(() => coverageAt(index, fen), [index, fen]);
   // The known continuations, drawn on the board so coverage reads without looking at the panel.
-  const arrows = useMemo(() => coverageArrows(coverage, fen), [coverage, fen]);
+  // Outlined by the side the move's lines are trained for; a move both sides train stays plain.
+  const arrows = useMemo(
+    () =>
+      coverageArrows(coverage, fen).map((arrow) => ({
+        ...arrow,
+        outline:
+          arrow.side === 'w'
+            ? theme.board.arrowWhite
+            : arrow.side === 'b'
+              ? theme.board.arrowBlack
+              : undefined,
+      })),
+    [coverage, fen, theme],
+  );
   // The board's last move, matched against the reaching lines' nodes for its comment.
   const arrival = useMemo(() => {
     const entry = history.cursor >= 0 ? history.entries[history.cursor] : undefined;
@@ -172,6 +197,19 @@ export function ExploreSection() {
               {path}
             </option>
           ))}
+        </ScopeSelect>
+      </ScopeField>
+      <ScopeField>
+        <ScopeLabel htmlFor="explore-trained-for">Trained for</ScopeLabel>
+        <ScopeSelect
+          id="explore-trained-for"
+          value={trainedFor}
+          data-testid="explore-trained-for"
+          onChange={(event) => setTrainedFor(event.target.value as TrainedFor)}
+        >
+          <option value="both">Both</option>
+          <option value="w">White</option>
+          <option value="b">Black</option>
         </ScopeSelect>
       </ScopeField>
       <Caption data-testid="explore-caption">{caption}</Caption>
