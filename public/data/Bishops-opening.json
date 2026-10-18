@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 2,
+  "exportedAt": 1792352583819,
+  "lines": [
+    {
+      "id": "47fdd5ab-b802-4066-9fba-24e2c93d61ca",
+      "name": "Bishop's Opening traps - e4 e5 Bc4 Nc6 Qh5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e5", "Bc4", "Nc6", "Qh5", "g6", "Qf3", "Nf6",
+        {"san": "Qb3", "comment": "mistake: runs into a knight jump"},
+        [
+          "g4", {"san": "Nd4", "comment": "threatens Nf3+ and Nxc2+"}, "Qd1",
+          ["Qg3", {"san": "Nxc2+", "comment": "forks king and rook"}],
+          {"san": "d5", "comment": "opens lines while White is undeveloped"}, "Be2", "dxe4"
+        ],
+        ["Ne2", {"san": "Bg7", "comment": "White played correctly - normal equal game"}],
+        {"san": "Nd4", "comment": "hits the queen and c2"}, "Bxf7+",
+        ["Qc3", {"san": "Nxe4", "comment": "e4 falls with tempo on the queen"}],
+        ["Qa4", {"san": "Nxe4", "comment": "e4 falls; c2 still hangs to the knight"}], "Ke7", "Qc4",
+        {"san": "b5", "comment": "the bishop on f7 has no retreat"}, "Qd3", "Kxf7"
+      ],
+      "userColor": "b",
+      "createdAt": 1792352583819,
+      "updatedAt": 1792352583819,
+      "folder": "Stafford/Black/reject Bc4"
+    },
+    {
+      "id": "9294ebf0-0bcf-4c49-a78e-2d1a04be4d04",
+      "name": "Bishop's Opening traps - e4 e5 Bc4 Bc5 Qh5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e5", "Bc4", "Bc5", "Qh5",
+        ["Qg4", {"san": "Qf6", "comment": "safe. Not 3...Nf6? 4.Qxg7 Rf8 (4...Rg8?? 5.Qxf7#)"}],
+        {"san": "Qe7", "comment": "guards e5 and f7"}, "Nf3", "Nc6",
+        {"san": "Nxe5", "comment": "mistake: e5 was defended twice"}, "Nxe5", "Bb3",
+        ["Qxe5", {"san": "Qxe5", "comment": "the e-file is open - White just loses the queen"}],
+        {"san": "d5", "comment": "Black is a piece up"}
+      ],
+      "userColor": "b",
+      "createdAt": 1792352583819,
+      "updatedAt": 1792352583819,
+      "folder": "Stafford/Black/reject Bc4"
+    },
+    {
+      "id": "a7fc46e3-8891-44cd-8ee8-eba05f76296b",
+      "name": "Bishop's Opening traps - e4 e5 Bc4 Nf6 d3",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e5", "Bc4", "Nf6", "d3",
+        [
+          "d4", "exd4", "e5", {"san": "d5", "comment": "counter-hits the bishop"}, "exf6",
+          ["Bb5+", {"san": "c6", "comment": "6.exf6 cxb5 - material level, Black is comfortable"}],
+          {"san": "dxc4", "comment": "material level, Black has the bishop pair and f6 falls"},
+          "fxg7", ["Qh5", "Qxf6"], "Bxg7"
+        ],
+        "Bc5", "Nf3", "d6", {"san": "Ng5", "comment": "premature attack on f7"}, "O-O",
+        {"san": "Nxf7", "comment": "mistake: rook and pawn for two minor pieces"}, "Rxf7", "Bxf7+",
+        {"san": "Kxf7", "comment": "two pieces for a rook - Black is clearly better"}
+      ],
+      "userColor": "b",
+      "createdAt": 1792352583819,
+      "updatedAt": 1792352583819,
+      "folder": "Stafford/Black/reject Bc4"
+    }
+  ]
+}
+
