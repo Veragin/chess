@@ -7,7 +7,8 @@
  * picked to learn (`storage/personal.ts` — ids, never copies). Both show the same folder structure,
  * because both derive it from the lines' own `folder` paths (`./lines/lineSet.ts`). The section is
  * remembered for the tab (`sessionStorage`): opening `#/training` without `?set=` after leaving
- * Personal goes back to Personal.
+ * Personal goes back to Personal. A tab that has not been in either yet opens on Personal when
+ * there are favourites, on Database otherwise.
  *
  * The list is **one folder at a time**: breadcrumbs up, subfolder cards down, and the lines filed
  * directly here in between. Folders are implicit in each line's `folder` path (see
@@ -147,21 +148,28 @@ function writeMineOnly(on: boolean): void {
     }
 }
 
-/** The section last shown in this tab; any storage failure just means "Database". */
+/**
+ * The section last shown in this tab. A tab that has not picked one yet (or whose storage fails)
+ * opens on Favourite when there are favourites, so the lines being learnt come first, and on
+ * Database otherwise.
+ */
 function readRememberedSet(): LineSet {
+    let remembered: string | null = null;
     try {
-        return globalThis.sessionStorage?.getItem(SET_KEY) === 'favourite' ? 'favourite' : 'database';
+        remembered = globalThis.sessionStorage?.getItem(SET_KEY) ?? null;
     } catch {
-        return 'database';
+        // Treated as nothing remembered.
     }
+    if (remembered === 'favourite' || remembered === 'database') return remembered;
+    return personalIds().size > 0 ? 'favourite' : 'database';
 }
 
+/** Both sections are stored explicitly, so choosing Database outlasts the Favourite default. */
 function writeRememberedSet(set: LineSet): void {
     try {
-        if (set === 'favourite') globalThis.sessionStorage?.setItem(SET_KEY, 'favourite');
-        else globalThis.sessionStorage?.removeItem(SET_KEY);
+        globalThis.sessionStorage?.setItem(SET_KEY, set);
     } catch {
-        // Not remembered; `#/training` simply opens on Database next time.
+        // Not remembered; `#/training` falls back to the default next time.
     }
 }
 
@@ -192,7 +200,8 @@ export function LinesList() {
     const [params, setParams] = useSearchParams();
     const folder = normaliseFolderPath(params.get('folder'));
     /**
-     * `?set=` wins; without it, the section this tab was last in. Database is spelled as no
+     * `?set=` wins; without it, the section this tab was last in (or, in a fresh tab, Favourite
+     * when there are favourites — see `readRememberedSet`). Database is spelled as no
      * parameter, so only a remembered Personal needs the URL rewritten (the effect below) — the
      * screen already renders it on this paint.
      */
@@ -201,14 +210,14 @@ export function LinesList() {
     const inPersonal = set === 'favourite';
 
     useEffect(() => {
+        // Whatever section is shown counts as being there — an explicit one (a Back link from
+        // drill or the editor) or the default — so starring a line later does not move a bare
+        // Database URL over to Favourite.
+        writeRememberedSet(set);
         if (!urlHasSet && set === 'favourite') {
             const next = new URLSearchParams(params);
             next.set('set', 'favourite');
             setParams(next, { replace: true });
-        } else if (urlHasSet) {
-            // Arriving on an explicit section (a Back link from drill or the editor) counts as
-            // being there.
-            writeRememberedSet(set);
         }
     }, [params, set, setParams, urlHasSet]);
 

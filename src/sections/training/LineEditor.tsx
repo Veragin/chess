@@ -33,6 +33,10 @@
  * a new id, and `storage/lines.ts` moves the pick with it). The one exception is creating: a new
  * line saved from the Personal section is added to Personal, since that is where the user is
  * building their repertoire.
+ *
+ * The ★/☆ next to the heading is the same Favourite toggle as on the list rows. On an existing
+ * line it writes straight away (like the list, it is not part of the draft); on a new line there
+ * is no id yet, so it only says whether the line joins Favourite when it is saved.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -69,11 +73,11 @@ import {
 } from '../../chess/treeHistory';
 import { allFolderPaths, folderLabel } from '../../storage/folders';
 import { createLine, getLine, isServerLine, listLines, updateLine } from '../../storage/lines';
-import { addPersonal } from '../../storage/personal';
+import { addPersonal, isPersonal, removePersonal } from '../../storage/personal';
 import { normaliseFolderPath } from '../../storage/schema';
 import { clearStagedLine, peekStagedLine, type StagedLine } from '../../state/newLine';
 import { ConfirmDialog } from './lines/ConfirmDialog';
-import { linesPath, parseLineSet } from './lines/folderNav';
+import { linesPath, parseLineSet, type LineSet } from './lines/folderNav';
 import { Notice, NoticeTitle } from './lines/Notice';
 import {
   draftFromLine,
@@ -85,6 +89,7 @@ import {
   type LineDraft,
 } from './lines/draft';
 import { colorLabel, isStandardStart, lineSizeLabel, moveCountLabel } from './lines/lineFormat';
+import { favouriteToggleLabel } from './lines/personalStatus';
 
 /**
  * Sentinel value of the folder picker's last option. Not a legal folder path — `/` is the path
@@ -103,6 +108,8 @@ interface EditorState {
   loadNotice: string | null;
   /** Editing a bundled line: saving stores the user's own copy (see `storage/lines.ts`). */
   server?: boolean;
+  /** Whether the line is (edit) or will be on save (new) in Favourite. */
+  favourite: boolean;
 }
 
 /** A "Delete from here" waiting for confirmation. */
@@ -116,6 +123,7 @@ interface PendingRemoval {
 function seedState(
   id: string | undefined,
   folder: string,
+  set: LineSet,
   staged: StagedLine | null,
 ): EditorState {
   if (id === undefined) {
@@ -123,7 +131,14 @@ function seedState(
     // files it there without the user having to retype the path.
     const draft = emptyDraft(folder);
     if (staged === null) {
-      return { routeId: null, status: 'new', draft, baseline: draft, loadNotice: null };
+      return {
+        routeId: null,
+        status: 'new',
+        draft,
+        baseline: draft,
+        loadNotice: null,
+        favourite: set === 'favourite',
+      };
     }
     // Moves handed over by explore or analyse — a linear list, loaded as a single-branch tree.
     // Replayed rather than trusted: the staged list came from a live board, but the editor
@@ -138,6 +153,7 @@ function seedState(
     return {
       routeId: null,
       status: 'new',
+      favourite: set === 'favourite',
       draft: seeded,
       // A blank baseline, so leaving without saving still counts as discarding something.
       baseline: draft,
@@ -150,13 +166,21 @@ function seedState(
   const line = getLine(id);
   if (line === null) {
     const draft = emptyDraft();
-    return { routeId: id, status: 'missing', draft, baseline: draft, loadNotice: null };
+    return {
+      routeId: id,
+      status: 'missing',
+      draft,
+      baseline: draft,
+      loadNotice: null,
+      favourite: false,
+    };
   }
   const { draft, dropped } = draftFromLine(line);
   return {
     routeId: id,
     status: 'edit',
     server: isServerLine(line),
+    favourite: isPersonal(line.id),
     draft,
     baseline: draft,
     loadNotice:
@@ -181,7 +205,7 @@ export function LineEditor() {
   const handoff = params.get('from');
   const staged = handoff === 'explore' || handoff === 'analyze' ? peekStagedLine() : null;
 
-  const [state, setState] = useState<EditorState>(() => seedState(id, fromFolder, staged));
+  const [state, setState] = useState<EditorState>(() => seedState(id, fromFolder, set, staged));
   /** Existing folder paths, for the folder picker. Read once — the editor is the writer. */
   const knownFolders = useMemo(() => allFolderPaths(listLines()), []);
   /** True while the folder is being typed rather than picked (a folder that does not exist yet). */
@@ -207,7 +231,7 @@ export function LineEditor() {
   // "adjust state when a prop changes" pattern) rather than in an effect, which would paint the
   // wrong line for one frame.
   if (state.routeId !== (id ?? null)) {
-    const next = seedState(id, fromFolder, staged);
+    const next = seedState(id, fromFolder, set, staged);
     setState(next);
     setOrientation(seedOrientation(next.draft.userColor));
     setTypingFolder(false);
@@ -219,7 +243,7 @@ export function LineEditor() {
     setThreatModeAt(null);
   }
 
-  const { draft, baseline, status } = state;
+  const { draft, baseline, status, favourite } = state;
   const history = draft.history;
 
   const patch = useCallback((next: Partial<LineDraft>) => {
@@ -361,16 +385,29 @@ export function LineEditor() {
       }
     } else {
       const created = createLine(input);
-      // Created from the Personal section: file it there too. A failed write only reached
-      // memory, which the list reports through its storage warning like any other write.
-      if (set === 'favourite') addPersonal([created.id]);
+      // Starred (by default when created from the Favourite section): file it there too. A
+      // failed write only reached memory, which the list reports like any other write.
+      if (favourite) addPersonal([created.id]);
     }
     // A write that only reached the in-memory fallback still counts as saved for this session;
     // the list surfaces `storageWarning()` prominently, so it is reported there, not here.
     // Return to the line's *own* folder rather than where the user came from: after moving a
     // line to another folder, an empty list at the old location looks like the save failed.
     goTo(linesPath(input.folder ?? '', set));
-  }, [draft, goTo, id, status, set]);
+  }, [draft, favourite, goTo, id, status, set]);
+
+  /**
+   * An existing line is starred or unstarred at once — even an edited bundled line, whose pick
+   * `storage/lines.ts` moves to the forked copy on save. A new line only remembers the choice.
+   */
+  const toggleFavourite = useCallback(() => {
+    const next = !favourite;
+    if (status === 'edit' && id !== undefined) {
+      if (next) addPersonal([id]);
+      else removePersonal([id]);
+    }
+    setState((prev) => ({ ...prev, favourite: next }));
+  }, [favourite, id, status]);
 
   const leave = useCallback(
     (to: string) => {
@@ -426,6 +463,23 @@ export function LineEditor() {
     <Wrap data-testid="line-editor">
       <TopBar>
         <Heading>{status === 'edit' ? 'Edit line' : 'New line'}</Heading>
+        <StarButton
+          type="button"
+          $on={favourite}
+          aria-pressed={favourite}
+          data-testid="editor-favourite"
+          aria-label={favouriteToggleLabel(favourite)}
+          title={
+            status === 'edit'
+              ? favouriteToggleLabel(favourite)
+              : favourite
+                ? 'Will be added to favourites on save'
+                : 'Add to favourites on save'
+          }
+          onClick={toggleFavourite}
+        >
+          {favourite ? '★' : '☆'}
+        </StarButton>
         <Grow />
         <Button data-testid="cancel-edit" onClick={() => leave(backTo)}>
           {dirty ? 'Discard' : 'Back'}
@@ -796,6 +850,40 @@ const TopBar = styled.div`
 const Heading = styled.h1`
   margin: 0;
   font-size: ${(p) => p.theme.font.size.xl};
+`;
+
+/** Same look as the list's favourite star (`LinesList.tsx`). */
+const StarButton = styled.button<{ $on: boolean }>`
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: ${(p) => p.theme.radius.sm};
+  background: none;
+  color: ${(p) => (p.$on ? p.theme.color.star : p.theme.color.textFaint)};
+  font-family: inherit;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+
+  @media ${(p) => p.theme.media.wide} {
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  &:hover {
+    color: ${(p) => p.theme.color.star};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${(p) => p.theme.color.focus};
+    outline-offset: 2px;
+  }
 `;
 
 const Grow = styled.div`

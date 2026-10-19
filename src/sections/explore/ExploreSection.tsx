@@ -29,18 +29,22 @@
  * against every saved line. Back, the folder picker and "Save as new line" all keep it, so a line
  * saved while exploring Personal lands in Personal (see `LineEditor`).
  *
+ * The toolbar stays on one line: back, the folder and trained-for pickers, the side to move and the
+ * flip button. When the toolbar is too narrow the side-to-move caption goes first, then the
+ * pickers' visible labels (they stay as accessible names).
+ *
  * Layout follows analyse and the single 900px breakpoint (README §6): a thin eval strip and
  * stacked panels on a phone, eval strip beside the board with a side column on a wide screen.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import styled, { useTheme } from 'styled-components';
 import { Board } from '../../components/Board';
 import { EngineLines } from '../../components/EngineLines';
 import { EvalBar } from '../../components/EvalBar';
 import { MoveList } from '../../components/MoveList';
-import { Button, Panel, RotateButton } from '../../components/ui';
+import { Button, IconButton, Panel, RotateButton } from '../../components/ui';
 import { createGame, type MoveInput } from '../../chess/game';
 import {
   applyMove,
@@ -51,7 +55,7 @@ import {
   startColor,
   startMoveNumber,
 } from '../../chess/history';
-import { flipOrientation, START_FEN, type Orientation } from '../../chess/position';
+import { flipOrientation, type Orientation } from '../../chess/position';
 import { useEngine } from '../../engine/useEngine';
 import { useExploration, useTrainedFor } from '../../state/explore';
 import { stageNewLine } from '../../state/newLine';
@@ -78,7 +82,7 @@ export function ExploreSection() {
   const [params, setParams] = useSearchParams();
   const folder = normaliseFolderPath(params.get('folder'));
   const set = parseLineSet(params);
-  const { history, setHistory, loadExploration } = useExploration();
+  const { history, setHistory } = useExploration();
   const [trainedFor, setTrainedFor] = useTrainedFor();
   const [orientation, setOrientation] = useState<Orientation>('white');
   const theme = useTheme();
@@ -197,13 +201,14 @@ export function ExploreSection() {
     <Toolbar>
       {/* Explore is not a tab, so the way back to the lines it compares against has to be on the
           screen — and it returns to the folder that scoped this exploration. */}
-      <BackLink to={linesPath(folder, set)} data-testid="explore-back">
-        ‹ Lines
-      </BackLink>
-      <Button data-testid="explore-start" onClick={() => loadExploration(START_FEN)}>
-        Start position
-      </Button>
-      <ScopeField>
+      <IconButton
+        label="Back to lines"
+        data-testid="explore-back"
+        onClick={() => navigate(linesPath(folder, set))}
+      >
+        <span aria-hidden="true">‹</span>
+      </IconButton>
+      <ScopeField $shrink>
         <ScopeLabel htmlFor="explore-scope">Compare against</ScopeLabel>
         <ScopeSelect
           id="explore-scope"
@@ -362,42 +367,52 @@ const Section = styled.div`
   min-width: 0;
 `;
 
+/** One line, never wrapping; its children drop the caption and labels by its own width. */
 const Toolbar = styled.div`
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: ${(p) => p.theme.space.sm};
   min-width: 0;
-`;
+  container-type: inline-size;
 
-const BackLink = styled(Link)`
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-  min-height: 44px;
-  color: ${(p) => p.theme.color.textMuted};
-  font-size: ${(p) => p.theme.font.size.sm};
-  text-decoration: none;
+  & > button {
+    flex: 0 0 auto;
+  }
 
-  &:hover {
-    color: ${(p) => p.theme.color.text};
+  /* The flip button sits at the right end, with or without the caption beside it. */
+  & > button:last-child {
+    margin-left: auto;
   }
 `;
 
-const ScopeField = styled.div`
+/** The folder picker gives up width when the toolbar is narrow; the trained-for picker never. */
+const ScopeField = styled.div<{ $shrink?: boolean }>`
   display: flex;
+  flex: ${(p) => (p.$shrink ? '0 1 auto' : '0 0 auto')};
   align-items: center;
   gap: ${(p) => p.theme.space.xs};
   min-width: 0;
 `;
 
+/** Visible only when the toolbar has room; otherwise kept for screen readers only. */
 const ScopeLabel = styled.label`
   color: ${(p) => p.theme.color.textMuted};
   font-size: ${(p) => p.theme.font.size.sm};
   white-space: nowrap;
+
+  @container (max-width: 560px) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 `;
 
 const ScopeSelect = styled.select`
+  flex: 1 1 auto;
   max-width: 16rem;
   min-width: 0;
   min-height: 36px;
@@ -417,6 +432,7 @@ const ScopeSelect = styled.select`
 
 const Caption = styled.span`
   flex: 1 1 auto;
+  text-align: right;
   min-width: 0;
   color: ${(p) => p.theme.color.textMuted};
   font-size: ${(p) => p.theme.font.size.sm};
@@ -424,8 +440,8 @@ const Caption = styled.span`
   text-overflow: ellipsis;
   white-space: nowrap;
 
-  @media ${(p) => p.theme.media.wide} {
-    text-align: right;
+  @container (max-width: 720px) {
+    display: none;
   }
 `;
 
