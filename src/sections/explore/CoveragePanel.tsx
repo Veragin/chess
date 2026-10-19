@@ -66,8 +66,8 @@ export function CoveragePanel({
   const intoRepertoire = coverage.moves.length;
   const summary =
     scopeSize === 0
-      ? set === 'personal'
-        ? 'No personal lines to compare against.'
+      ? set === 'favourite'
+        ? 'No favourite lines to compare against.'
         : 'No saved lines to compare against.'
       : reaching === 0
         ? intoRepertoire === 0

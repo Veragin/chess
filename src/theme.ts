@@ -19,6 +19,8 @@ export const theme = {
     good: '#67b26f',
     warn: '#d9a55b',
     danger: '#d96b6b',
+    /** Favourite star (★ / ☆) on the training list. */
+    star: '#f2c94c',
     /** Focus ring, kept distinct from accent so it reads on accent surfaces. */
     focus: '#8ec5ff',
   },

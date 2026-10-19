@@ -18,13 +18,13 @@
  * actually was.
  *
  * Every row shows what the spec asks for (name, start position, move count, trained-as colour,
- * updated date) and offers Drill / Explore / Edit / Open in analyze, a Personal toggle (in the
- * Personal section it only removes from Personal), and — in Database only — Delete. A row's Drill
+ * updated date) and offers Drill / Explore / Edit / Open in analyze, a ★/☆ Favourite star (the
+ * UI name of the Personal set; in that section it only unstars), and — in Database only — Delete. A row's Drill
  * button is the same drill screen as the header's, with a pool of exactly that one line (see
  * `drillLinePath`); its Explore button opens `#/training/explore` on the line, scoped to its own
  * folder — the lines it could transpose with are its siblings, not whichever folder the list
- * happened to be showing. Folder cards (and the open folder's header) add or remove a whole folder
- * from Personal in one write.
+ * happened to be showing. A folder card's star (and the open folder's header buttons) add or remove
+ * a whole folder from Favourite in one write.
  *
  * Export and import go straight through `storage/lines.ts`; all this file does is turn the
  * result into a `Blob` or a report. Export follows the open folder — inside one it writes that
@@ -122,7 +122,7 @@ import {
     startPositionLabel,
     subfolderCountLabel,
 } from './lines/lineFormat';
-import { folderPersonalStatus, personalToggleLabel } from './lines/personalStatus';
+import { favouriteToggleLabel, folderPersonalStatus } from './lines/personalStatus';
 
 const MINE_ONLY_KEY = 'chess-trainer.linesMineOnly';
 const SET_KEY = 'chess-trainer.linesSet';
@@ -148,7 +148,7 @@ function writeMineOnly(on: boolean): void {
 /** The section last shown in this tab; any storage failure just means "Database". */
 function readRememberedSet(): LineSet {
     try {
-        return globalThis.sessionStorage?.getItem(SET_KEY) === 'personal' ? 'personal' : 'database';
+        return globalThis.sessionStorage?.getItem(SET_KEY) === 'favourite' ? 'favourite' : 'database';
     } catch {
         return 'database';
     }
@@ -156,7 +156,7 @@ function readRememberedSet(): LineSet {
 
 function writeRememberedSet(set: LineSet): void {
     try {
-        if (set === 'personal') globalThis.sessionStorage?.setItem(SET_KEY, 'personal');
+        if (set === 'favourite') globalThis.sessionStorage?.setItem(SET_KEY, 'favourite');
         else globalThis.sessionStorage?.removeItem(SET_KEY);
     } catch {
         // Not remembered; `#/training` simply opens on Database next time.
@@ -165,7 +165,7 @@ function writeRememberedSet(set: LineSet): void {
 
 /** Shown when a Personal write only reached memory (`addPersonal`/`removePersonal` → false). */
 const PERSONAL_NOT_SAVED =
-    'Your Personal list could not be saved in this browser (private browsing or blocked storage). ' +
+    'Your Favourite list could not be saved in this browser (private browsing or blocked storage). ' +
     'The change holds until the page is reloaded.';
 
 /** Everything the list reads from storage for one section, re-read together by `refresh`. */
@@ -196,12 +196,12 @@ export function LinesList() {
      */
     const urlHasSet = params.has('set');
     const set: LineSet = urlHasSet ? parseLineSet(params) : readRememberedSet();
-    const inPersonal = set === 'personal';
+    const inPersonal = set === 'favourite';
 
     useEffect(() => {
-        if (!urlHasSet && set === 'personal') {
+        if (!urlHasSet && set === 'favourite') {
             const next = new URLSearchParams(params);
-            next.set('set', 'personal');
+            next.set('set', 'favourite');
             setParams(next, { replace: true });
         } else if (urlHasSet) {
             // Arriving on an explicit section (a Back link from drill or the editor) counts as
@@ -283,7 +283,7 @@ export function LinesList() {
             const next = normaliseFolderPath(path);
             const nextParams: Record<string, string> = {};
             if (next.length > 0) nextParams.folder = next;
-            if (set === 'personal') nextParams.set = 'personal';
+            if (set === 'favourite') nextParams.set = 'favourite';
             setParams(nextParams);
         },
         [set, setParams],
@@ -462,9 +462,9 @@ export function LinesList() {
                     $active={inPersonal}
                     aria-pressed={inPersonal}
                     data-testid="set-personal"
-                    onClick={() => switchSet('personal')}
+                    onClick={() => switchSet('favourite')}
                 >
-                    Personal
+                    <TabStar aria-hidden="true">★</TabStar> Favourite
                 </SetTab>
                 <SetTab
                     type="button"
@@ -478,7 +478,7 @@ export function LinesList() {
             </SetTabs>
 
             <TopBar>
-                <Heading>{inFolder ? folderName(folder) : inPersonal ? 'Personal' : 'Lines'}</Heading>
+                <Heading>{inFolder ? folderName(folder) : inPersonal ? 'Favourite' : 'Lines'}</Heading>
                 <Grow />
                 <Button
                     variant="primary"
@@ -538,7 +538,7 @@ export function LinesList() {
                 title={
                     storeEmpty
                         ? inPersonal
-                            ? 'No personal lines'
+                            ? 'No favourite lines'
                             : 'No saved lines'
                         : inFolder
                           ? folderCountLabel(here.length, scope.length)
@@ -548,7 +548,7 @@ export function LinesList() {
                 }
                 actions={
                     <FileActions>
-                        {/* The open folder's own Personal controls; its subfolders have theirs on
+                        {/* The open folder's own Favourite controls; its subfolders have theirs on
                 their cards. */}
                         {inFolder && !inPersonal && scope.length > 0 && (
                             <Button
@@ -561,11 +561,11 @@ export function LinesList() {
                                         true,
                                     )
                                 }
-                                title={`Add the ${lineCountLabel(scope.length)} in ${folderName(folder)} to Personal, subfolders included`}
+                                title={`Add the ${lineCountLabel(scope.length)} in ${folderName(folder)} to Favourite, subfolders included`}
                             >
                                 {folderStatus === 'all'
-                                    ? '★ All in personal'
-                                    : 'Add folder to personal'}
+                                    ? '★ All in favourites'
+                                    : '☆ Add folder to favourites'}
                             </Button>
                         )}
                         {inFolder && scope.length > 0 && (inPersonal || folderStatus !== 'none') && (
@@ -574,7 +574,7 @@ export function LinesList() {
                                 data-testid="header-personal-remove"
                                 onClick={() => askFolderRemoval(folder, scope)}
                             >
-                                Remove folder from personal
+                                Remove folder from favourites
                             </Button>
                         )}
                         {/* Folders belong to the database lines, so they are renamed there. */}
@@ -601,7 +601,7 @@ export function LinesList() {
                                     ? `Export the ${lineCountLabel(scope.length)} in ${folderName(folder)}, ` +
                                       `subfolders included`
                                     : inPersonal
-                                      ? 'Export every line in Personal'
+                                      ? 'Export every favourite line'
                                       : 'Export every saved line'
                             }
                         >
@@ -723,8 +723,8 @@ export function LinesList() {
                     {storeEmpty && inPersonal ? (
                         <EmptyState data-testid="personal-empty">
                             <p>
-                                You haven’t picked any lines yet. Open the Database, and add the
-                                lines you want to learn with ☆.
+                                You haven’t picked any favourites yet. Open the Database, and
+                                star the lines you want to learn with ☆.
                             </p>
                             <LinkButton
                                 to={linesPath('', 'database')}
@@ -758,7 +758,7 @@ export function LinesList() {
                         <EmptyState data-testid="lines-none-mine">
                             <p>
                                 {inPersonal
-                                    ? 'None of your personal lines are your own — they are all bundled lines.'
+                                    ? 'None of your favourite lines are your own — they are all bundled lines.'
                                     : 'You have no lines of your own yet.'}{' '}
                                 Create one, import a file, or edit a bundled line — editing saves
                                 your own copy.
@@ -770,7 +770,7 @@ export function LinesList() {
                     ) : noneMatchFilters ? (
                         <EmptyState data-testid="lines-none-filtered">
                             <p>
-                                No {mineOnly ? 'lines of your own' : inPersonal ? 'personal lines' : 'lines'}{' '}
+                                No {mineOnly ? 'lines of your own' : inPersonal ? 'favourite lines' : 'lines'}{' '}
                                 are trained{sideLabel}.
                             </p>
                             <Button data-testid="filter-off" onClick={showAllLines}>
@@ -807,7 +807,7 @@ export function LinesList() {
                                 <EmptyState data-testid="folder-empty">
                                     <p>
                                         There is nothing in {folderName(folder)}. Its lines may have
-                                        been moved, renamed{inPersonal ? ', removed from Personal' : ''}{' '}
+                                        been moved, renamed{inPersonal ? ', removed from Favourite' : ''}{' '}
                                         or deleted.
                                     </p>
                                     <ButtonRow>
@@ -845,7 +845,7 @@ export function LinesList() {
                             : pendingDelete.name}
                     </strong>{' '}
                     ({lineSizeLabel(pendingDelete.tree)}) will be removed
-                    {personal.has(pendingDelete.id) ? ' — from Personal too' : ''}.{' '}
+                    {personal.has(pendingDelete.id) ? ' — from Favourite too' : ''}.{' '}
                     {isServerLine(pendingDelete)
                         ? 'It is a bundled line, so it only comes back after "Refresh data".'
                         : 'This cannot be undone — export first if you want a copy.'}
@@ -854,7 +854,7 @@ export function LinesList() {
 
             {pendingFolderRemoval !== null && (
                 <ConfirmDialog
-                    title="Remove folder from Personal?"
+                    title="Remove folder from Favourite?"
                     confirmLabel="Remove"
                     onCancel={() => setPendingFolderRemoval(null)}
                     onConfirm={confirmFolderRemoval}
@@ -863,7 +863,7 @@ export function LinesList() {
                         {lineCountLabel(pendingFolderRemoval.ids.length)}
                     </span>{' '}
                     in <strong>{folderName(pendingFolderRemoval.path)}</strong>, subfolders included,{' '}
-                    {pendingFolderRemoval.ids.length === 1 ? 'leaves' : 'leave'} your Personal list.
+                    {pendingFolderRemoval.ids.length === 1 ? 'leaves' : 'leave'} your Favourite list.
                     The lines themselves stay in the Database.
                 </ConfirmDialog>
             )}
@@ -970,37 +970,27 @@ export function LinesList() {
                     >
                         Explore
                     </LinkButton>
-                    {!inPersonal && (
-                        <Button
-                            size="sm"
-                            data-testid="folder-personal-add"
-                            data-status={status}
-                            disabled={status === 'all'}
-                            aria-label={
-                                status === 'all'
-                                    ? `${node.name}: all in personal`
-                                    : `Add ${node.name} to personal`
-                            }
-                            onClick={() =>
-                                changePersonal(
-                                    folderLines.map((line) => line.id),
-                                    true,
-                                )
-                            }
-                        >
-                            {status === 'all' ? '★ All added' : '☆ Add to personal'}
-                        </Button>
-                    )}
-                    {(inPersonal || status !== 'none') && (
-                        <Button
-                            size="sm"
-                            data-testid="folder-personal-remove"
-                            aria-label={`Remove ${node.name} from personal`}
-                            onClick={() => askFolderRemoval(node.path, folderLines)}
-                        >
-                            {inPersonal ? 'Remove' : 'Remove from personal'}
-                        </Button>
-                    )}
+                    {/* Filled once every line below is a favourite; pressing it then asks before
+              unstarring the whole folder. A partly starred folder stays hollow and stars the rest. */}
+                    <StarButton
+                        type="button"
+                        $on={status === 'all'}
+                        aria-pressed={status === 'all'}
+                        data-testid="folder-personal"
+                        data-status={status}
+                        aria-label={`${favouriteToggleLabel(status === 'all')}: ${node.name}`}
+                        title={favouriteToggleLabel(status === 'all')}
+                        onClick={() =>
+                            status === 'all'
+                                ? askFolderRemoval(node.path, folderLines)
+                                : changePersonal(
+                                      folderLines.map((line) => line.id),
+                                      true,
+                                  )
+                        }
+                    >
+                        {status === 'all' ? '★' : '☆'}
+                    </StarButton>
                 </FolderActions>
             </FolderCard>
         );
@@ -1035,6 +1025,23 @@ export function LinesList() {
                     <ColorBadge $white={line.userColor === 'w'} data-testid="line-color">
                         as {colorLabel(line.userColor)}
                     </ColorBadge>
+                    {/* In Favourite every row is starred, so there it only ever unstars (from
+            Favourite, not the database). */}
+                    <StarButton
+                        type="button"
+                        $on={picked}
+                        aria-pressed={picked}
+                        data-testid="line-personal"
+                        aria-label={favouriteToggleLabel(picked)}
+                        title={
+                            inPersonal
+                                ? 'Remove from favourites — the line stays in the Database'
+                                : favouriteToggleLabel(picked)
+                        }
+                        onClick={() => changePersonal([line.id], !picked)}
+                    >
+                        {picked ? '★' : '☆'}
+                    </StarButton>
                 </RowHead>
 
                 <Meta>
@@ -1104,17 +1111,7 @@ export function LinesList() {
                     >
                         Open in analyze
                     </Button>
-                    <Button
-                        size="sm"
-                        variant={picked && !inPersonal ? 'primary' : 'secondary'}
-                        aria-pressed={inPersonal ? undefined : picked}
-                        data-testid="line-personal"
-                        title={inPersonal ? 'Remove from Personal — the line stays in the Database' : undefined}
-                        onClick={() => changePersonal([line.id], !picked)}
-                    >
-                        {personalToggleLabel(picked, set)}
-                    </Button>
-                    {/* Deleting is a database operation; Personal only ever unpicks. */}
+                    {/* Deleting is a database operation; Favourite only ever unstars. */}
                     {!inPersonal && (
                         <Button
                             variant="danger"
@@ -1164,6 +1161,44 @@ const SetTab = styled.button<{ $active: boolean }>`
 
     @media ${(p) => p.theme.media.wide} {
         min-height: 36px;
+    }
+
+    &:focus-visible {
+        outline: 2px solid ${(p) => p.theme.color.focus};
+        outline-offset: 2px;
+    }
+`;
+
+const TabStar = styled.span`
+    color: ${(p) => p.theme.color.star};
+`;
+
+/** The favourite toggle on line rows and folder cards: ★ when starred, ☆ when not. */
+const StarButton = styled.button<{ $on: boolean }>`
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: ${(p) => p.theme.radius.sm};
+    background: none;
+    color: ${(p) => (p.$on ? p.theme.color.star : p.theme.color.textFaint)};
+    font-family: inherit;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+
+    @media ${(p) => p.theme.media.wide} {
+        min-width: 32px;
+        min-height: 32px;
+    }
+
+    &:hover {
+        color: ${(p) => p.theme.color.star};
     }
 
     &:focus-visible {

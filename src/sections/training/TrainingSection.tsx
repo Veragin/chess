@@ -12,7 +12,7 @@ import { Drill } from './Drill';
  *   #/training/drill      → Drill          (Phase 7; `?folder=` or `?line=` scopes the pool)
  *   #/training/explore    → ExploreSection (`?folder=` scopes what counts as coverage)
  *
- * Every route also takes `?set=personal`: the **Personal** section (the lines the user picked to
+ * Every route also takes `?set=favourite`: the **Favourite** section (the lines the user picked to
  * learn, `storage/personal.ts`) instead of the default **Database** (every saved line). The list
  * switches between the two, and drill, explore and the editor carry `set` so their way back lands
  * in the section they came from (`lines/folderNav.ts`, `lines/lineSet.ts`). Without `?set=`, the

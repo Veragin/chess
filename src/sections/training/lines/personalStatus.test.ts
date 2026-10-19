@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Line } from '../../../storage/schema';
 import { START_FEN } from '../../../chess/position';
-import { folderPersonalStatus, personalToggleLabel } from './personalStatus';
+import { favouriteToggleLabel, folderPersonalStatus } from './personalStatus';
 
 function makeLine(id: string): Line {
   return {
@@ -39,14 +39,9 @@ describe('folderPersonalStatus', () => {
   });
 });
 
-describe('personalToggleLabel', () => {
-  it('shows the state in Database', () => {
-    expect(personalToggleLabel(false, 'database')).toBe('☆ Add to personal');
-    expect(personalToggleLabel(true, 'database')).toBe('★ In personal');
-  });
-
-  it('only removes in Personal', () => {
-    expect(personalToggleLabel(true, 'personal')).toBe('Remove');
-    expect(personalToggleLabel(false, 'personal')).toBe('Remove');
+describe('favouriteToggleLabel', () => {
+  it('says what pressing the star does', () => {
+    expect(favouriteToggleLabel(false)).toBe('Add to favourites');
+    expect(favouriteToggleLabel(true)).toBe('Remove from favourites');
   });
 });

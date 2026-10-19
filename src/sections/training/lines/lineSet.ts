@@ -13,5 +13,5 @@ import type { LineSet } from './folderNav';
 
 /** Every line in `set`, most recently updated first (the order `listLines` gives). */
 export function linesOfSet(set: LineSet): Line[] {
-  return set === 'personal' ? listPersonalLines() : listLines();
+  return set === 'favourite' ? listPersonalLines() : listLines();
 }

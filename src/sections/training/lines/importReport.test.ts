@@ -135,14 +135,14 @@ describe('describeRefresh', () => {
     );
     expect(view.tone).toBe('ok');
     expect(view.headline).toBe(
-      'Bundled lines refreshed. 12 of your lines kept. 3 personal lines no longer exist and were removed.',
+      'Bundled lines refreshed. 12 of your lines kept. 3 favourite lines no longer exist and were removed.',
     );
   });
 
   it('uses the singular for one pruned personal line', () => {
     const view = describeRefresh(summary(), KEEP, refreshed({ personalRemoved: 1 }));
     expect(view.headline).toBe(
-      'Bundled lines refreshed. 1 personal line no longer exists and was removed.',
+      'Bundled lines refreshed. 1 favourite line no longer exists and was removed.',
     );
   });
 
@@ -167,7 +167,7 @@ describe('describeRefresh', () => {
       refreshed({ personalCleared: true }),
     );
     expect(view.tone).toBe('warn');
-    expect(view.headline).toContain('Your Personal list (7 lines) was cleared.');
+    expect(view.headline).toContain('Your Favourite list (7 lines) was cleared.');
   });
 
   it('mentions restored bundled lines, and kept edited copies in keep mode', () => {

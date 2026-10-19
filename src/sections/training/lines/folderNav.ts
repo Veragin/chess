@@ -10,10 +10,10 @@
  *
  * The root is always spelled as *no* parameter, so there is exactly one URL per folder.
  *
- * The section — Personal or Database — is a `?set=` parameter for the same reasons: drill,
+ * The section — Favourite or Database — is a `?set=` parameter for the same reasons: drill,
  * explore and the editor's "Back" all return to the section they were opened from, and a reload
- * keeps it. Database is spelled as *no* parameter (so every URL from before Personal existed
- * still means what it did); only `set=personal` is ever written. Every helper takes `set` as an
+ * keeps it. Database is spelled as *no* parameter (so every URL from before Favourite existed
+ * still means what it did); only `set=favourite` is ever written. Every helper takes `set` as an
  * optional trailing argument defaulting to Database.
  */
 
@@ -21,11 +21,11 @@ import { normaliseFolderPath } from '../../../storage/schema';
 import type { TrainedFor } from '../../explore/coverage';
 
 /** Which lines a training screen works on: the user's picked Personal set, or every saved line. */
-export type LineSet = 'personal' | 'database';
+export type LineSet = 'favourite' | 'database';
 
 /** The section named by `?set=`; absent or unrecognised means Database. */
 export function parseLineSet(params: URLSearchParams): LineSet {
-  return params.get('set') === 'personal' ? 'personal' : 'database';
+  return params.get('set') === 'favourite' ? 'favourite' : 'database';
 }
 
 /**
@@ -63,7 +63,7 @@ function scopedPath(
   const normalised = normaliseFolderPath(folder);
   if (normalised.length > 0) params.append('folder', normalised);
   if (from !== undefined) params.append('from', from);
-  if (set === 'personal') params.append('set', set);
+  if (set === 'favourite') params.append('set', set);
   if (side !== undefined && side !== 'both') params.append('side', side);
   const query = [...params]
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)

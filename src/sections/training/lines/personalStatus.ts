@@ -1,12 +1,11 @@
 /**
- * Small pure helpers for the Personal toggles on the training list (`LinesList.tsx`).
+ * Small pure helpers for the Favourite star toggles on the training list (`LinesList.tsx`).
  *
  * Kept out of the component so the wording and the folder "how much of this is personal" rule can
  * be unit-tested without rendering anything.
  */
 
 import type { Line } from '../../../storage/schema';
-import type { LineSet } from './folderNav';
 
 /** How many of a folder's lines are in Personal. */
 export type PersonalStatus = 'none' | 'some' | 'all';
@@ -26,10 +25,9 @@ export function folderPersonalStatus(
 }
 
 /**
- * The per-row toggle's label. In Database it shows the line's state and adds/removes it; in
- * Personal every row is personal, so it only ever removes (from Personal, not the database).
+ * The accessible name of a ★/☆ toggle (line row or folder card): what pressing it does. A starred
+ * one removes from Favourite — never from the database.
  */
-export function personalToggleLabel(isPersonal: boolean, set: LineSet): string {
-  if (set === 'personal') return 'Remove';
-  return isPersonal ? '★ In personal' : '☆ Add to personal';
+export function favouriteToggleLabel(isFavourite: boolean): string {
+  return isFavourite ? 'Remove from favourites' : 'Add to favourites';
 }

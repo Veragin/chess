@@ -155,7 +155,7 @@ export function Drill() {
     if (served.cycle.served.length === 0) {
       const warning = storageWarning();
       const scoped = folder.length > 0;
-      const personal = set === 'personal';
+      const personal = set === 'favourite';
       return (
         <Empty data-testid="drill-empty">
           <Title>Drill</Title>
@@ -170,19 +170,19 @@ export function Drill() {
               ) : (
                 ''
               )}
-              {personal ? ' among your personal lines' : ''}.
+              {personal ? ' among your favourite lines' : ''}.
             </p>
           ) : personal ? (
             <p>
               {scoped ? (
                 <>
-                  None of your personal lines are in <strong>{folderLabel(folder)}</strong> or its
+                  None of your favourite lines are in <strong>{folderLabel(folder)}</strong> or its
                   subfolders.
                 </>
               ) : (
                 <>You haven&rsquo;t picked any lines to learn yet.</>
               )}{' '}
-              Open the Database and add the lines you want to drill with ☆ — the Personal drill
+              Open the Database and star the lines you want to drill with ☆ — the Favourite drill
               serves only those.
             </p>
           ) : scoped ? (

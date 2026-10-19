@@ -363,7 +363,7 @@ export function LineEditor() {
       const created = createLine(input);
       // Created from the Personal section: file it there too. A failed write only reached
       // memory, which the list reports through its storage warning like any other write.
-      if (set === 'personal') addPersonal([created.id]);
+      if (set === 'favourite') addPersonal([created.id]);
     }
     // A write that only reached the in-memory fallback still counts as saved for this session;
     // the list surfaces `storageWarning()` prominently, so it is reported there, not here.

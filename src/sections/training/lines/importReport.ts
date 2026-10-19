@@ -101,12 +101,12 @@ export function describeRefresh(
   }
   if (result.personalCleared) {
     if (summary.personal > 0) {
-      parts.push(`Your Personal list (${count(summary.personal, 'line')}) was cleared.`);
+      parts.push(`Your Favourite list (${count(summary.personal, 'line')}) was cleared.`);
     }
   } else if (result.personalRemoved > 0) {
     const n = result.personalRemoved;
     parts.push(
-      `${count(n, 'personal line')} no longer exist${n === 1 ? 's' : ''} and ${n === 1 ? 'was' : 'were'} removed.`,
+      `${count(n, 'favourite line')} no longer exist${n === 1 ? 's' : ''} and ${n === 1 ? 'was' : 'were'} removed.`,
     );
   }
 

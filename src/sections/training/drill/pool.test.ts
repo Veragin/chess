@@ -102,7 +102,7 @@ describe('drillablePool in the Personal set', () => {
 
   async function personalPool(folder = ''): Promise<string[]> {
     const { drillablePool } = await import('./pool');
-    return drillablePool(folder, 'personal');
+    return drillablePool(folder, 'favourite');
   }
 
   it('serves only the picked lines', async () => {

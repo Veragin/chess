@@ -55,7 +55,7 @@ export function RefreshDialog({ summary, onRefresh, onCancel }: RefreshDialogPro
             <strong data-testid="refresh-hidden">{summary.hidden}</strong>
           </li>
           <li>
-            Lines in Personal: <strong data-testid="refresh-personal">{summary.personal}</strong>
+            Lines in Favourite: <strong data-testid="refresh-personal">{summary.personal}</strong>
           </li>
         </Counts>
         <p>
@@ -74,14 +74,14 @@ export function RefreshDialog({ summary, onRefresh, onCancel }: RefreshDialogPro
             data-testid="refresh-clear-personal"
             onChange={(event) => setClearPersonal(event.target.checked)}
           />
-          Also clear my Personal list ({lineCountLabel(summary.personal)})
+          Also clear my Favourite list ({lineCountLabel(summary.personal)})
         </Check>
         {clearPersonal ? (
           <Warning role="alert" data-testid="refresh-personal-warning">
-            A cleared Personal list cannot be recovered.
+            A cleared Favourite list cannot be recovered.
           </Warning>
         ) : (
-          <p>Otherwise Personal keeps every line that still exists after the refresh.</p>
+          <p>Otherwise Favourite keeps every line that still exists after the refresh.</p>
         )}
       </Content>
     </ActionDialog>

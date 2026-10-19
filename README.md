@@ -163,15 +163,15 @@ Browsers that used the old seed-once model still have the bundled lines copied i
 those copies now show up as custom lines next to the server ones. **Refresh data…** with **Delete
 my lines** removes them.
 
-### Personal lines
+### Favourite lines
 
 Training has two sections, switched at the top of the lines screen and kept in the URL as
-`?set=personal` (absent means Database, so older links still work):
+`?set=favourite` (absent means Database):
 
 - **Database** — every saved line, bundled and the user's own.
-- **Personal** — the lines picked to learn (☆ on a line's row, or a whole folder at once), shown
-  in their own folders. Drill and Explore opened from Personal work on those lines only; a new
-  line saved from Personal is added to it.
+- **Favourite** — the lines picked to learn (the ☆ star on a line's row, or a whole folder at once), shown
+  in their own folders. Drill and Explore opened from Favourite work on those lines only; a new
+  line saved from Favourite is added to it.
 
 Personal is a list of line **ids** under `chess-trainer.personalLines.v1`, never copies: **Edit**
 always edits the database line (an edited bundled line keeps its pick under its new id), deleting
@@ -255,7 +255,7 @@ A bookmarked `#/explore?folder=…` still works — it redirects, folder and all
   a folder checks that repertoire and nothing else. The scope is also a dropdown on the screen.
   From a line's row it opens on that line, scoped to the line's own folder — the lines it could
   transpose with are its siblings.
-- **`?set=personal` compares against Personal only** — explore opened from the Personal section
+- **`?set=favourite` compares against Favourite only** — explore opened from the Favourite section
   reads just the picked lines (and lists only their folders), and Back / "Save as new line" stay in
   that section.
 - **A damaged line is reported, not hidden.** A stored line whose moves no longer replay (a

@@ -157,7 +157,7 @@ export function ExploreSection() {
       const normalised = normaliseFolderPath(next);
       const query: Record<string, string> = {};
       if (normalised.length > 0) query.folder = normalised;
-      if (set === 'personal') query.set = set;
+      if (set === 'favourite') query.set = set;
       setParams(query);
     },
     [setParams, set],

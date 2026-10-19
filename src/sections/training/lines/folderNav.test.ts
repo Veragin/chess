@@ -78,67 +78,68 @@ describe('line set URLs', () => {
     expect(newLineFromAnalyzePath('', 'database')).toBe(newLineFromAnalyzePath(''));
   });
 
-  it('adds set=personal at the root', () => {
-    expect(linesPath('', 'personal')).toBe('/training?set=personal');
-    expect(drillPath('', 'personal')).toBe('/training/drill?set=personal');
-    expect(newLinePath('', 'personal')).toBe('/training/new?set=personal');
-    expect(explorePath('', 'personal')).toBe('/training/explore?set=personal');
-    expect(editLinePath('abc', '', 'personal')).toBe('/training/abc/edit?set=personal');
-    expect(drillLinePath('abc', '', 'personal')).toBe('/training/drill?line=abc&set=personal');
-    expect(newLineFromExplorePath('', 'personal')).toBe(
-      '/training/new?from=explore&set=personal',
+  it('adds set=favourite at the root', () => {
+    expect(linesPath('', 'favourite')).toBe('/training?set=favourite');
+    expect(drillPath('', 'favourite')).toBe('/training/drill?set=favourite');
+    expect(newLinePath('', 'favourite')).toBe('/training/new?set=favourite');
+    expect(explorePath('', 'favourite')).toBe('/training/explore?set=favourite');
+    expect(editLinePath('abc', '', 'favourite')).toBe('/training/abc/edit?set=favourite');
+    expect(drillLinePath('abc', '', 'favourite')).toBe('/training/drill?line=abc&set=favourite');
+    expect(newLineFromExplorePath('', 'favourite')).toBe(
+      '/training/new?from=explore&set=favourite',
     );
-    expect(newLineFromAnalyzePath('', 'personal')).toBe(
-      '/training/new?from=analyze&set=personal',
+    expect(newLineFromAnalyzePath('', 'favourite')).toBe(
+      '/training/new?from=analyze&set=favourite',
     );
   });
 
-  it('puts set=personal after the folder and the other parameters', () => {
+  it('puts set=favourite after the folder and the other parameters', () => {
     const folder = 'Black/Sicilian';
-    expect(linesPath(folder, 'personal')).toBe('/training?folder=Black%2FSicilian&set=personal');
-    expect(drillPath(folder, 'personal')).toBe(
-      '/training/drill?folder=Black%2FSicilian&set=personal',
+    expect(linesPath(folder, 'favourite')).toBe('/training?folder=Black%2FSicilian&set=favourite');
+    expect(drillPath(folder, 'favourite')).toBe(
+      '/training/drill?folder=Black%2FSicilian&set=favourite',
     );
-    expect(newLinePath(folder, 'personal')).toBe(
-      '/training/new?folder=Black%2FSicilian&set=personal',
+    expect(newLinePath(folder, 'favourite')).toBe(
+      '/training/new?folder=Black%2FSicilian&set=favourite',
     );
-    expect(explorePath(folder, 'personal')).toBe(
-      '/training/explore?folder=Black%2FSicilian&set=personal',
+    expect(explorePath(folder, 'favourite')).toBe(
+      '/training/explore?folder=Black%2FSicilian&set=favourite',
     );
-    expect(editLinePath('abc', folder, 'personal')).toBe(
-      '/training/abc/edit?folder=Black%2FSicilian&set=personal',
+    expect(editLinePath('abc', folder, 'favourite')).toBe(
+      '/training/abc/edit?folder=Black%2FSicilian&set=favourite',
     );
-    expect(drillLinePath('a b&c', folder, 'personal')).toBe(
-      '/training/drill?line=a%20b%26c&folder=Black%2FSicilian&set=personal',
+    expect(drillLinePath('a b&c', folder, 'favourite')).toBe(
+      '/training/drill?line=a%20b%26c&folder=Black%2FSicilian&set=favourite',
     );
-    expect(newLineFromExplorePath(folder, 'personal')).toBe(
-      '/training/new?folder=Black%2FSicilian&from=explore&set=personal',
+    expect(newLineFromExplorePath(folder, 'favourite')).toBe(
+      '/training/new?folder=Black%2FSicilian&from=explore&set=favourite',
     );
-    expect(newLineFromAnalyzePath(folder, 'personal')).toBe(
-      '/training/new?folder=Black%2FSicilian&from=analyze&set=personal',
+    expect(newLineFromAnalyzePath(folder, 'favourite')).toBe(
+      '/training/new?folder=Black%2FSicilian&from=analyze&set=favourite',
     );
   });
 
   it('round-trips folder and set through URLSearchParams', () => {
-    const path = drillLinePath('a b&c', 'Caro-Kann & co', 'personal');
+    const path = drillLinePath('a b&c', 'Caro-Kann & co', 'favourite');
     const params = new URLSearchParams(path.split('?')[1]);
     expect(params.get('line')).toBe('a b&c');
     expect(params.get('folder')).toBe('Caro-Kann & co');
-    expect(parseLineSet(params)).toBe('personal');
+    expect(parseLineSet(params)).toBe('favourite');
   });
 });
 
 describe('parseLineSet', () => {
-  it('reads set=personal', () => {
-    expect(parseLineSet(new URLSearchParams('set=personal'))).toBe('personal');
-    expect(parseLineSet(new URLSearchParams('folder=White&set=personal'))).toBe('personal');
+  it('reads set=favourite', () => {
+    expect(parseLineSet(new URLSearchParams('set=favourite'))).toBe('favourite');
+    expect(parseLineSet(new URLSearchParams('folder=White&set=favourite'))).toBe('favourite');
   });
 
   it('treats an absent or unknown set as Database', () => {
     expect(parseLineSet(new URLSearchParams(''))).toBe('database');
     expect(parseLineSet(new URLSearchParams('folder=White'))).toBe('database');
     expect(parseLineSet(new URLSearchParams('set=database'))).toBe('database');
-    expect(parseLineSet(new URLSearchParams('set=Personal'))).toBe('database');
+    expect(parseLineSet(new URLSearchParams('set=Favourite'))).toBe('database');
+    expect(parseLineSet(new URLSearchParams('set=personal'))).toBe('database');
     expect(parseLineSet(new URLSearchParams('set='))).toBe('database');
   });
 });
@@ -147,8 +148,8 @@ describe('side filter', () => {
   it('writes ?side= last on drill URLs, and nothing for both', () => {
     expect(drillPath('', 'database', 'both')).toBe('/training/drill');
     expect(drillPath('', 'database', 'w')).toBe('/training/drill?side=w');
-    expect(drillPath('Black/Sicilian', 'personal', 'b')).toBe(
-      '/training/drill?folder=Black%2FSicilian&set=personal&side=b',
+    expect(drillPath('Black/Sicilian', 'favourite', 'b')).toBe(
+      '/training/drill?folder=Black%2FSicilian&set=favourite&side=b',
     );
   });
 
