@@ -1,7 +1,8 @@
 /**
  * `#/training` — the saved repertoire (README §7 Phase 5).
  *
- * Two sections, picked with the **Personal | Database** switch at the top and held in `?set=`
+ * Two sections, picked with the **Favourite | Openings** switch at the top (Openings is the UI name
+ * of the Database set) and held in `?set=`
  * (see `./lines/folderNav.ts`): Database is every saved line, Personal only the lines the user
  * picked to learn (`storage/personal.ts` — ids, never copies). Both show the same folder structure,
  * because both derive it from the lines' own `folder` paths (`./lines/lineSet.ts`). The section is
@@ -18,7 +19,7 @@
  * actually was.
  *
  * Every row shows what the spec asks for (name, start position, move count, trained-as colour,
- * updated date) and offers Drill / Explore / Edit / Open in analyze, a ★/☆ Favourite star (the
+ * updated date) and offers Drill / Explore / Edit / Analyze, a ★/☆ Favourite star (the
  * UI name of the Personal set; in that section it only unstars), and — in Database only — Delete. A row's Drill
  * button is the same drill screen as the header's, with a pool of exactly that one line (see
  * `drillLinePath`); its Explore button opens `#/training/explore` on the line, scoped to its own
@@ -88,6 +89,7 @@ import { seedReport } from '../../storage/seed';
 import { ConfirmDialog } from './lines/ConfirmDialog';
 import { LinkButton } from './lines/LinkButton';
 import { Notice, NoticeList, NoticeTitle } from './lines/Notice';
+import { OverflowActions, type OverflowAction } from './lines/OverflowActions';
 import { RefreshDialog } from './lines/RefreshDialog';
 import { downloadText, serialiseLinesFile } from './lines/download';
 import {
@@ -452,6 +454,58 @@ export function LinesList() {
     /** How much of the open folder is in Personal — only asked in Database, inside a folder. */
     const folderStatus = folderPersonalStatus(scope, personal);
 
+    /**
+     * The panel header's buttons, shown in a row or a ⋮ menu (`OverflowActions`). Rename, Import
+     * and "Refresh data…" belong to the database and are offered only there; "Refresh data…" is not
+     * scoped to the open folder like Export is — the bundled set and the user's own lines are
+     * reset as a whole.
+     */
+    const fileActions: OverflowAction[] = [
+        ...(inFolder && !inPersonal
+            ? [
+                  {
+                      key: 'rename',
+                      label: 'Rename folder',
+                      testId: 'rename-folder',
+                      onSelect: () => {
+                          setRenameError(null);
+                          setRenameTo(folderName(folder));
+                      },
+                  },
+              ]
+            : []),
+        {
+            key: 'export',
+            label: inFolder ? 'Export folder' : 'Export',
+            testId: 'export-button',
+            onSelect: onExport,
+            // Nothing in scope, nothing to write — at the root that means an empty section.
+            disabled: scope.length === 0,
+            title: inFolder
+                ? `Export the ${lineCountLabel(scope.length)} in ${folderName(folder)}, subfolders included`
+                : inPersonal
+                  ? 'Export every favourite line'
+                  : 'Export every saved line',
+        },
+        ...(inPersonal
+            ? []
+            : [
+                  {
+                      key: 'import',
+                      label: 'Import',
+                      testId: 'import-button',
+                      onSelect: () => fileInputRef.current?.click(),
+                  },
+                  {
+                      key: 'refresh',
+                      label: 'Refresh data…',
+                      testId: 'refresh-data',
+                      onSelect: () => setPendingRefresh(resetSummary()),
+                      title: 'Reinstall the bundled lines, keeping or deleting your own',
+                  },
+              ]),
+    ];
+
     return (
         <Wrap data-testid="lines-list" data-folder={folder} data-set={set}>
             {/* Two sections of one list, not two screens: a switch rather than links, and each
@@ -473,7 +527,7 @@ export function LinesList() {
                     data-testid="set-database"
                     onClick={() => switchSet('database')}
                 >
-                    Database
+                    Openings
                 </SetTab>
             </SetTabs>
 
@@ -548,97 +602,50 @@ export function LinesList() {
                 }
                 actions={
                     <FileActions>
-                        {/* The open folder's own Favourite controls; its subfolders have theirs on
-                their cards. */}
-                        {inFolder && !inPersonal && scope.length > 0 && (
-                            <Button
-                                size="sm"
-                                data-testid="header-personal-add"
-                                disabled={folderStatus === 'all'}
-                                onClick={() =>
-                                    changePersonal(
-                                        scope.map((line) => line.id),
-                                        true,
-                                    )
+                        {/* The open folder's own Favourite star, like the ones on its subfolders'
+                cards: filled once every line below is a favourite (pressing it then asks before
+                unstarring the folder), hollow otherwise (pressing it stars the rest). In
+                Favourite every line is starred, so there it only ever unstars. */}
+                        {inFolder && scope.length > 0 && (
+                            <StarButton
+                                type="button"
+                                $on={folderStatus === 'all'}
+                                aria-pressed={folderStatus === 'all'}
+                                data-testid="header-personal"
+                                data-status={folderStatus}
+                                aria-label={`${favouriteToggleLabel(folderStatus === 'all')}: ${folderName(folder)}`}
+                                title={
+                                    folderStatus === 'all'
+                                        ? `Remove the ${lineCountLabel(scope.length)} in ${folderName(folder)} from Favourite`
+                                        : `Add the ${lineCountLabel(scope.length)} in ${folderName(folder)} to Favourite, subfolders included`
                                 }
-                                title={`Add the ${lineCountLabel(scope.length)} in ${folderName(folder)} to Favourite, subfolders included`}
+                                onClick={() =>
+                                    folderStatus === 'all'
+                                        ? askFolderRemoval(folder, scope)
+                                        : changePersonal(
+                                              scope.map((line) => line.id),
+                                              true,
+                                          )
+                                }
                             >
-                                {folderStatus === 'all'
-                                    ? '★ All in favourites'
-                                    : '☆ Add folder to favourites'}
-                            </Button>
+                                {folderStatus === 'all' ? '★' : '☆'}
+                            </StarButton>
                         )}
-                        {inFolder && scope.length > 0 && (inPersonal || folderStatus !== 'none') && (
-                            <Button
-                                size="sm"
-                                data-testid="header-personal-remove"
-                                onClick={() => askFolderRemoval(folder, scope)}
-                            >
-                                Remove folder from favourites
-                            </Button>
-                        )}
-                        {/* Folders belong to the database lines, so they are renamed there. */}
-                        {inFolder && !inPersonal && (
-                            <Button
-                                size="sm"
-                                data-testid="rename-folder"
-                                onClick={() => {
-                                    setRenameError(null);
-                                    setRenameTo(folderName(folder));
-                                }}
-                            >
-                                Rename folder
-                            </Button>
-                        )}
-                        <Button
-                            size="sm"
-                            data-testid="export-button"
-                            onClick={onExport}
-                            // Nothing in scope, nothing to write — at the root that means an empty section.
-                            disabled={scope.length === 0}
-                            title={
-                                inFolder
-                                    ? `Export the ${lineCountLabel(scope.length)} in ${folderName(folder)}, ` +
-                                      `subfolders included`
-                                    : inPersonal
-                                      ? 'Export every favourite line'
-                                      : 'Export every saved line'
-                            }
-                        >
-                            {inFolder ? 'Export folder' : 'Export'}
-                        </Button>
+                        {/* Folded into a ⋮ menu when the header is too narrow for the row. */}
+                        <OverflowActions actions={fileActions} menuLabel="Folder actions" />
                         {!inPersonal && (
-                            <>
-                                <Button
-                                    size="sm"
-                                    data-testid="import-button"
-                                    onClick={() => fileInputRef.current?.click()}
-                                >
-                                    Import
-                                </Button>
-                                {/* Not scoped to the open folder like Export is: the bundled set and
-                    the user's own lines are reset as a whole. */}
-                                <Button
-                                    size="sm"
-                                    data-testid="refresh-data"
-                                    onClick={() => setPendingRefresh(resetSummary())}
-                                    title="Reinstall the bundled lines, keeping or deleting your own"
-                                >
-                                    Refresh data…
-                                </Button>
-                                <HiddenFileInput
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="application/json,.json"
-                                    data-testid="import-input"
-                                    onChange={(event) => {
-                                        const picked = event.target.files?.[0];
-                                        // Clear the value so picking the same file twice still fires a change event.
-                                        event.target.value = '';
-                                        if (picked !== undefined) void onImportPicked(picked);
-                                    }}
-                                />
-                            </>
+                            <HiddenFileInput
+                                ref={fileInputRef}
+                                type="file"
+                                accept="application/json,.json"
+                                data-testid="import-input"
+                                onChange={(event) => {
+                                    const picked = event.target.files?.[0];
+                                    // Clear the value so picking the same file twice still fires a change event.
+                                    event.target.value = '';
+                                    if (picked !== undefined) void onImportPicked(picked);
+                                }}
+                            />
                         )}
                     </FileActions>
                 }
@@ -723,7 +730,7 @@ export function LinesList() {
                     {storeEmpty && inPersonal ? (
                         <EmptyState data-testid="personal-empty">
                             <p>
-                                You haven’t picked any favourites yet. Open the Database, and
+                                You haven’t picked any favourites yet. Open Openings, and
                                 star the lines you want to learn with ☆.
                             </p>
                             <LinkButton
@@ -734,7 +741,7 @@ export function LinesList() {
                                 // remembered Personal section.
                                 onClick={() => writeRememberedSet('database')}
                             >
-                                Open the Database
+                                Open Openings
                             </LinkButton>
                         </EmptyState>
                     ) : storeEmpty ? (
@@ -864,7 +871,7 @@ export function LinesList() {
                     </span>{' '}
                     in <strong>{folderName(pendingFolderRemoval.path)}</strong>, subfolders included,{' '}
                     {pendingFolderRemoval.ids.length === 1 ? 'leaves' : 'leave'} your Favourite list.
-                    The lines themselves stay in the Database.
+                    The lines themselves stay in Openings.
                 </ConfirmDialog>
             )}
 
@@ -1035,7 +1042,7 @@ export function LinesList() {
                         aria-label={favouriteToggleLabel(picked)}
                         title={
                             inPersonal
-                                ? 'Remove from favourites — the line stays in the Database'
+                                ? 'Remove from favourites — the line stays in Openings'
                                 : favouriteToggleLabel(picked)
                         }
                         onClick={() => changePersonal([line.id], !picked)}
@@ -1109,7 +1116,7 @@ export function LinesList() {
                         data-testid="line-analyze"
                         onClick={() => openInAnalyze(line)}
                     >
-                        Open in analyze
+                        Analyze
                     </Button>
                     {/* Deleting is a database operation; Favourite only ever unstars. */}
                     {!inPersonal && (
@@ -1272,10 +1279,14 @@ const CrumbSep = styled.span`
     color: ${(p) => p.theme.color.textFaint};
 `;
 
+/** Takes what the panel title leaves, so the buttons know how much room they have. */
 const FileActions = styled.div`
     display: flex;
-    flex-wrap: wrap;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: flex-end;
     gap: ${(p) => p.theme.space.xs};
+    min-width: 0;
 `;
 
 const HiddenFileInput = styled.input`

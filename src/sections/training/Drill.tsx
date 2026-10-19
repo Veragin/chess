@@ -182,7 +182,7 @@ export function Drill() {
               ) : (
                 <>You haven&rsquo;t picked any lines to learn yet.</>
               )}{' '}
-              Open the Database and star the lines you want to drill with ☆ — the Favourite drill
+              Open Openings and star the lines you want to drill with ☆ — the Favourite drill
               serves only those.
             </p>
           ) : scoped ? (
@@ -200,7 +200,7 @@ export function Drill() {
           {warning !== null && <Muted data-testid="drill-storage-warning">{warning}</Muted>}
           {personal && (
             <Link to={linesPath('', 'database')} data-testid="drill-database-link">
-              Pick lines in the Database ›
+              Pick lines in Openings ›
             </Link>
           )}
           {side !== 'both' && (

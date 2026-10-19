@@ -281,7 +281,7 @@ export function DrillRun({
               </Button>
             )}
             <Button size="lg" data-testid="drill-analyze" onClick={openInAnalyze}>
-              Open in analyze
+              Analyze
             </Button>
             <ExitButton to={exitTo} data-testid="drill-exit">
               Exit
