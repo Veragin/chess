@@ -461,6 +461,18 @@ export function LinesList() {
      * reset as a whole.
      */
     const fileActions: OverflowAction[] = [
+        // A partly starred folder's star stars the rest, so unstarring it in one step lives here.
+        ...(inFolder && !inPersonal && folderStatus === 'some'
+            ? [
+                  {
+                      key: 'unstar',
+                      label: 'Remove from Favourite',
+                      testId: 'header-personal-remove',
+                      onSelect: () => askFolderRemoval(folder, scope),
+                      title: `Remove the favourite lines in ${folderName(folder)} from Favourite`,
+                  },
+              ]
+            : []),
         ...(inFolder && !inPersonal
             ? [
                   {
@@ -602,10 +614,13 @@ export function LinesList() {
                 }
                 actions={
                     <FileActions>
+                        {/* Folded into a ⋮ menu when the header is too narrow for the row. */}
+                        <OverflowActions actions={fileActions} menuLabel="Folder actions" />
                         {/* The open folder's own Favourite star, like the ones on its subfolders'
                 cards: filled once every line below is a favourite (pressing it then asks before
                 unstarring the folder), hollow otherwise (pressing it stars the rest). In
-                Favourite every line is starred, so there it only ever unstars. */}
+                Favourite every line is starred, so there it only ever unstars. Last in the row,
+                so it stays next to the buttons however wide the header is. */}
                         {inFolder && scope.length > 0 && (
                             <StarButton
                                 type="button"
@@ -631,8 +646,6 @@ export function LinesList() {
                                 {folderStatus === 'all' ? '★' : '☆'}
                             </StarButton>
                         )}
-                        {/* Folded into a ⋮ menu when the header is too narrow for the row. */}
-                        <OverflowActions actions={fileActions} menuLabel="Folder actions" />
                         {!inPersonal && (
                             <HiddenFileInput
                                 ref={fileInputRef}
@@ -730,8 +743,8 @@ export function LinesList() {
                     {storeEmpty && inPersonal ? (
                         <EmptyState data-testid="personal-empty">
                             <p>
-                                You haven’t picked any favourites yet. Open Openings, and
-                                star the lines you want to learn with ☆.
+                                You haven’t picked any favourites yet. Star the lines you want to
+                                learn with ☆ in Openings.
                             </p>
                             <LinkButton
                                 to={linesPath('', 'database')}
@@ -741,7 +754,7 @@ export function LinesList() {
                                 // remembered Personal section.
                                 onClick={() => writeRememberedSet('database')}
                             >
-                                Open Openings
+                                Go to Openings
                             </LinkButton>
                         </EmptyState>
                     ) : storeEmpty ? (
@@ -1279,14 +1292,16 @@ const CrumbSep = styled.span`
     color: ${(p) => p.theme.color.textFaint};
 `;
 
-/** Takes what the panel title leaves, so the buttons know how much room they have. */
+/**
+ * Takes what the panel title leaves (a zero basis, so the title keeps its width whether the
+ * buttons are a row or a ⋮ menu), so the buttons know how much room they have.
+ */
 const FileActions = styled.div`
     display: flex;
-    flex: 1 1 auto;
+    flex: 1 1 0;
     align-items: center;
     justify-content: flex-end;
     gap: ${(p) => p.theme.space.xs};
-    min-width: 0;
 `;
 
 const HiddenFileInput = styled.input`

@@ -26,7 +26,8 @@ interface OverflowActionsProps {
  * width changes. The row's natural width is measured while it is shown (in a layout effect, so a
  * row that does not fit is never painted); once collapsed, that remembered width is what the
  * available space is compared with to bring the row back. A change of labels resets the
- * measurement, since the row's width changes with them.
+ * measurement, since the row's width changes with them. The buttons themselves are watched too,
+ * so a row that grows in place (a web font arriving late) still folds instead of being clipped.
  */
 export function OverflowActions({ actions, menuLabel = 'More actions' }: OverflowActionsProps) {
   const outerRef = useRef<HTMLDivElement>(null);
@@ -57,15 +58,17 @@ export function OverflowActions({ actions, menuLabel = 'More actions' }: Overflo
     if (outer === null || typeof ResizeObserver === 'undefined') return undefined;
     const observer = new ResizeObserver(() => {
       const row = rowRef.current;
-      const width = row === null ? naturalWidth.current : row.scrollWidth;
-      setCollapsed(width > outer.clientWidth);
+      if (row !== null) naturalWidth.current = row.scrollWidth;
+      setCollapsed(naturalWidth.current > outer.clientWidth);
     });
     observer.observe(outer);
+    const row = rowRef.current;
+    if (row !== null) for (const button of Array.from(row.children)) observer.observe(button);
     return () => observer.disconnect();
-  }, [setCollapsed]);
+  }, [collapsed, setCollapsed]);
 
   return (
-    <Outer ref={outerRef}>
+    <Outer ref={outerRef} $collapsed={collapsed}>
       {collapsed ? (
         <KebabMenu actions={actions} label={menuLabel} />
       ) : (
@@ -93,13 +96,12 @@ function KebabMenu({ actions, label }: { actions: readonly OverflowAction[]; lab
   const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
   const open = anchor !== null;
   const wrapRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  const toggle = () => wrapRef.current?.querySelector<HTMLButtonElement>('[aria-haspopup]') ?? null;
 
   const close = useCallback((refocus: boolean) => {
     setAnchor(null);
-    if (refocus) wrapRef.current?.querySelector<HTMLButtonElement>('[aria-haspopup]')?.focus();
+    if (refocus) toggleRef.current?.focus();
   }, []);
 
   /**
@@ -107,7 +109,7 @@ function KebabMenu({ actions, label }: { actions: readonly OverflowAction[]; lab
    * is pinned under the ⋮ button when opened and simply closes if the page scrolls or resizes.
    */
   const openMenu = () => {
-    const rect = toggle()?.getBoundingClientRect();
+    const rect = toggleRef.current?.getBoundingClientRect();
     if (rect === undefined) return;
     setAnchor({ top: rect.bottom + 4, right: document.documentElement.clientWidth - rect.right });
   };
@@ -118,19 +120,24 @@ function KebabMenu({ actions, label }: { actions: readonly OverflowAction[]; lab
     const onPointerDown = (event: PointerEvent) => {
       if (!wrapRef.current?.contains(event.target as Node)) close(false);
     };
-    const onMove = () => close(false);
+    const onScroll = (event: Event) => {
+      if (!menuRef.current?.contains(event.target as Node)) close(false);
+    };
+    const onResize = () => close(false);
     document.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('scroll', onMove, true);
-    window.addEventListener('resize', onMove);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
     return () => {
       document.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('scroll', onMove, true);
-      window.removeEventListener('resize', onMove);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
     };
   }, [open, close]);
 
+  // Focus moves into the menu without scrolling the page, which would close it again. With every
+  // item disabled the menu itself takes focus, so Escape still reaches it.
   useEffect(() => {
-    if (open) menuItems(menuRef.current)[0]?.focus();
+    if (open) focusQuietly(menuItems(menuRef.current)[0] ?? menuRef.current);
   }, [open]);
 
   const onMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -142,18 +149,19 @@ function KebabMenu({ actions, label }: { actions: readonly OverflowAction[]; lab
     } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       const step = event.key === 'ArrowDown' ? 1 : -1;
-      items[(index + step + items.length) % items.length]?.focus();
+      focusQuietly(items[(index + step + items.length) % items.length]);
     } else if (event.key === 'Home' || event.key === 'End') {
       event.preventDefault();
-      items[event.key === 'Home' ? 0 : items.length - 1]?.focus();
+      focusQuietly(items[event.key === 'Home' ? 0 : items.length - 1]);
     } else if (event.key === 'Tab') {
       close(false);
     }
   };
 
   return (
-    <MenuWrap ref={wrapRef}>
+    <div ref={wrapRef}>
       <Button
+        ref={toggleRef}
         size="sm"
         aria-label={label}
         title={label}
@@ -169,6 +177,7 @@ function KebabMenu({ actions, label }: { actions: readonly OverflowAction[]; lab
           ref={menuRef}
           role="menu"
           aria-label={label}
+          tabIndex={-1}
           style={{ top: anchor.top, right: anchor.right }}
           onKeyDown={onMenuKeyDown}
         >
@@ -190,8 +199,12 @@ function KebabMenu({ actions, label }: { actions: readonly OverflowAction[]; lab
           ))}
         </Menu>
       )}
-    </MenuWrap>
+    </div>
   );
+}
+
+function focusQuietly(element: HTMLElement | null | undefined) {
+  element?.focus({ preventScroll: true });
 }
 
 function menuItems(menu: HTMLElement | null): HTMLButtonElement[] {
@@ -199,12 +212,15 @@ function menuItems(menu: HTMLElement | null): HTMLButtonElement[] {
   return Array.from(menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'));
 }
 
-/** Takes the space the header leaves, so its width is what the row has to fit in. */
-const Outer = styled.div`
+/**
+ * Takes the space the header leaves, so its width is what the row has to fit in. Once collapsed it
+ * keeps room for the ⋮ button.
+ */
+const Outer = styled.div<{ $collapsed: boolean }>`
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   justify-content: flex-end;
-  min-width: 0;
+  min-width: ${(p) => (p.$collapsed ? 'auto' : '0')};
 `;
 
 const InlineRow = styled.div`
@@ -219,8 +235,6 @@ const InlineRow = styled.div`
     white-space: nowrap;
   }
 `;
-
-const MenuWrap = styled.div``;
 
 const Kebab = styled.span`
   font-size: 1.2rem;
@@ -238,6 +252,10 @@ const Menu = styled.div`
   border: 1px solid ${(p) => p.theme.color.border};
   border-radius: ${(p) => p.theme.radius.md};
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  &:focus {
+    outline: none;
+  }
 `;
 
 const MenuItem = styled.button`

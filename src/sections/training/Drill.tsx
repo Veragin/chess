@@ -182,8 +182,8 @@ export function Drill() {
               ) : (
                 <>You haven&rsquo;t picked any lines to learn yet.</>
               )}{' '}
-              Open Openings and star the lines you want to drill with ☆ — the Favourite drill
-              serves only those.
+              Star the lines you want to drill with ☆ in Openings — the Favourite drill serves
+              only those.
             </p>
           ) : scoped ? (
             <p>

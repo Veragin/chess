@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from 'react';
+import type { ButtonHTMLAttributes, Ref } from 'react';
 import styled, { css } from 'styled-components';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger';
@@ -103,6 +103,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   fullWidth?: boolean;
+  ref?: Ref<HTMLButtonElement>;
 }
 
 export function Button({
