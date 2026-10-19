@@ -30,7 +30,7 @@
       "userColor": "b",
       "createdAt": 1792269758926,
       "updatedAt": 1792269758926,
-      "folder": "Ruy Lopez/Black"
+      "folder": "Ruy Lopez"
     },
     {
       "id": "1c6b53c4-4b5d-5f1c-8846-7ba72afc2be7",
@@ -49,7 +49,7 @@
       "userColor": "w",
       "createdAt": 1792269758926,
       "updatedAt": 1792269758926,
-      "folder": "Ruy Lopez/White"
+      "folder": "Ruy Lopez"
     }
   ]
 }

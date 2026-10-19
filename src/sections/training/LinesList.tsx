@@ -38,6 +38,10 @@
  * badge, and the "My lines" filter hides the bundled ones. The filter is remembered for the tab
  * (`sessionStorage`), so it survives a round trip through the editor or a drill.
  *
+ * "White only" / "Black only" keep just the lines trained as that colour. That filter is explore's
+ * own "Trained for" setting (`state/explore.ts`), so Explore opens already narrowed to the same
+ * side; Drill links carry it as `?side=` (`./lines/folderNav.ts`).
+ *
  * No logic worth testing lives here: filtering, folder arithmetic, labelling, the export filename
  * and the report wording are pure functions in `./lines/` and `storage/folders.ts` with their own
  * unit tests (README §9).
@@ -49,7 +53,8 @@ import styled from 'styled-components';
 import { branchSpec } from '../../chess/line';
 import { Button, Panel } from '../../components/ui';
 import { loadPosition } from '../../state/analysis';
-import { loadExploration } from '../../state/explore';
+import { loadExploration, useTrainedFor } from '../../state/explore';
+import { linesTrainedFor, type TrainedFor } from '../explore/coverage';
 import {
     childFolders,
     folderCrumbs,
@@ -213,10 +218,16 @@ export function LinesList() {
     const personal = snapshot.personal;
     /** Show only the user's own lines, hiding the bundled ones. */
     const [mineOnly, setMineOnly] = useState(readMineOnly);
+    /** Show only the lines trained as one colour; shared with explore's "Trained for". */
+    const [trainedFor, setTrainedFor] = useTrainedFor();
     /** What every count, folder and search below works on. */
     const lines = useMemo(
-        () => (mineOnly ? allLines.filter((line) => !isServerLine(line)) : allLines),
-        [allLines, mineOnly],
+        () =>
+            linesTrainedFor(
+                mineOnly ? allLines.filter((line) => !isServerLine(line)) : allLines,
+                trainedFor,
+            ),
+        [allLines, mineOnly, trainedFor],
     );
     const [warning, setWarning] = useState<string | null>(() => storageWarning());
     /** Set when a Personal add/remove only reached memory; Personal has no warning of its own. */
@@ -252,6 +263,17 @@ export function LinesList() {
             return !on;
         });
     }, []);
+
+    /** Pressing the active colour again shows both colours. */
+    const toggleTrainedFor = useCallback(
+        (side: Exclude<TrainedFor, 'both'>) => setTrainedFor(trainedFor === side ? 'both' : side),
+        [setTrainedFor, trainedFor],
+    );
+
+    const showAllLines = useCallback(() => {
+        if (mineOnly) toggleMineOnly();
+        setTrainedFor('both');
+    }, [mineOnly, setTrainedFor, toggleMineOnly]);
 
     const openFolder = useCallback(
         (path: string) => {
@@ -422,8 +444,9 @@ export function LinesList() {
     }, [crumbs, folder, openFolder, refresh, renameTo]);
 
     const storeEmpty = allLines.length === 0;
-    /** The filter is on and hides everything — at the root, the user has no lines of their own. */
-    const noneOfMine = mineOnly && !storeEmpty && lines.length === 0;
+    /** The filters hide everything in the section. */
+    const noneMatchFilters = !storeEmpty && lines.length === 0;
+    const sideLabel = trainedFor === 'both' ? '' : ` as ${colorLabel(trainedFor)}`;
     const inFolder = folder.length > 0;
     const nothingHere = here.length === 0 && subfolders.length === 0;
     /** How much of the open folder is in Personal — only asked in Database, inside a folder. */
@@ -464,7 +487,7 @@ export function LinesList() {
                 >
                     New line
                 </Button>
-                <LinkButton to={drillPath(folder, set)} data-testid="drill-link">
+                <LinkButton to={drillPath(folder, set, trainedFor)} data-testid="drill-link">
                     {inFolder ? 'Drill folder' : 'Drill'}
                 </LinkButton>
                 {/* The same scope as Drill, asked the other way round: not "can I play these lines"
@@ -520,8 +543,8 @@ export function LinesList() {
                         : inFolder
                           ? folderCountLabel(here.length, scope.length)
                           : mineOnly
-                            ? `${lineCountLabel(lines.length)} of your own`
-                            : `${lineCountLabel(lines.length)} ${inPersonal ? 'picked' : 'saved'}`
+                            ? `${lineCountLabel(lines.length)} of your own${sideLabel}`
+                            : `${lineCountLabel(lines.length)} ${inPersonal ? 'picked' : 'saved'}${sideLabel}`
                 }
                 actions={
                     <FileActions>
@@ -651,6 +674,26 @@ export function LinesList() {
                                 >
                                     My lines only
                                 </Button>
+                                <Button
+                                    size="sm"
+                                    variant={trainedFor === 'w' ? 'primary' : 'secondary'}
+                                    aria-pressed={trainedFor === 'w'}
+                                    data-testid="filter-white"
+                                    onClick={() => toggleTrainedFor('w')}
+                                    title="Show only lines trained as White — Drill and Explore follow"
+                                >
+                                    White only
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={trainedFor === 'b' ? 'primary' : 'secondary'}
+                                    aria-pressed={trainedFor === 'b'}
+                                    data-testid="filter-black"
+                                    onClick={() => toggleTrainedFor('b')}
+                                    title="Show only lines trained as Black — Drill and Explore follow"
+                                >
+                                    Black only
+                                </Button>
                             </FilterRow>
                         </SearchRow>
                     )}
@@ -711,7 +754,7 @@ export function LinesList() {
                                 Create your first line
                             </Button>
                         </EmptyState>
-                    ) : noneOfMine ? (
+                    ) : noneMatchFilters && mineOnly && trainedFor === 'both' ? (
                         <EmptyState data-testid="lines-none-mine">
                             <p>
                                 {inPersonal
@@ -721,6 +764,16 @@ export function LinesList() {
                                 your own copy.
                             </p>
                             <Button data-testid="filter-mine-off" onClick={toggleMineOnly}>
+                                Show all lines
+                            </Button>
+                        </EmptyState>
+                    ) : noneMatchFilters ? (
+                        <EmptyState data-testid="lines-none-filtered">
+                            <p>
+                                No {mineOnly ? 'lines of your own' : inPersonal ? 'personal lines' : 'lines'}{' '}
+                                are trained{sideLabel}.
+                            </p>
+                            <Button data-testid="filter-off" onClick={showAllLines}>
                                 Show all lines
                             </Button>
                         </EmptyState>
@@ -902,7 +955,7 @@ export function LinesList() {
                 </FolderButton>
                 <FolderActions>
                     <LinkButton
-                        to={drillPath(node.path, set)}
+                        to={drillPath(node.path, set, trainedFor)}
                         $size="sm"
                         data-testid="folder-drill"
                         aria-label={`Drill ${node.name}`}

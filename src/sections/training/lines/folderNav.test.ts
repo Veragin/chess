@@ -9,6 +9,7 @@ import {
   newLineFromExplorePath,
   newLinePath,
   parseLineSet,
+  parseTrainedFor,
 } from './folderNav';
 
 describe('folder URLs', () => {
@@ -139,5 +140,22 @@ describe('parseLineSet', () => {
     expect(parseLineSet(new URLSearchParams('set=database'))).toBe('database');
     expect(parseLineSet(new URLSearchParams('set=Personal'))).toBe('database');
     expect(parseLineSet(new URLSearchParams('set='))).toBe('database');
+  });
+});
+
+describe('side filter', () => {
+  it('writes ?side= last on drill URLs, and nothing for both', () => {
+    expect(drillPath('', 'database', 'both')).toBe('/training/drill');
+    expect(drillPath('', 'database', 'w')).toBe('/training/drill?side=w');
+    expect(drillPath('Black/Sicilian', 'personal', 'b')).toBe(
+      '/training/drill?folder=Black%2FSicilian&set=personal&side=b',
+    );
+  });
+
+  it('reads w and b, anything else as both', () => {
+    expect(parseTrainedFor(new URLSearchParams('side=w'))).toBe('w');
+    expect(parseTrainedFor(new URLSearchParams('folder=X&side=b'))).toBe('b');
+    expect(parseTrainedFor(new URLSearchParams(''))).toBe('both');
+    expect(parseTrainedFor(new URLSearchParams('side=W'))).toBe('both');
   });
 });

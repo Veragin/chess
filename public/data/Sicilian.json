@@ -13,7 +13,7 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Sicilian Defense/Black"
+      "folder": "Sicilian Defense"
     },
     {
       "id": "58073713-cff1-554f-a4c2-bbc50e2aadae",
@@ -30,7 +30,7 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Sicilian Defense/Black"
+      "folder": "Sicilian Defense"
     },
     {
       "id": "ae678255-1662-5c7a-808b-42b0361d4d58",
@@ -40,7 +40,7 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Sicilian Defense/Black"
+      "folder": "Sicilian Defense"
     },
     {
       "id": "cc53c1a0-ac5f-53d7-b25b-6397c5b955d4",
@@ -61,7 +61,7 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Sicilian Defense/Black"
+      "folder": "Sicilian Defense"
     },
     {
       "id": "5a80579f-11b5-5ed3-bb34-43dd57713793",
@@ -71,7 +71,7 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
-      "folder": "Sicilian Defense/Black"
+      "folder": "Sicilian Defense"
     },
     {
       "id": "60f0a430-dbc8-50f6-9531-6d8b6709fa7d",
@@ -100,7 +100,7 @@
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792269758926,
-      "folder": "Sicilian Defense/Black"
+      "folder": "Sicilian Defense"
     },
     {
       "id": "ed25c762-00b8-5b6b-88f2-76a464afa610",
@@ -123,7 +123,7 @@
       "userColor": "w",
       "createdAt": 1792269758926,
       "updatedAt": 1792269758926,
-      "folder": "Sicilian Defense/White"
+      "folder": "Sicilian Defense"
     },
     {
       "id": "64333a06-d531-5a0a-a93f-b71e6a243e77",
@@ -151,7 +151,7 @@
       "userColor": "w",
       "createdAt": 1792269758926,
       "updatedAt": 1792269758926,
-      "folder": "Sicilian Defense/White"
+      "folder": "Sicilian Defense"
     }
   ]
 }

@@ -19,6 +19,7 @@ import { branchSpec, resolveLine, type ResolvedLine } from '../../../chess/line'
 import { countBranches, replayTree, type MoveTree } from '../../../chess/tree';
 import { linesUnderFolder } from '../../../storage/folders';
 import { getLine } from '../../../storage/lines';
+import { linesTrainedFor, type TrainedFor } from '../../explore/coverage';
 import type { LineSet } from '../lines/folderNav';
 import { linesOfSet } from '../lines/lineSet';
 
@@ -29,8 +30,12 @@ import { linesOfSet } from '../lines/lineSet';
  * `Black/Sicilian` too, which is the point of nesting a repertoire. The root (`''`, the default)
  * is every line of `set`, so an unscoped Database drill behaves exactly as before folders existed.
  */
-export function drillablePool(folder = '', set: LineSet = 'database'): string[] {
-  return drillableBranchPool(folder, set).map((entry) => entry.id);
+export function drillablePool(
+  folder = '',
+  set: LineSet = 'database',
+  side: TrainedFor = 'both',
+): string[] {
+  return drillableBranchPool(folder, set, side).map((entry) => entry.id);
 }
 
 /**
@@ -38,10 +43,15 @@ export function drillablePool(folder = '', set: LineSet = 'database'): string[] 
  * count is as opaque as an id: it says how big a line is, not what it plays.
  *
  * `set` picks the lines before the folder narrows them: Personal is only the picked lines (stale
- * picks already dropped by `linesOfSet`), Database every saved line.
+ * picks already dropped by `linesOfSet`), Database every saved line. `side` then keeps only the
+ * lines trained as that colour (`'both'` keeps them all).
  */
-export function drillableBranchPool(folder = '', set: LineSet = 'database'): DrillPoolEntry[] {
-  return linesUnderFolder(linesOfSet(set), folder)
+export function drillableBranchPool(
+  folder = '',
+  set: LineSet = 'database',
+  side: TrainedFor = 'both',
+): DrillPoolEntry[] {
+  return linesTrainedFor(linesUnderFolder(linesOfSet(set), folder), side)
     .filter((line) => replayTree(line.startFen, line.tree).ok)
     .map((line) => ({ id: line.id, branches: countBranches(line.tree) }));
 }

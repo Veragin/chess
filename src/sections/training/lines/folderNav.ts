@@ -18,6 +18,7 @@
  */
 
 import { normaliseFolderPath } from '../../../storage/schema';
+import type { TrainedFor } from '../../explore/coverage';
 
 /** Which lines a training screen works on: the user's picked Personal set, or every saved line. */
 export type LineSet = 'personal' | 'database';
@@ -27,12 +28,23 @@ export function parseLineSet(params: URLSearchParams): LineSet {
   return params.get('set') === 'personal' ? 'personal' : 'database';
 }
 
+/**
+ * The side a drill is narrowed to, from `?side=`: only lines trained as White (`w`) or as Black
+ * (`b`). Absent or unrecognised means both.
+ */
+export function parseTrainedFor(params: URLSearchParams): TrainedFor {
+  const side = params.get('side');
+  return side === 'w' || side === 'b' ? side : 'both';
+}
+
 /** Optional query parameters besides `folder` and `set`, all emitted only when given. */
 interface ExtraParams {
   /** Written *before* `folder`, as single-line drill URLs always have. */
   line?: string;
   /** Written after `folder`. */
   from?: LineHandoff;
+  /** Written last; `both` is spelled as no parameter. */
+  side?: TrainedFor;
 }
 
 /**
@@ -44,7 +56,7 @@ function scopedPath(
   base: string,
   folder: string,
   set: LineSet,
-  { line, from }: ExtraParams = {},
+  { line, from, side }: ExtraParams = {},
 ): string {
   const params = new URLSearchParams();
   if (line !== undefined) params.append('line', line);
@@ -52,6 +64,7 @@ function scopedPath(
   if (normalised.length > 0) params.append('folder', normalised);
   if (from !== undefined) params.append('from', from);
   if (set === 'personal') params.append('set', set);
+  if (side !== undefined && side !== 'both') params.append('side', side);
   const query = [...params]
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join('&');
@@ -63,9 +76,13 @@ export function linesPath(folder: string, set: LineSet = 'database'): string {
   return scopedPath('/training', folder, set);
 }
 
-/** Drill scoped to `folder` and its subfolders. */
-export function drillPath(folder: string, set: LineSet = 'database'): string {
-  return scopedPath('/training/drill', folder, set);
+/** Drill scoped to `folder` and its subfolders, optionally to the lines trained for one `side`. */
+export function drillPath(
+  folder: string,
+  set: LineSet = 'database',
+  side: TrainedFor = 'both',
+): string {
+  return scopedPath('/training/drill', folder, set, { side });
 }
 
 /** The editor for a new line, pre-filed in `folder`. */
