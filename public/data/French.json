@@ -7,12 +7,21 @@
       "name": "French Defence - e4 e6 d3 d5 Nd2",
       "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
       "tree": [
-        "e4", "e6", "d3", "d5", "Nd2", "Nc6",
-        [
-          "Nf6", "g3", "dxe4", "dxe4", "Bc5", "Ngf3", "Ng4", "Qe2", "Bxf2+", "Qxf2",
-          ["Kd1", "Ne3+", "Qxe3", "Bxe3"], "Nxf2"
-        ],
-        "Ne2", "e5", "exd5", "Qxd5", "c4", "Nb4", "cxd5", "Nxd3#"
+        "e4", "e6", "d3", "d5", "Nd2", "Nc6", "Ne2", "e5", "exd5", "Qxd5", "c4", "Nb4", "cxd5",
+        "Nxd3#"
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "French Defence"
+    },
+    {
+      "id": "a62fd18c-791d-55ac-ab89-6770f6fa9e50",
+      "name": "French Defence - e4 e6 d3 d5 Nd2 Nf6",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e6", "d3", "d5", "Nd2", "Nf6", "g3", "dxe4", "dxe4", "Bc5", "Ngf3", "Ng4", "Qe2",
+        "Bxf2+", "Qxf2", ["Kd1", "Ne3+", "Qxe3", "Bxe3"], "Nxf2"
       ],
       "userColor": "b",
       "createdAt": 1792267801162,
@@ -29,29 +38,50 @@
           "exd5", "exd5", "Nf3", "Bd6", "Bd3", "Nc6", "c3", "Bg4", "Bg5", "Bxf3", "Qxf3",
           ["Bxd8", "Bxd1", "Kxd1", "Rxd8"], "Qxg5"
         ],
-        "Bb4",
-        [
-          {
-            "san": "Nc6",
-            "comment": "A rare sideline in the French defense, which was played by Aron Nimzowitsch."
-          },
-          "e5", {"san": "f6", "comment": "striking against the White center"},
-          {"san": "f4", "comment": "reinforcing the center"},
-          {
-            "san": "fxe5",
-            "comment": "Here, White has two options to recapture. The natural fxe5 (following the rule to capture towards the center) is bad because of:"
-          },
-          "fxe5", "Qh4+", "g3", "Qxd4"
-        ],
-        "e5", ["Bd2", "dxe4", "Nxe4", "Qxd4", "Nc3", "Nf6"],
+        "Bb4", "e5", ["Bd2", "dxe4", "Nxe4", "Qxd4", "Nc3", "Nf6"],
         [
           "Ne2", "dxe4", "a3", "Bxc3+", "Nxc3", "Nc6", "Qg4", "Nxd4", "Qxg7", "Nxc2+", "Ke2",
           "Qd3#"
         ],
-        ["f3", "dxe4", "fxe4", "Qh4+", "g3", "Qxe4+", "Kf2", "Qxh1"], "c5",
-        ["Qd7", "Nf3", "b6", "Bb5", "Bxc3+", "bxc3", "Qxb5"], "a3", "Bxc3+", "bxc3", "Ne7", "Qg4",
-        "Qc7", "Qxg7", "Rg8", "Qxh7", "cxd4", "cxd4",
+        ["f3", "dxe4", "fxe4", "Qh4+", "g3", "Qxe4+", "Kf2", "Qxh1"], "c5", "a3", "Bxc3+", "bxc3",
+        "Ne7", "Qg4", "Qc7", "Qxg7", "Rg8", "Qxh7", "cxd4", "cxd4",
         ["Ne2", "Nbc6", "cxd4", "Nxd4", "Nxd4", "Qc3+", "Ke2", "Qxa1"], "Qc3+", "Kd1", "Qxa1"
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792269758926,
+      "folder": "French Defence"
+    },
+    {
+      "id": "5a9a7a83-e2ba-5c05-a449-ee7641c196bd",
+      "name": "French Defence - e4 e6 d4 d5 Nc3 Bb4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e6", "d4", "d5", "Nc3", "Bb4", "e5", "Qd7", "Nf3", "b6", "Bb5", "Bxc3+", "bxc3",
+        "Qxb5"
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792269758926,
+      "folder": "French Defence"
+    },
+    {
+      "id": "2e5afd1f-69a6-5678-9eab-2e91c6edf631",
+      "name": "French Defence - e4 e6 d4 d5 Nc3 Nc6",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e6", "d4", "d5", "Nc3",
+        {
+          "san": "Nc6",
+          "comment": "A rare sideline in the French defense, which was played by Aron Nimzowitsch."
+        },
+        "e5", {"san": "f6", "comment": "striking against the White center"},
+        {"san": "f4", "comment": "reinforcing the center"},
+        {
+          "san": "fxe5",
+          "comment": "Here, White has two options to recapture. The natural fxe5 (following the rule to capture towards the center) is bad because of:"
+        },
+        "fxe5", "Qh4+", "g3", "Qxd4"
       ],
       "userColor": "b",
       "createdAt": 1792267801162,
@@ -77,14 +107,23 @@
       "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
       "tree": [
         "e4", "e6", "d4", "d5", "Nc3",
-        [
-          "e5", "c5", "c3", "Nc6",
-          ["Qb6", "Nf3", "Nc6", "a3", "c4", "Nbd2", "Nge7", "Bxc4", "dxc4", "Nxc4", "Qc7", "Nd6+"],
-          "Nf3", "Qb6", "Be2", "Nh6", "Bxh6", "Qxb2", "Be3", "Qxa1", "Qc2"
-        ],
         {"san": "dxe4", "comment": "The Rubinstein Variation of the French Defense"}, "Nxe4", "Bd7",
         "Nf3", {"san": "Bc6", "comment": "The Fort Knox Variation"}, "Bd3", "Nd7", "Qe2", "Ngf6",
         "Nxf6+", "Qxf6", "Bg5", "Bxf3", {"san": "Qe3", "comment": "White wins the Black queen"}
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "French Defence"
+    },
+    {
+      "id": "a60854c5-4542-5a97-a4f1-28b55af7e266",
+      "name": "White French Defence - e4 e6 d4 d5 e5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e6", "d4", "d5", "e5", "c5", "c3", "Nc6",
+        ["Qb6", "Nf3", "Nc6", "a3", "c4", "Nbd2", "Nge7", "Bxc4", "dxc4", "Nxc4", "Qc7", "Nd6+"],
+        "Nf3", "Qb6", "Be2", "Nh6", "Bxh6", "Qxb2", "Be3", "Qxa1", "Qc2"
       ],
       "userColor": "w",
       "createdAt": 1792269758926,

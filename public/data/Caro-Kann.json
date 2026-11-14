@@ -85,21 +85,29 @@
       "name": "White Caro-Kann Defense - e4 c6 d4 d5 Nc3",
       "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
       "tree": [
-        "e4", {"san": "c6", "comment": "Caro-Kann"}, "d4", "d5", "Nc3",
-        [
-          "Nd2", "dxe4", "Nxe4", "Nd7", "Ng5", "Ngf6", ["h6", "Ne6", "Qb6", "Nxf8"], "Bd3", "e6",
-          "N1f3",
-          {
-            "san": "h6",
-            "comment": "The player who played this mistake is no one else than Garry Kasparov in his match against the compute Deep Blue. It is the first time the world champion had been defeated in a match by a computer."
-          },
-          "Nxe6", "fxe6", "Bg6+", "Ke7", "O-O"
-        ],
-        "dxe4", "Nxe4", "Bf5", "Ng3", "Bg6", "h4", "h6", "h5", "Bh7", "Nf3", "Nd7", "Bd3", "Bxd3",
-        "Qxd3", "e6", "O-O", "Ngf6", "Re1",
-        {"san": "Qc7", "comment": "with the idea to prevent Bf4"}, "Ne5", "Be7", "Nxf7", "Kxf7",
-        "Qg6+", "Kg8", "Nf5", "exf5", "Rxe7", "Rh7", "Bxh6", "Nxh5", "Qf7+", "Kh8", "Re8+", "Rxe8",
-        "Qxe8+", "Nf8", "Qxf8#"
+        "e4", {"san": "c6", "comment": "Caro-Kann"}, "d4", "d5", "Nc3", "dxe4", "Nxe4", "Bf5",
+        "Ng3", "Bg6", "h4", "h6", "h5", "Bh7", "Nf3", "Nd7", "Bd3", "Bxd3", "Qxd3", "e6", "O-O",
+        "Ngf6", "Re1", {"san": "Qc7", "comment": "with the idea to prevent Bf4"}, "Ne5", "Be7",
+        "Nxf7", "Kxf7", "Qg6+", "Kg8", "Nf5", "exf5", "Rxe7", "Rh7", "Bxh6", "Nxh5", "Qf7+", "Kh8",
+        "Re8+", "Rxe8", "Qxe8+", "Nf8", "Qxf8#"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "Caro-Kann Defense"
+    },
+    {
+      "id": "8c75d6e5-457e-5812-a251-3a6435cd589b",
+      "name": "White Caro-Kann Defense - e4 c6 d4 d5 Nd2",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", {"san": "c6", "comment": "Caro-Kann"}, "d4", "d5", "Nd2", "dxe4", "Nxe4", "Nd7",
+        "Ng5", "Ngf6", ["h6", "Ne6", "Qb6", "Nxf8"], "Bd3", "e6", "N1f3",
+        {
+          "san": "h6",
+          "comment": "The player who played this mistake is no one else than Garry Kasparov in his match against the compute Deep Blue. It is the first time the world champion had been defeated in a match by a computer."
+        },
+        "Nxe6", "fxe6", "Bg6+", "Ke7", "O-O"
       ],
       "userColor": "w",
       "createdAt": 1792269758926,

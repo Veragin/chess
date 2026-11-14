@@ -1,12 +1,12 @@
 # Trained-side duplicities in `public/data`
 
-Positions where the repertoire gives the **trained side** more than one move. Lines are joined when they share the start position and the first 3 moves, so most of these alternatives now sit *inside* one joined line, where drill accepts any of them (decision D6). Lines use the re-filing from §8 of the plan.
+Positions where the repertoire gives the **trained side** more than one move. Lines are joined when they share the start position and the first 3 moves, then split wherever the joined tree gives the trained side several moves, so each alternative sits in its own line and drill never has to pick. Lines use the re-filing from §8 of the plan.
 
-**Summary:** 40 positions (Anti-london / Black Knights Tango / Budapest / Dutch Defence / Englund Gambit / Grunfeld Defense / Queen's Gambit Declined / Queen's Indian Defence / Slav Defense / Trompowsky Attack ×1, Anti-london ×1, Black Knights Tango / Budapest / Grunfeld Defense / Nimzo-Indian ×1, Caro-Kann Defense / Center Game / Four Knights / French Defence / Italian Game / King's Gambit Accepted / Ruy Lopez / Scotch Game / Sicilian Defense / Stafford traps / Stafford ×1, Center Game / White Italian Game / White Ruy Lopez / White Scotch Game / White Vienna Game ×1, Dutch Defence ×2, Dutch Defence / Nimzo-Indian ×1, Four Knights / Italian Game / Ruy Lopez / Scotch Game / Stafford traps / Stafford ×1, French Defence ×3, Italian Game ×2, King's Gambit Accepted ×1, Orangutan / White Bogo-Indian Defense / White Caro-Kann Defense / White Dutch Defence / White French Defence / White Italian Game / White King's Indian Attack / White King's Indian Defense / White London System / White Modern Defense / White Queen's Gambit Accepted / White Queen's Gambit Declined / White Reti Opening / White Ruy Lopez / White Scandinavian Defense / White Scotch Game / White Sicilian Defense / White Trompowsky Attack / White Vienna Game ×1, Petroff defense ×1, Queen's Gambit Declined / Slav Defense ×1, Ruy Lopez ×1, Sicilian Defense ×3, Stafford traps / Stafford ×2, Stafford ×3, White Bogo-Indian Defense / White King's Indian Defense / White Trompowsky Attack ×1, White Caro-Kann Defense ×2, White French Defence ×2, White Italian Game / White Ruy Lopez / White Scotch Game ×1, White Italian Game ×1, White Italian Game / White Scotch Game ×1, White London System / White Queen's Gambit Accepted / White Queen's Gambit Declined ×1, White London System ×1, White Queen's Gambit Accepted ×1, White Scandinavian Defense ×1, White Sicilian Defense ×1). 20 branch inside a single joined line (drill accepts either move there), 2 inside one line by transposition, 18 across lines.
+**Summary:** 41 positions (Anti-london / Black Knights Tango / Budapest / Dutch Defence / Englund Gambit / Grunfeld Defense / Queen's Gambit Declined / Queen's Indian Defence / Slav Defense / Trompowsky Attack ×1, Anti-london ×1, Stafford reject Bc4 / Caro-Kann Defense / Center Game / Four Knights / French Defence / Italian Game / King's Gambit Accepted / Ruy Lopez / Scotch Game / Sicilian Defense / Stafford traps / Stafford ×1, Stafford reject Bc4 ×1, Black Knights Tango / Budapest / Grunfeld Defense / Nimzo-Indian ×1, Bogo-Indian Defense / Caro-Kann Defense / Dutch Defence / French Defence / Italian Game / King's Indian Attack / King's Indian Defense / London System / Modern Defense / Orangutan / Queen's Gambit Accepted / Queen's Gambit Declined / Reti Opening / Ruy Lopez / Scandinavian Defense / Scotch Game / Sicilian Defense / Trompowsky Attack / Vienna Game ×1, Bogo-Indian Defense / King's Indian Defense / Trompowsky Attack ×1, Caro-Kann Defense ×2, Center Game / Italian Game / Ruy Lopez / Scotch Game / Vienna Game ×1, Dutch Defence ×2, Dutch Defence / Nimzo-Indian ×1, Four Knights / Italian Game / Ruy Lopez / Scotch Game / Stafford traps / Stafford ×1, French Defence ×5, Italian Game ×3, Italian Game / Ruy Lopez / Scotch Game ×1, Italian Game / Scotch Game ×1, King's Gambit Accepted ×1, London System / Queen's Gambit Accepted / Queen's Gambit Declined ×1, London System ×1, Petroff defense ×1, Queen's Gambit Accepted ×1, Queen's Gambit Declined / Slav Defense ×1, Ruy Lopez ×1, Scandinavian Defense ×1, Sicilian Defense ×4, Stafford traps / Stafford ×2, Stafford ×3). 0 branch inside a single line, 2 inside one line by transposition, 39 across lines.
 
 Usually one of them is a mistake or an unintended alternative worth reviewing. Positions are matched by transposition across all files (same trained side); each move lists the original (v1) lines playing it and the joined line they are now part of.
 
-- **branch inside one line** — the joined tree branches on a move of the trained side at this position; drill accepts any of the moves and continues on that branch (D6).
+- **branch inside one line** — a line branches on a move of the trained side at this position. The split step removes these, so none should be listed.
 - **transposition inside one line** — one joined line reaches the position at different nodes with different moves; at each node drill only knows that node's move.
 - **across lines** — different joined lines disagree; Explore shows both continuations, drill is not affected.
 
@@ -16,45 +16,82 @@ Generated by `npx tsx scripts/migrate-data.ts`.
 
 Position: `rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq -` (e.g. after `d4` in `Anti-london - d4 Nf6 Bf4 c5 c3` (AntiLondon.json))
 
-- **Nf6** — `Anti-london - d4 Nf6 Bf4 c5 c3` (AntiLondon.json); `Trap 35 (Black Knights Tango)` (Black-knights-tango.json) → Black Knights Tango - d4 Nf6 c4 Nc6 Nc3; `Trap 33 (Budapest Gambit)` (Budapest.json) → Budapest - d4 Nf6 c4 e5 dxe5; `Trap 62 (Grünfeld Defense)` (Grunfeld-defense.json) → Grunfeld Defense - d4 Nf6 c4 g6 Nc3; `Trap 37 (Queen's Indian Defence)` (Queens-indian-defence.json) → Queen's Indian Defence - d4 Nf6 Nf3 e6 c4; `Trap 55 (Trompowsky Attack)` (Trompowsky-attack.json) → Trompowsky Attack - d4 Nf6 Bg5 Ne4 Bf4
-- **d5** — `Trap 24 (London System)` (AntiLondon.json) → Anti-london - d4 d5 Bf4 h5 e3; `Trap 59 (London System)` (AntiLondon.json) → Anti-london - d4 d5 Bf4 h5 e3; `Trap 28 (Queen's Gambit Declined)` (Queens-gambit-declined.json) → Queen's Gambit Declined - d4 d5 c4 e6 Nc3; `Trap 58 (Slav Defense)` (Slav-defense.json) → Slav Defense - d4 d5 c4 c6 Nf3
+- **Nf6** — `Anti-london - d4 Nf6 Bf4 c5 c3` (AntiLondon.json); `Black Knights Tango - d4 Nf6 c4 Nc6 Nc3` (Black-knights-tango.json); `Budapest - d4 Nf6 c4 e5 dxe5` (Budapest.json); `Grunfeld Defense - d4 Nf6 c4 g6 Nc3` (Grunfeld-defense.json); `Queen's Indian Defence - d4 Nf6 Nf3 e6 c4` (Queens-indian-defence.json); `Trompowsky Attack - d4 Nf6 Bg5 Ne4 Bf4` (Trompowsky-attack.json)
+- **d5** — `Anti-london - d4 d5 Bf4 h5 e3` (AntiLondon.json); `Anti-london - d4 d5 Bf4 Bf5 e3` (AntiLondon.json); `Queen's Gambit Declined - d4 d5 c4 e6 Nc3` (Queens-gambit-declined.json); `Slav Defense - d4 d5 c4 c6 Nf3` (Slav-defense.json)
 - **f5** — `Dutch Defence - f5 c4 e6 Nf3 Nf6` (Dutch.json)
-- **e5** — `Trap 03 (Englund Gambit)` (Englund-gambit.json) → Englund Gambit - d4 e5 dxe5 Nc6 Nf3
+- **e5** — `Englund Gambit - d4 e5 dxe5 Nc6 Nf3` (Englund-gambit.json)
 
-### Anti-london — branch inside one line
+### Anti-london — across lines
 
-Position: `rnbqkbnr/ppp1pppp/8/3p4/3P1B2/8/PPP1PPPP/RN1QKBNR b KQkq -` (e.g. after `d4 d5 Bf4` in `Trap 24 (London System)` (AntiLondon.json))
+Position: `rnbqkbnr/ppp1pppp/8/3p4/3P1B2/8/PPP1PPPP/RN1QKBNR b KQkq -` (e.g. after `d4 d5 Bf4` in `Anti-london - d4 d5 Bf4 h5 e3` (AntiLondon.json))
 
-Branches in `Anti-london - d4 d5 Bf4 h5 e3` after `d4 d5 Bf4`: **h5**, **Bf5**
+- **h5** — `Anti-london - d4 d5 Bf4 h5 e3` (AntiLondon.json)
+- **Bf5** — `Anti-london - d4 d5 Bf4 Bf5 e3` (AntiLondon.json)
 
-- **h5** — `Trap 24 (London System)` (AntiLondon.json) → Anti-london - d4 d5 Bf4 h5 e3
-- **Bf5** — `Trap 59 (London System)` (AntiLondon.json) → Anti-london - d4 d5 Bf4 h5 e3
+### Stafford reject Bc4 / Caro-Kann Defense / Center Game / Four Knights / French Defence / Italian Game / King's Gambit Accepted / Ruy Lopez / Scotch Game / Sicilian Defense / Stafford traps / Stafford — across lines
+
+Position: `rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -` (e.g. after `e4` in `Bishop's Opening traps - e4 e5 Bc4 Nc6 Qh5` (Bishops-opening.json))
+
+- **e5** — `Bishop's Opening traps - e4 e5 Bc4 Nc6 Qh5` (Bishops-opening.json); `Bishop's Opening traps - e4 e5 Bc4 Bc5 Qh5` (Bishops-opening.json); `Bishop's Opening traps - e4 e5 Bc4 Nf6 d3` (Bishops-opening.json); `Center Game - e4 e5 d4 exd4 Qxd4` (Center-game.json); `Four Knights - e4 e5 Nf3 Nc6 Nc3` (Four-knights.json); `Four Knights - e4 e5 Nf3 Nf6 Nc3` (Four-knights.json); `Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json); `Italian Game - e4 e5 Nf3 Nc6 Bc4 Nf6` (Italian-game.json); `Italian Game - e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5` (Italian-game.json); `Italian Game - e4 e5 Nf3 Nc6 Bc4 Bc5` (Italian-game.json); `King's Gambit Accepted - e4 e5 f4 exf4 Bc4` (Kings-gambit.json); `King's Gambit Accepted - e4 e5 f4 exf4 Bc4 Nf6` (Kings-gambit.json); `Ruy Lopez - e4 e5 Nf3 Nc6 Bb5` (Ruy-lopez.json); `Ruy Lopez - e4 e5 Nf3 Nc6 Bb5 Nf6` (Ruy-lopez.json); `Scotch Game - e4 e5 Nf3 Nc6 d4` (Scotch-game.json); `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` (Stafford.json); `Stafford traps - e4 e5 Nf3 Nf6 Nxe5 Nc6` (Stafford.json); `Stafford - e4 e5 Nf3 Nf6 Nxe5` (Stafford.json)
+- **c6** — `Caro-Kann Defense - e4 c6 c4 d5 cxd5` (Caro-Kann.json); `Caro-Kann Defense - e4 c6 Nc3 d5 f3` (Caro-Kann.json); `Caro-Kann Defense - e4 c6 d4 d5 Nc3` (Caro-Kann.json); `Caro-Kann Defense - e4 c6 d3 d5 Nd2` (Caro-Kann.json)
+- **e6** — `French Defence - e4 e6 d3 d5 Nd2` (French.json); `French Defence - e4 e6 d3 d5 Nd2 Nf6` (French.json); `French Defence - e4 e6 d4 d5 Nc3` (French.json); `French Defence - e4 e6 d4 d5 Nc3 Bb4` (French.json); `French Defence - e4 e6 d4 d5 Nc3 Nc6` (French.json); `French Defence - e4 e6 Qf3 d5 exd5` (French.json)
+- **c5** — `Sicilian Defense - e4 c5 c3 d5 exd5` (Sicilian.json); `Sicilian Defense - e4 c5 c3 Nf6 e5` (Sicilian.json); `Sicilian Defense - e4 c5 Nc3 Nc6 Nge2` (Sicilian.json); `Sicilian Defense - e4 c5 Ne2 Nc6 c4` (Sicilian.json); `Sicilian Defense - e4 c5 Nf3 Nc6 Bb5` (Sicilian.json); `Sicilian Defense - e4 c5 Nf3 e6 d4` (Sicilian.json); `Sicilian Defense - e4 c5 Nf3 e6 d4 cxd4` (Sicilian.json); `Sicilian Defense - e4 c5 b4 cxb4 a3` (Sicilian.json); `Sicilian Defense - e4 c5 d4 cxd4 Nf3` (Sicilian.json)
+
+### Stafford reject Bc4 — across lines
+
+Position: `rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq -` (e.g. after `e4 e5 Bc4` in `Bishop's Opening traps - e4 e5 Bc4 Nc6 Qh5` (Bishops-opening.json))
+
+- **Nc6** — `Bishop's Opening traps - e4 e5 Bc4 Nc6 Qh5` (Bishops-opening.json)
+- **Bc5** — `Bishop's Opening traps - e4 e5 Bc4 Bc5 Qh5` (Bishops-opening.json)
+- **Nf6** — `Bishop's Opening traps - e4 e5 Bc4 Nf6 d3` (Bishops-opening.json)
 
 ### Black Knights Tango / Budapest / Grunfeld Defense / Nimzo-Indian — across lines
 
-Position: `rnbqkb1r/pppppppp/5n2/8/2PP4/8/PP2PPPP/RNBQKBNR b KQkq -` (e.g. after `d4 Nf6 c4` in `Trap 35 (Black Knights Tango)` (Black-knights-tango.json))
+Position: `rnbqkb1r/pppppppp/5n2/8/2PP4/8/PP2PPPP/RNBQKBNR b KQkq -` (e.g. after `d4 Nf6 c4` in `Black Knights Tango - d4 Nf6 c4 Nc6 Nc3` (Black-knights-tango.json))
 
-- **Nc6** — `Trap 35 (Black Knights Tango)` (Black-knights-tango.json) → Black Knights Tango - d4 Nf6 c4 Nc6 Nc3
-- **e5** — `Trap 33 (Budapest Gambit)` (Budapest.json) → Budapest - d4 Nf6 c4 e5 dxe5
-- **g6** — `Trap 62 (Grünfeld Defense)` (Grunfeld-defense.json) → Grunfeld Defense - d4 Nf6 c4 g6 Nc3
+- **Nc6** — `Black Knights Tango - d4 Nf6 c4 Nc6 Nc3` (Black-knights-tango.json)
+- **e5** — `Budapest - d4 Nf6 c4 e5 dxe5` (Budapest.json)
+- **g6** — `Grunfeld Defense - d4 Nf6 c4 g6 Nc3` (Grunfeld-defense.json)
 - **e6** — `Nimzo-Indian - e6 Nc3 Bb4 Nf3 Ne4` (Nimzo-Indian.json)
 
-### Caro-Kann Defense / Center Game / Four Knights / French Defence / Italian Game / King's Gambit Accepted / Ruy Lopez / Scotch Game / Sicilian Defense / Stafford traps / Stafford — across lines
+### Bogo-Indian Defense / Caro-Kann Defense / Dutch Defence / French Defence / Italian Game / King's Indian Attack / King's Indian Defense / London System / Modern Defense / Orangutan / Queen's Gambit Accepted / Queen's Gambit Declined / Reti Opening / Ruy Lopez / Scandinavian Defense / Scotch Game / Sicilian Defense / Trompowsky Attack / Vienna Game — across lines
 
-Position: `rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -` (e.g. after `e4` in `Caro-Kann Defense - e4 c6 c4 d5 cxd5` (Caro-Kann.json))
+Position: `rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -` (e.g. after `(start of line)` in `White Bogo-Indian Defense - d4 Nf6 c4 e6 Nf3` (Bogo-indian-defense.json))
 
-- **c6** — `Caro-Kann Defense - e4 c6 c4 d5 cxd5` (Caro-Kann.json); `Caro-Kann Defense - e4 c6 Nc3 d5 f3` (Caro-Kann.json); `Caro-Kann Defense - e4 c6 d4 d5 Nc3` (Caro-Kann.json); `Caro-Kann Defense - e4 c6 d3 d5 Nd2` (Caro-Kann.json)
-- **e5** — `Center Game - e4 e5 d4 exd4 Qxd4` (Center-game.json); `Four Knights - e4 e5 Nf3 Nc6 Nc3` (Four-knights.json); `Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json); `Trap 06 (Italian Game)` (Italian-game.json) → Italian Game - e4 e5 Nf3 Nc6 Bc4; `King's Gambit Accepted - e4 e5 f4 exf4 Bc4` (Kings-gambit.json); `Trap 02 (Ruy Lopez)` (Ruy-lopez.json) → Ruy Lopez - e4 e5 Nf3 Nc6 Bb5; `Trap 38 (Ruy Lopez)` (Ruy-lopez.json) → Ruy Lopez - e4 e5 Nf3 Nc6 Bb5; `Trap 39 (Scotch Opening)` (Scotch-game.json) → Scotch Game - e4 e5 Nf3 Nc6 d4; `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` (Stafford-traps.json); `Stafford - e4 e5 Nf3 Nf6 Nxe5` (Stafford.json)
-- **e6** — `French Defence - e4 e6 d3 d5 Nd2` (French.json); `French Defence - e4 e6 d4 d5 Nc3` (French.json); `Trap 36 (French Defence)` (French.json) → French Defence - e4 e6 d4 d5 Nc3; `French Defence - e4 e6 Qf3 d5 exd5` (French.json)
-- **c5** — `Sicilian Defense - e4 c5 c3 d5 exd5` (Sicilian.json); `Sicilian Defense - e4 c5 Nc3 Nc6 Nge2` (Sicilian.json); `Sicilian Defense - e4 c5 Ne2 Nc6 c4` (Sicilian.json); `Sicilian Defense - e4 c5 Nf3 Nc6 Bb5` (Sicilian.json); `Sicilian Defense - e4 c5 b4 cxb4 a3` (Sicilian.json); `Sicilian Defense - e4 c5 d4 cxd4 Nf3` (Sicilian.json); `Trap 26 (Smith-Morra Gambit)` (Sicilian.json) → Sicilian Defense - e4 c5 d4 cxd4 Nf3
+- **d4** — `White Bogo-Indian Defense - d4 Nf6 c4 e6 Nf3` (Bogo-indian-defense.json); `White Dutch Defence - d4 f5 Bg5 h6 Bh4` (Dutch.json); `White King's Indian Defense - d4 Nf6 c4 g6 Nc3` (Kings-indian-defense.json); `White London System - d4 d5 Bf4 Nf6 e3` (London-system.json); `White London System - d4 d5 Bf4 Nf6 e3 c5` (London-system.json); `White Queen's Gambit Accepted - d4 d5 c4 dxc4 e3` (Queens-gambit-accepted.json); `White Queen's Gambit Accepted - d4 d5 c4 dxc4 Nf3` (Queens-gambit-accepted.json); `White Queen's Gambit Declined - d4 d5 c4 e5 dxe5` (Queens-gambit-declined.json); `White Trompowsky Attack - d4 Nf6 Bg5 Ne4 Bf4` (Trompowsky-attack.json)
+- **e4** — `White Caro-Kann Defense - e4 c6 d3 d5 Nf3` (Caro-Kann.json); `White Caro-Kann Defense - e4 c6 d4 d5 Nc3` (Caro-Kann.json); `White Caro-Kann Defense - e4 c6 d4 d5 Nd2` (Caro-Kann.json); `White Caro-Kann Defense - e4 c6 Nc3 d5 Nf3` (Caro-Kann.json); `White French Defence - e4 e6 d4 d5 Nc3` (French.json); `White French Defence - e4 e6 d4 d5 e5` (French.json); `White Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json); `White Italian Game - e4 e5 Nf3 Nc6 Bc4 Bc5` (Italian-game.json); `White Italian Game - e4 e5 Nf3 Nc6 Bc4 Bc5 d4` (Italian-game.json); `White Modern Defense - e4 g6 d4 Bg7 Nf3` (Modern-defense.json); `White Ruy Lopez - e4 e5 Nf3 Nc6 Bb5` (Ruy-lopez.json); `White Scandinavian Defense - e4 d5 exd5 Qxd5 Nc3` (Scandinavian-defense.json); `White Scandinavian Defense - e4 d5 exd5 Qxd5 Nc3 Qa5` (Scandinavian-defense.json); `White Scotch Game - e4 e5 Nf3 Nc6 d4` (Scotch-game.json); `White Sicilian Defense - e4 c5 Nc3 Nc6 Bb5` (Sicilian.json); `White Sicilian Defense - e4 c5 Nf3 Nc6 d4` (Sicilian.json); `White Vienna Game - e4 e5 Bc4 Nc6 Nc3` (Vienna-game.json)
+- **Nf3** — `White King's Indian Attack - Nf3 Nf6 g3 b6 Bg2` (Kings-indian-attack.json); `White Reti Opening - Nf3 d5 c4 Nf6 g3` (Reti-opening.json)
+- **b4** — `Orangutan - b4 e5 Bb2 Bxb4 Bxe5` (Orangutan.json)
 
-### Center Game / White Italian Game / White Ruy Lopez / White Scotch Game / White Vienna Game — across lines
+### Bogo-Indian Defense / King's Indian Defense / Trompowsky Attack — across lines
+
+Position: `rnbqkb1r/pppppppp/5n2/8/3P4/8/PPP1PPPP/RNBQKBNR w KQkq -` (e.g. after `d4 Nf6` in `White Bogo-Indian Defense - d4 Nf6 c4 e6 Nf3` (Bogo-indian-defense.json))
+
+- **c4** — `White Bogo-Indian Defense - d4 Nf6 c4 e6 Nf3` (Bogo-indian-defense.json); `White King's Indian Defense - d4 Nf6 c4 g6 Nc3` (Kings-indian-defense.json)
+- **Bg5** — `White Trompowsky Attack - d4 Nf6 Bg5 Ne4 Bf4` (Trompowsky-attack.json)
+
+### Caro-Kann Defense — across lines
+
+Position: `rnbqkbnr/pp1ppppp/2p5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -` (e.g. after `e4 c6` in `White Caro-Kann Defense - e4 c6 d3 d5 Nf3` (Caro-Kann.json))
+
+- **d3** — `White Caro-Kann Defense - e4 c6 d3 d5 Nf3` (Caro-Kann.json)
+- **d4** — `White Caro-Kann Defense - e4 c6 d4 d5 Nc3` (Caro-Kann.json); `White Caro-Kann Defense - e4 c6 d4 d5 Nd2` (Caro-Kann.json)
+- **Nc3** — `White Caro-Kann Defense - e4 c6 Nc3 d5 Nf3` (Caro-Kann.json)
+
+### Caro-Kann Defense — across lines
+
+Position: `rnbqkbnr/pp2pppp/2p5/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq -` (e.g. after `e4 c6 d4 d5` in `White Caro-Kann Defense - e4 c6 d4 d5 Nc3` (Caro-Kann.json))
+
+- **Nc3** — `White Caro-Kann Defense - e4 c6 d4 d5 Nc3` (Caro-Kann.json)
+- **Nd2** — `White Caro-Kann Defense - e4 c6 d4 d5 Nd2` (Caro-Kann.json)
+
+### Center Game / Italian Game / Ruy Lopez / Scotch Game / Vienna Game — across lines
 
 Position: `rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -` (e.g. after `(start of line)` in `Center Game - d4 exd4 Qxd4 Nc6 Qe3` (Center-game.json))
 
 - **d4** — `Center Game - d4 exd4 Qxd4 Nc6 Qe3` (Center-game.json)
-- **Nf3** — `Trap 07 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4; `Trap 11 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4; `Trap 19 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4; `Trap 29 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4; `Trap 52 (Ruy Lopez)` (White-Ruy-lopez.json) → White Ruy Lopez - e4 e5 Nf3 Nc6 Bb5; `Trap 53 (Ruy Lopez)` (White-Ruy-lopez.json) → White Ruy Lopez - e4 e5 Nf3 Nc6 Bb5; `Trap 04 (Scotch Gambit)` (White-Scotch-game.json) → White Scotch Game - e4 e5 Nf3 Nc6 d4
-- **Bc4** — `Trap 51 (Vienna Game)` (White-Vienna-game.json) → White Vienna Game - e4 e5 Bc4 Nc6 Nc3
+- **Nf3** — `White Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json); `White Italian Game - e4 e5 Nf3 Nc6 Bc4 Bc5` (Italian-game.json); `White Italian Game - e4 e5 Nf3 Nc6 Bc4 Bc5 d4` (Italian-game.json); `White Ruy Lopez - e4 e5 Nf3 Nc6 Bb5` (Ruy-lopez.json); `White Scotch Game - e4 e5 Nf3 Nc6 d4` (Scotch-game.json)
+- **Bc4** — `White Vienna Game - e4 e5 Bc4 Nc6 Nc3` (Vienna-game.json)
 
 ### Dutch Defence — across lines
 
@@ -77,78 +114,106 @@ Position: `rn1q1rk1/pbpp2pp/1p2p3/5p2/P1PPn3/2PBPN2/2Q2PPP/R1B2RK1 b - -` (e.g. 
 - **Nc6** — `Dutch Defence - f5 c4 e6 Nf3 Nf6` (Dutch.json)
 - **Rf6** — `Nimzo-Indian - Bb7 a4 Rf6 a5 Rg6` (Nimzo-Indian.json)
 
-### Four Knights / Italian Game / Ruy Lopez / Scotch Game / Stafford traps / Stafford — branch inside one line
+### Four Knights / Italian Game / Ruy Lopez / Scotch Game / Stafford traps / Stafford — across lines
 
 Position: `rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq -` (e.g. after `e4 e5 Nf3` in `Four Knights - e4 e5 Nf3 Nc6 Nc3` (Four-knights.json))
 
-Branches in `Four Knights - e4 e5 Nf3 Nc6 Nc3` after `e4 e5 Nf3`: **Nc6**, **Nf6**
+- **Nc6** — `Four Knights - e4 e5 Nf3 Nc6 Nc3` (Four-knights.json); `Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json); `Italian Game - e4 e5 Nf3 Nc6 Bc4 Nf6` (Italian-game.json); `Italian Game - e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5` (Italian-game.json); `Italian Game - e4 e5 Nf3 Nc6 Bc4 Bc5` (Italian-game.json); `Ruy Lopez - e4 e5 Nf3 Nc6 Bb5` (Ruy-lopez.json); `Ruy Lopez - e4 e5 Nf3 Nc6 Bb5 Nf6` (Ruy-lopez.json); `Scotch Game - e4 e5 Nf3 Nc6 d4` (Scotch-game.json)
+- **Nf6** — `Four Knights - e4 e5 Nf3 Nf6 Nc3` (Four-knights.json); `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` (Stafford.json); `Stafford traps - e4 e5 Nf3 Nf6 Nxe5 Nc6` (Stafford.json); `Stafford - e4 e5 Nf3 Nf6 Nxe5` (Stafford.json)
 
-- **Nc6** — `Four Knights - e4 e5 Nf3 Nc6 Nc3` (Four-knights.json); `Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json); `Trap 06 (Italian Game)` (Italian-game.json) → Italian Game - e4 e5 Nf3 Nc6 Bc4; `Trap 02 (Ruy Lopez)` (Ruy-lopez.json) → Ruy Lopez - e4 e5 Nf3 Nc6 Bb5; `Trap 38 (Ruy Lopez)` (Ruy-lopez.json) → Ruy Lopez - e4 e5 Nf3 Nc6 Bb5; `Trap 39 (Scotch Opening)` (Scotch-game.json) → Scotch Game - e4 e5 Nf3 Nc6 d4
-- **Nf6** — `Four Knights - e4 e5 Nf3 Nc6 Nc3` (Four-knights.json); `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` (Stafford-traps.json); `Stafford - e4 e5 Nf3 Nf6 Nxe5` (Stafford.json)
-
-### French Defence — branch inside one line
+### French Defence — across lines
 
 Position: `rnbqkbnr/ppp2ppp/4p3/3p4/4P3/3P4/PPPN1PPP/R1BQKBNR b KQkq -` (e.g. after `e4 e6 d3 d5 Nd2` in `French Defence - e4 e6 d3 d5 Nd2` (French.json))
 
-Branches in `French Defence - e4 e6 d3 d5 Nd2` after `e4 e6 d3 d5 Nd2`: **Nc6**, **Nf6**
-
 - **Nc6** — `French Defence - e4 e6 d3 d5 Nd2` (French.json)
-- **Nf6** — `French Defence - e4 e6 d3 d5 Nd2` (French.json)
+- **Nf6** — `French Defence - e4 e6 d3 d5 Nd2 Nf6` (French.json)
 
-### French Defence — branch inside one line
+### French Defence — across lines
 
 Position: `rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/2N5/PPP2PPP/R1BQKBNR b KQkq -` (e.g. after `e4 e6 d4 d5 Nc3` in `French Defence - e4 e6 d4 d5 Nc3` (French.json))
 
-Branches in `French Defence - e4 e6 d4 d5 Nc3` after `e4 e6 d4 d5 Nc3`: **Bb4**, **Nc6**
+- **Bb4** — `French Defence - e4 e6 d4 d5 Nc3` (French.json); `French Defence - e4 e6 d4 d5 Nc3 Bb4` (French.json)
+- **Nc6** — `French Defence - e4 e6 d4 d5 Nc3 Nc6` (French.json)
 
-- **Bb4** — `French Defence - e4 e6 d4 d5 Nc3` (French.json)
-- **Nc6** — `Trap 36 (French Defence)` (French.json) → French Defence - e4 e6 d4 d5 Nc3
-
-### French Defence — branch inside one line
+### French Defence — across lines
 
 Position: `rnbqk1nr/ppp2ppp/4p3/3pP3/1b1P4/2N5/PPP2PPP/R1BQKBNR b KQkq -` (e.g. after `e4 e6 d4 d5 Nc3 Bb4 e5` in `French Defence - e4 e6 d4 d5 Nc3` (French.json))
 
-Branches in `French Defence - e4 e6 d4 d5 Nc3` after `e4 e6 d4 d5 Nc3 Bb4 e5`: **c5**, **Qd7**
-
 - **c5** — `French Defence - e4 e6 d4 d5 Nc3` (French.json)
-- **Qd7** — `French Defence - e4 e6 d4 d5 Nc3` (French.json)
+- **Qd7** — `French Defence - e4 e6 d4 d5 Nc3 Bb4` (French.json)
 
-### Italian Game — branch inside one line
+### French Defence — across lines
+
+Position: `rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq -` (e.g. after `e4 e6 d4 d5` in `White French Defence - e4 e6 d4 d5 Nc3` (French.json))
+
+- **Nc3** — `White French Defence - e4 e6 d4 d5 Nc3` (French.json)
+- **e5** — `White French Defence - e4 e6 d4 d5 e5` (French.json)
+
+### French Defence — transposition inside one line
+
+Position: `r1b1kbnr/pp3ppp/1qn1p3/2ppP3/3P4/2P2N2/PP3PPP/RNBQKB1R w KQkq -` (e.g. after `e4 e6 d4 d5 e5 c5 c3 Nc6 Nf3 Qb6` in `White French Defence - e4 e6 d4 d5 e5` (French.json))
+
+- **Be2** — `White French Defence - e4 e6 d4 d5 e5` (French.json)
+- **a3** — `White French Defence - e4 e6 d4 d5 e5` (French.json)
+
+### Italian Game — across lines
 
 Position: `r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq -` (e.g. after `e4 e5 Nf3 Nc6 Bc4` in `Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json))
 
-Branches in `Italian Game - e4 e5 Nf3 Nc6 Bc4` after `e4 e5 Nf3 Nc6 Bc4`: **Nd4**, **Nf6**, **Bc5**
-
 - **Nd4** — `Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json)
-- **Nf6** — `Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json)
-- **Bc5** — `Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json); `Trap 06 (Italian Game)` (Italian-game.json) → Italian Game - e4 e5 Nf3 Nc6 Bc4
+- **Nf6** — `Italian Game - e4 e5 Nf3 Nc6 Bc4 Nf6` (Italian-game.json); `Italian Game - e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5` (Italian-game.json)
+- **Bc5** — `Italian Game - e4 e5 Nf3 Nc6 Bc4 Bc5` (Italian-game.json)
 
-### Italian Game — branch inside one line
+### Italian Game — across lines
 
-Position: `r1bqkb1r/pppp1ppp/2n2n2/4p1N1/2B1P3/8/PPPP1PPP/RNBQK2R b KQkq -` (e.g. after `e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5` in `Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json))
+Position: `r1bqkb1r/pppp1ppp/2n2n2/4p1N1/2B1P3/8/PPPP1PPP/RNBQK2R b KQkq -` (e.g. after `e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5` in `Italian Game - e4 e5 Nf3 Nc6 Bc4 Nf6` (Italian-game.json))
 
-Branches in `Italian Game - e4 e5 Nf3 Nc6 Bc4` after `e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5`: **Nxe4**, **d5**
+- **Nxe4** — `Italian Game - e4 e5 Nf3 Nc6 Bc4 Nf6` (Italian-game.json)
+- **d5** — `Italian Game - e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5` (Italian-game.json)
 
-- **Nxe4** — `Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json)
-- **d5** — `Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json)
+### Italian Game / Ruy Lopez / Scotch Game — across lines
 
-### King's Gambit Accepted — branch inside one line
+Position: `r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq -` (e.g. after `e4 e5 Nf3 Nc6` in `White Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json))
+
+- **Bc4** — `White Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json); `White Italian Game - e4 e5 Nf3 Nc6 Bc4 Bc5` (Italian-game.json); `White Italian Game - e4 e5 Nf3 Nc6 Bc4 Bc5 d4` (Italian-game.json)
+- **Bb5** — `White Ruy Lopez - e4 e5 Nf3 Nc6 Bb5` (Ruy-lopez.json)
+- **d4** — `White Scotch Game - e4 e5 Nf3 Nc6 d4` (Scotch-game.json)
+
+### Italian Game — across lines
+
+Position: `r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq -` (e.g. after `e4 e5 Nf3 Nc6 Bc4 Bc5` in `White Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json))
+
+- **O-O** — `White Italian Game - e4 e5 Nf3 Nc6 Bc4` (Italian-game.json)
+- **c3** — `White Italian Game - e4 e5 Nf3 Nc6 Bc4 Bc5` (Italian-game.json)
+- **d4** — `White Italian Game - e4 e5 Nf3 Nc6 Bc4 Bc5 d4` (Italian-game.json)
+
+### Italian Game / Scotch Game — across lines
+
+Position: `r1bqk1nr/pppp1ppp/2n5/2b5/2BpP3/5N2/PPP2PPP/RNBQK2R w KQkq -` (e.g. after `e4 e5 Nf3 Nc6 Bc4 Bc5 d4 exd4` in `White Italian Game - e4 e5 Nf3 Nc6 Bc4 Bc5 d4` (Italian-game.json))
+
+- **O-O** — `White Italian Game - e4 e5 Nf3 Nc6 Bc4 Bc5 d4` (Italian-game.json)
+- **Ng5** — `White Scotch Game - e4 e5 Nf3 Nc6 d4` (Scotch-game.json)
+
+### King's Gambit Accepted — across lines
 
 Position: `rnbqkbnr/pppp1ppp/8/8/2B1Pp2/8/PPPP2PP/RNBQK1NR b KQkq -` (e.g. after `e4 e5 f4 exf4 Bc4` in `King's Gambit Accepted - e4 e5 f4 exf4 Bc4` (Kings-gambit.json))
 
-Branches in `King's Gambit Accepted - e4 e5 f4 exf4 Bc4` after `e4 e5 f4 exf4 Bc4`: **d5**, **Nf6**
-
 - **d5** — `King's Gambit Accepted - e4 e5 f4 exf4 Bc4` (Kings-gambit.json)
-- **Nf6** — `King's Gambit Accepted - e4 e5 f4 exf4 Bc4` (Kings-gambit.json)
+- **Nf6** — `King's Gambit Accepted - e4 e5 f4 exf4 Bc4 Nf6` (Kings-gambit.json)
 
-### Orangutan / White Bogo-Indian Defense / White Caro-Kann Defense / White Dutch Defence / White French Defence / White Italian Game / White King's Indian Attack / White King's Indian Defense / White London System / White Modern Defense / White Queen's Gambit Accepted / White Queen's Gambit Declined / White Reti Opening / White Ruy Lopez / White Scandinavian Defense / White Scotch Game / White Sicilian Defense / White Trompowsky Attack / White Vienna Game — across lines
+### London System / Queen's Gambit Accepted / Queen's Gambit Declined — across lines
 
-Position: `rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -` (e.g. after `(start of line)` in `Orangutan - b4 e5 Bb2 Bxb4 Bxe5` (Orangutan.json))
+Position: `rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq -` (e.g. after `d4 d5` in `White London System - d4 d5 Bf4 Nf6 e3` (London-system.json))
 
-- **b4** — `Orangutan - b4 e5 Bb2 Bxb4 Bxe5` (Orangutan.json)
-- **d4** — `Trap 30 (Bogo-Indian Defense)` (White-Bogo-indian-defense.json) → White Bogo-Indian Defense - d4 Nf6 c4 e6 Nf3; `Trap 43 (Dutch Defense)` (White-Dutch-defence.json) → White Dutch Defence - d4 f5 Bg5 h6 Bh4; `Trap 41 (King's Indian Defense)` (White-Kings-indian-defense.json) → White King's Indian Defense - d4 Nf6 c4 g6 Nc3; `Trap 01 (London System)` (White-London-system.json) → White London System - d4 d5 Bf4 Nf6 e3; `Trap 22 (London System)` (White-London-system.json) → White London System - d4 d5 Bf4 Nf6 e3; `Trap 23 (London System)` (White-London-system.json) → White London System - d4 d5 Bf4 Nf6 e3; `Trap 25 (London System)` (White-London-system.json) → White London System - d4 d5 Bf4 Nf6 e3; `Trap 60 (London System)` (White-London-system.json) → White London System - d4 d5 Bf4 Nf6 e3; `Trap 08 (Queen's Gambit Accepted)` (White-Queens-gambit-accepted.json) → White Queen's Gambit Accepted - d4 d5 c4 dxc4 e3; `Trap 56 (QGA)` (White-Queens-gambit-accepted.json) → White Queen's Gambit Accepted - d4 d5 c4 dxc4 e3; `Trap 54 (QGD)` (White-Queens-gambit-declined.json) → White Queen's Gambit Declined - d4 d5 c4 e5 dxe5; `Trap 57 (QGD)` (White-Queens-gambit-declined.json) → White Queen's Gambit Declined - d4 d5 c4 e5 dxe5; `Trap 34 (Trompowsky Attack)` (White-Trompowsky-attack.json) → White Trompowsky Attack - d4 Nf6 Bg5 Ne4 Bf4
-- **e4** — `Trap 09 (Caro-Kann)` (White-Caro-kann-defense.json) → White Caro-Kann Defense - e4 c6 d3 d5 Nf3; `Trap 16 (Caro-Kann)` (White-Caro-kann-defense.json) → White Caro-Kann Defense - e4 c6 d4 d5 Nc3; `Trap 46 (Caro-Kann)` (White-Caro-kann-defense.json) → White Caro-Kann Defense - e4 c6 d4 d5 Nc3; `Trap 44 (Caro-Kann)` (White-Caro-kann-defense.json) → White Caro-Kann Defense - e4 c6 Nc3 d5 Nf3; `Trap 45 (Caro-Kann)` (White-Caro-kann-defense.json) → White Caro-Kann Defense - e4 c6 Nc3 d5 Nf3; `Trap 40 (French Defense)` (White-French-defence.json) → White French Defence - e4 e6 d4 d5 Nc3; `Trap 49 (French Defense)` (White-French-defence.json) → White French Defence - e4 e6 d4 d5 Nc3; `Trap 50 (French Defense)` (White-French-defence.json) → White French Defence - e4 e6 d4 d5 Nc3; `Trap 07 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4; `Trap 11 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4; `Trap 19 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4; `Trap 29 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4; `Trap 12 (Modern Defense)` (White-Modern-defense.json) → White Modern Defense - e4 g6 d4 Bg7 Nf3; `Trap 52 (Ruy Lopez)` (White-Ruy-lopez.json) → White Ruy Lopez - e4 e5 Nf3 Nc6 Bb5; `Trap 53 (Ruy Lopez)` (White-Ruy-lopez.json) → White Ruy Lopez - e4 e5 Nf3 Nc6 Bb5; `Trap 17 (Scandinavian Defense)` (White-Scandinavian-defense.json) → White Scandinavian Defense - e4 d5 exd5 Qxd5 Nc3; `Trap 18 (Scandinavian Defense)` (White-Scandinavian-defense.json) → White Scandinavian Defense - e4 d5 exd5 Qxd5 Nc3; `Trap 20 (Scandinavian Defense)` (White-Scandinavian-defense.json) → White Scandinavian Defense - e4 d5 exd5 Qxd5 Nc3; `Trap 21 (Scandinavian Defense)` (White-Scandinavian-defense.json) → White Scandinavian Defense - e4 d5 exd5 Qxd5 Nc3; `Trap 04 (Scotch Gambit)` (White-Scotch-game.json) → White Scotch Game - e4 e5 Nf3 Nc6 d4; `Trap 13 (Closed Sicilian)` (White-Sicilian-defense.json) → White Sicilian Defense - e4 c5 Nc3 Nc6 Bb5; `Trap 14 (Closed Sicilian)` (White-Sicilian-defense.json) → White Sicilian Defense - e4 c5 Nc3 Nc6 Bb5; `Trap 47 (Sicilian Defense)` (White-Sicilian-defense.json) → White Sicilian Defense - e4 c5 Nf3 Nc6 d4; `Trap 48 (Sicilian Defense)` (White-Sicilian-defense.json) → White Sicilian Defense - e4 c5 Nf3 Nc6 d4; `Trap 63 (Sicilian Defense)` (White-Sicilian-defense.json) → White Sicilian Defense - e4 c5 Nf3 Nc6 d4; `Trap 64 (Sicilian Defense)` (White-Sicilian-defense.json) → White Sicilian Defense - e4 c5 Nf3 Nc6 d4; `Trap 51 (Vienna Game)` (White-Vienna-game.json) → White Vienna Game - e4 e5 Bc4 Nc6 Nc3
-- **Nf3** — `Trap 31 (King's Indian Attack)` (White-Kings-indian-attack.json) → White King's Indian Attack - Nf3 Nf6 g3 b6 Bg2; `Trap 42 (King's Indian Attack)` (White-Kings-indian-attack.json) → White King's Indian Attack - Nf3 Nf6 g3 b6 Bg2; `Trap 27 (Réti Opening)` (White-Reti-opening.json) → White Reti Opening - Nf3 d5 c4 Nf6 g3
+- **Bf4** — `White London System - d4 d5 Bf4 Nf6 e3` (London-system.json); `White London System - d4 d5 Bf4 Nf6 e3 c5` (London-system.json)
+- **c4** — `White Queen's Gambit Accepted - d4 d5 c4 dxc4 e3` (Queens-gambit-accepted.json); `White Queen's Gambit Accepted - d4 d5 c4 dxc4 Nf3` (Queens-gambit-accepted.json); `White Queen's Gambit Declined - d4 d5 c4 e5 dxe5` (Queens-gambit-declined.json)
+
+### London System — across lines
+
+Position: `rnbqkb1r/pp2pppp/5n2/2pp4/3P1B2/4P3/PPP2PPP/RN1QKBNR w KQkq -` (e.g. after `d4 d5 Bf4 Nf6 e3 c5` in `White London System - d4 d5 Bf4 Nf6 e3` (London-system.json))
+
+- **c3** — `White London System - d4 d5 Bf4 Nf6 e3` (London-system.json)
+- **Nf3** — `White London System - d4 d5 Bf4 Nf6 e3 c5` (London-system.json)
 
 ### Petroff defense — across lines
 
@@ -157,80 +222,89 @@ Position: `rnbqkb1r/pppp1ppp/5n2/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq -` (e.g. a
 - **exd4** — `Petroff defense - exd4 e5 Ne4 Qxd4 d5` (Petroff-defense.json)
 - **Nxe4** — `Petroff defense - Nxe4 Bd3 d5 Nxe5 Bd6` (Petroff-defense.json); `Petroff defense - Nxe4 dxe5 d5 Bd3 Bf5` (Petroff-defense.json)
 
+### Queen's Gambit Accepted — across lines
+
+Position: `rnbqkbnr/ppp1pppp/8/8/2pP4/8/PP2PPPP/RNBQKBNR w KQkq -` (e.g. after `d4 d5 c4 dxc4` in `White Queen's Gambit Accepted - d4 d5 c4 dxc4 e3` (Queens-gambit-accepted.json))
+
+- **e3** — `White Queen's Gambit Accepted - d4 d5 c4 dxc4 e3` (Queens-gambit-accepted.json)
+- **Nf3** — `White Queen's Gambit Accepted - d4 d5 c4 dxc4 Nf3` (Queens-gambit-accepted.json)
+
 ### Queen's Gambit Declined / Slav Defense — across lines
 
-Position: `rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq -` (e.g. after `d4 d5 c4` in `Trap 28 (Queen's Gambit Declined)` (Queens-gambit-declined.json))
+Position: `rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq -` (e.g. after `d4 d5 c4` in `Queen's Gambit Declined - d4 d5 c4 e6 Nc3` (Queens-gambit-declined.json))
 
-- **e6** — `Trap 28 (Queen's Gambit Declined)` (Queens-gambit-declined.json) → Queen's Gambit Declined - d4 d5 c4 e6 Nc3
-- **c6** — `Trap 58 (Slav Defense)` (Slav-defense.json) → Slav Defense - d4 d5 c4 c6 Nf3
+- **e6** — `Queen's Gambit Declined - d4 d5 c4 e6 Nc3` (Queens-gambit-declined.json)
+- **c6** — `Slav Defense - d4 d5 c4 c6 Nf3` (Slav-defense.json)
 
-### Ruy Lopez — branch inside one line
+### Ruy Lopez — across lines
 
-Position: `r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq -` (e.g. after `e4 e5 Nf3 Nc6 Bb5` in `Trap 02 (Ruy Lopez)` (Ruy-lopez.json))
+Position: `r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq -` (e.g. after `e4 e5 Nf3 Nc6 Bb5` in `Ruy Lopez - e4 e5 Nf3 Nc6 Bb5` (Ruy-lopez.json))
 
-Branches in `Ruy Lopez - e4 e5 Nf3 Nc6 Bb5` after `e4 e5 Nf3 Nc6 Bb5`: **a6**, **Nf6**
+- **a6** — `Ruy Lopez - e4 e5 Nf3 Nc6 Bb5` (Ruy-lopez.json)
+- **Nf6** — `Ruy Lopez - e4 e5 Nf3 Nc6 Bb5 Nf6` (Ruy-lopez.json)
 
-- **a6** — `Trap 02 (Ruy Lopez)` (Ruy-lopez.json) → Ruy Lopez - e4 e5 Nf3 Nc6 Bb5
-- **Nf6** — `Trap 38 (Ruy Lopez)` (Ruy-lopez.json) → Ruy Lopez - e4 e5 Nf3 Nc6 Bb5
+### Scandinavian Defense — across lines
 
-### Sicilian Defense — branch inside one line
+Position: `rnb1kbnr/ppp1pppp/8/q7/8/2N5/PPPP1PPP/R1BQKBNR w KQkq -` (e.g. after `e4 d5 exd5 Qxd5 Nc3 Qa5` in `White Scandinavian Defense - e4 d5 exd5 Qxd5 Nc3` (Scandinavian-defense.json))
+
+- **d4** — `White Scandinavian Defense - e4 d5 exd5 Qxd5 Nc3` (Scandinavian-defense.json)
+- **Nf3** — `White Scandinavian Defense - e4 d5 exd5 Qxd5 Nc3 Qa5` (Scandinavian-defense.json)
+
+### Sicilian Defense — across lines
 
 Position: `rnbqkbnr/pp1ppppp/8/2p5/4P3/2P5/PP1P1PPP/RNBQKBNR b KQkq -` (e.g. after `e4 c5 c3` in `Sicilian Defense - e4 c5 c3 d5 exd5` (Sicilian.json))
 
-Branches in `Sicilian Defense - e4 c5 c3 d5 exd5` after `e4 c5 c3`: **d5**, **Nf6**
-
 - **d5** — `Sicilian Defense - e4 c5 c3 d5 exd5` (Sicilian.json)
-- **Nf6** — `Sicilian Defense - e4 c5 c3 d5 exd5` (Sicilian.json)
+- **Nf6** — `Sicilian Defense - e4 c5 c3 Nf6 e5` (Sicilian.json)
 
-### Sicilian Defense — branch inside one line
+### Sicilian Defense — across lines
 
 Position: `rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq -` (e.g. after `e4 c5 Nf3` in `Sicilian Defense - e4 c5 Nf3 Nc6 Bb5` (Sicilian.json))
 
-Branches in `Sicilian Defense - e4 c5 Nf3 Nc6 Bb5` after `e4 c5 Nf3`: **Nc6**, **e6**
-
 - **Nc6** — `Sicilian Defense - e4 c5 Nf3 Nc6 Bb5` (Sicilian.json)
-- **e6** — `Sicilian Defense - e4 c5 Nf3 Nc6 Bb5` (Sicilian.json)
+- **e6** — `Sicilian Defense - e4 c5 Nf3 e6 d4` (Sicilian.json); `Sicilian Defense - e4 c5 Nf3 e6 d4 cxd4` (Sicilian.json)
 
-### Sicilian Defense — branch inside one line
+### Sicilian Defense — across lines
 
-Position: `rnbqkbnr/pp1p1ppp/4p3/8/3NP3/8/PPP2PPP/RNBQKB1R b KQkq -` (e.g. after `e4 c5 Nf3 e6 d4 cxd4 Nxd4` in `Sicilian Defense - e4 c5 Nf3 Nc6 Bb5` (Sicilian.json))
+Position: `rnbqkbnr/pp1p1ppp/4p3/8/3NP3/8/PPP2PPP/RNBQKB1R b KQkq -` (e.g. after `e4 c5 Nf3 e6 d4 cxd4 Nxd4` in `Sicilian Defense - e4 c5 Nf3 e6 d4` (Sicilian.json))
 
-Branches in `Sicilian Defense - e4 c5 Nf3 Nc6 Bb5` after `e4 c5 Nf3 e6 d4 cxd4 Nxd4`: **a6**, **Nc6**
+- **a6** — `Sicilian Defense - e4 c5 Nf3 e6 d4` (Sicilian.json)
+- **Nc6** — `Sicilian Defense - e4 c5 Nf3 e6 d4 cxd4` (Sicilian.json)
 
-- **a6** — `Sicilian Defense - e4 c5 Nf3 Nc6 Bb5` (Sicilian.json)
-- **Nc6** — `Sicilian Defense - e4 c5 Nf3 Nc6 Bb5` (Sicilian.json)
+### Sicilian Defense — across lines
+
+Position: `rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -` (e.g. after `e4 c5` in `White Sicilian Defense - e4 c5 Nc3 Nc6 Bb5` (Sicilian.json))
+
+- **Nc3** — `White Sicilian Defense - e4 c5 Nc3 Nc6 Bb5` (Sicilian.json)
+- **Nf3** — `White Sicilian Defense - e4 c5 Nf3 Nc6 d4` (Sicilian.json)
 
 ### Stafford traps / Stafford — across lines
 
-Position: `r1bqk2r/ppp2ppp/2p2n2/2b5/4P3/2N4P/PPPP1PP1/R1BQKB1R b KQkq -` (e.g. after `e4 e5 Nf3 Nf6 Nxe5 Nc6 Nxc6 dxc6 Nc3 Bc5 h3` in `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` (Stafford-traps.json))
+Position: `r1bqk2r/ppp2ppp/2p2n2/2b5/4P3/2N4P/PPPP1PP1/R1BQKB1R b KQkq -` (e.g. after `e4 e5 Nf3 Nf6 Nxe5 Nc6 Nxc6 dxc6 Nc3 Bc5 h3` in `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` (Stafford.json))
 
-- **Be6** — `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` (Stafford-traps.json)
+- **Be6** — `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` (Stafford.json)
 - **h5** — `Stafford - Bc5 h3 h5 Be2 Qd4` (Stafford.json)
 
-### Stafford traps / Stafford — branch inside one line
+### Stafford traps / Stafford — across lines
 
-Position: `r1bqk2r/ppp2ppp/2p2n2/2b3B1/4P3/3P4/PPP2PPP/RN1QKB1R b KQkq -` (e.g. after `e4 e5 Nf3 Nf6 Nxe5 Nc6 Nxc6 dxc6 d3 Bc5 Bg5` in `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` (Stafford-traps.json))
+Position: `r1bqk2r/ppp2ppp/2p2n2/2b3B1/4P3/3P4/PPP2PPP/RN1QKB1R b KQkq -` (e.g. after `e4 e5 Nf3 Nf6 Nxe5 Nc6 Nxc6 dxc6 d3 Bc5 Bg5` in `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` (Stafford.json))
 
-Branches in `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` after `e4 e5 Nf3 Nf6 Nxe5 Nc6 Nxc6 dxc6 d3 Bc5 Bg5`: **Bxf2+**, **Nxe4**
-
-- **Bxf2+** — `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` (Stafford-traps.json)
-- **Nxe4** — `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` (Stafford-traps.json); `Stafford - Bc5 Bg5 Nxe4 Be3 Bxe3` (Stafford.json)
+- **Bxf2+** — `Stafford traps - e4 e5 Nf3 Nf6 Nxe5` (Stafford.json)
+- **Nxe4** — `Stafford traps - e4 e5 Nf3 Nf6 Nxe5 Nc6` (Stafford.json); `Stafford - Bc5 Bg5 Nxe4 Be3 Bxe3` (Stafford.json)
 
 ### Stafford — across lines
 
 Position: `r1bqk2r/ppp2ppp/2p2n2/2b5/4P3/2N5/PPPPBPPP/R1BQK2R b KQkq -` (e.g. after `Bc5 Be2` in `Stafford - Bc5 Be2 h5 h3 Qd4` (Stafford.json))
 
-- **h5** — `Stafford - Bc5 Be2 h5 h3 Qd4` (Stafford.json); `Stafford - h5 O-O Qd4 d3 Ng4` (Stafford.json)
+- **h5** — `Stafford - Bc5 Be2 h5 h3 Qd4` (Stafford.json); `Stafford - Bc5 Be2 h5 h3 Qd6` (Stafford.json); `Stafford - h5 O-O Qd4 d3 Ng4` (Stafford.json)
 - **Qd4** — `Stafford - Qd4 O-O h5 d3 Ng4` (Stafford.json)
 
-### Stafford — branch inside one line
+### Stafford — across lines
 
 Position: `r1bqk2r/ppp2pp1/2p2n2/2b4p/4P3/2N4P/PPPPBPP1/R1BQK2R b KQkq -` (e.g. after `Bc5 Be2 h5 h3` in `Stafford - Bc5 Be2 h5 h3 Qd4` (Stafford.json))
 
-Branches in `Stafford - Bc5 Be2 h5 h3 Qd4` after `Bc5 Be2 h5 h3`: **Qd4**, **Qd6**
-
 - **Qd4** — `Stafford - Bc5 Be2 h5 h3 Qd4` (Stafford.json); `Stafford - Bc5 h3 h5 Be2 Qd4` (Stafford.json)
-- **Qd6** — `Stafford - Bc5 Be2 h5 h3 Qd4` (Stafford.json)
+- **Qd6** — `Stafford - Bc5 Be2 h5 h3 Qd6` (Stafford.json)
 
 ### Stafford — across lines
 
@@ -238,109 +312,3 @@ Position: `r1bqk2r/ppp2ppp/2p2n2/2b5/4P3/3B4/PPPP1PPP/RNBQ1RK1 b kq -` (e.g. aft
 
 - **h5** — `Stafford - Bc5 O-O h5 b4 Bd4` (Stafford.json)
 - **Ng4** — `Stafford - Bc5 O-O Ng4 Qe2 Qh4` (Stafford.json)
-
-### White Bogo-Indian Defense / White King's Indian Defense / White Trompowsky Attack — across lines
-
-Position: `rnbqkb1r/pppppppp/5n2/8/3P4/8/PPP1PPPP/RNBQKBNR w KQkq -` (e.g. after `d4 Nf6` in `Trap 30 (Bogo-Indian Defense)` (White-Bogo-indian-defense.json))
-
-- **c4** — `Trap 30 (Bogo-Indian Defense)` (White-Bogo-indian-defense.json) → White Bogo-Indian Defense - d4 Nf6 c4 e6 Nf3; `Trap 41 (King's Indian Defense)` (White-Kings-indian-defense.json) → White King's Indian Defense - d4 Nf6 c4 g6 Nc3
-- **Bg5** — `Trap 34 (Trompowsky Attack)` (White-Trompowsky-attack.json) → White Trompowsky Attack - d4 Nf6 Bg5 Ne4 Bf4
-
-### White Caro-Kann Defense — across lines
-
-Position: `rnbqkbnr/pp1ppppp/2p5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -` (e.g. after `e4 c6` in `Trap 09 (Caro-Kann)` (White-Caro-kann-defense.json))
-
-- **d3** — `Trap 09 (Caro-Kann)` (White-Caro-kann-defense.json) → White Caro-Kann Defense - e4 c6 d3 d5 Nf3
-- **d4** — `Trap 16 (Caro-Kann)` (White-Caro-kann-defense.json) → White Caro-Kann Defense - e4 c6 d4 d5 Nc3; `Trap 46 (Caro-Kann)` (White-Caro-kann-defense.json) → White Caro-Kann Defense - e4 c6 d4 d5 Nc3
-- **Nc3** — `Trap 44 (Caro-Kann)` (White-Caro-kann-defense.json) → White Caro-Kann Defense - e4 c6 Nc3 d5 Nf3; `Trap 45 (Caro-Kann)` (White-Caro-kann-defense.json) → White Caro-Kann Defense - e4 c6 Nc3 d5 Nf3
-
-### White Caro-Kann Defense — branch inside one line
-
-Position: `rnbqkbnr/pp2pppp/2p5/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq -` (e.g. after `e4 c6 d4 d5` in `Trap 16 (Caro-Kann)` (White-Caro-kann-defense.json))
-
-Branches in `White Caro-Kann Defense - e4 c6 d4 d5 Nc3` after `e4 c6 d4 d5`: **Nc3**, **Nd2**
-
-- **Nc3** — `Trap 16 (Caro-Kann)` (White-Caro-kann-defense.json) → White Caro-Kann Defense - e4 c6 d4 d5 Nc3
-- **Nd2** — `Trap 46 (Caro-Kann)` (White-Caro-kann-defense.json) → White Caro-Kann Defense - e4 c6 d4 d5 Nc3
-
-### White French Defence — branch inside one line
-
-Position: `rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq -` (e.g. after `e4 e6 d4 d5` in `Trap 40 (French Defense)` (White-French-defence.json))
-
-Branches in `White French Defence - e4 e6 d4 d5 Nc3` after `e4 e6 d4 d5`: **Nc3**, **e5**
-
-- **Nc3** — `Trap 40 (French Defense)` (White-French-defence.json) → White French Defence - e4 e6 d4 d5 Nc3
-- **e5** — `Trap 49 (French Defense)` (White-French-defence.json) → White French Defence - e4 e6 d4 d5 Nc3; `Trap 50 (French Defense)` (White-French-defence.json) → White French Defence - e4 e6 d4 d5 Nc3
-
-### White French Defence — transposition inside one line
-
-Position: `r1b1kbnr/pp3ppp/1qn1p3/2ppP3/3P4/2P2N2/PP3PPP/RNBQKB1R w KQkq -` (e.g. after `e4 e6 d4 d5 e5 c5 c3 Nc6 Nf3 Qb6` in `Trap 49 (French Defense)` (White-French-defence.json))
-
-- **Be2** — `Trap 49 (French Defense)` (White-French-defence.json) → White French Defence - e4 e6 d4 d5 Nc3
-- **a3** — `Trap 50 (French Defense)` (White-French-defence.json) → White French Defence - e4 e6 d4 d5 Nc3
-
-### White Italian Game / White Ruy Lopez / White Scotch Game — across lines
-
-Position: `r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq -` (e.g. after `e4 e5 Nf3 Nc6` in `Trap 07 (Italian Game)` (White-Italian-game.json))
-
-- **Bc4** — `Trap 07 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4; `Trap 11 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4; `Trap 19 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4; `Trap 29 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4
-- **Bb5** — `Trap 52 (Ruy Lopez)` (White-Ruy-lopez.json) → White Ruy Lopez - e4 e5 Nf3 Nc6 Bb5; `Trap 53 (Ruy Lopez)` (White-Ruy-lopez.json) → White Ruy Lopez - e4 e5 Nf3 Nc6 Bb5
-- **d4** — `Trap 04 (Scotch Gambit)` (White-Scotch-game.json) → White Scotch Game - e4 e5 Nf3 Nc6 d4
-
-### White Italian Game — branch inside one line
-
-Position: `r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq -` (e.g. after `e4 e5 Nf3 Nc6 Bc4 Bc5` in `Trap 07 (Italian Game)` (White-Italian-game.json))
-
-Branches in `White Italian Game - e4 e5 Nf3 Nc6 Bc4` after `e4 e5 Nf3 Nc6 Bc4 Bc5`: **O-O**, **c3**, **d4**
-
-- **O-O** — `Trap 07 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4
-- **c3** — `Trap 19 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4
-- **d4** — `Trap 29 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4
-
-### White Italian Game / White Scotch Game — across lines
-
-Position: `r1bqk1nr/pppp1ppp/2n5/2b5/2BpP3/5N2/PPP2PPP/RNBQK2R w KQkq -` (e.g. after `e4 e5 Nf3 Nc6 Bc4 Bc5 d4 exd4` in `Trap 29 (Italian Game)` (White-Italian-game.json))
-
-- **O-O** — `Trap 29 (Italian Game)` (White-Italian-game.json) → White Italian Game - e4 e5 Nf3 Nc6 Bc4
-- **Ng5** — `Trap 04 (Scotch Gambit)` (White-Scotch-game.json) → White Scotch Game - e4 e5 Nf3 Nc6 d4
-
-### White London System / White Queen's Gambit Accepted / White Queen's Gambit Declined — across lines
-
-Position: `rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq -` (e.g. after `d4 d5` in `Trap 01 (London System)` (White-London-system.json))
-
-- **Bf4** — `Trap 01 (London System)` (White-London-system.json) → White London System - d4 d5 Bf4 Nf6 e3; `Trap 22 (London System)` (White-London-system.json) → White London System - d4 d5 Bf4 Nf6 e3; `Trap 23 (London System)` (White-London-system.json) → White London System - d4 d5 Bf4 Nf6 e3; `Trap 25 (London System)` (White-London-system.json) → White London System - d4 d5 Bf4 Nf6 e3; `Trap 60 (London System)` (White-London-system.json) → White London System - d4 d5 Bf4 Nf6 e3
-- **c4** — `Trap 08 (Queen's Gambit Accepted)` (White-Queens-gambit-accepted.json) → White Queen's Gambit Accepted - d4 d5 c4 dxc4 e3; `Trap 56 (QGA)` (White-Queens-gambit-accepted.json) → White Queen's Gambit Accepted - d4 d5 c4 dxc4 e3; `Trap 54 (QGD)` (White-Queens-gambit-declined.json) → White Queen's Gambit Declined - d4 d5 c4 e5 dxe5; `Trap 57 (QGD)` (White-Queens-gambit-declined.json) → White Queen's Gambit Declined - d4 d5 c4 e5 dxe5
-
-### White London System — branch inside one line
-
-Position: `rnbqkb1r/pp2pppp/5n2/2pp4/3P1B2/4P3/PPP2PPP/RN1QKBNR w KQkq -` (e.g. after `d4 d5 Bf4 Nf6 e3 c5` in `Trap 01 (London System)` (White-London-system.json))
-
-Branches in `White London System - d4 d5 Bf4 Nf6 e3` after `d4 d5 Bf4 Nf6 e3 c5`: **c3**, **Nf3**
-
-- **c3** — `Trap 01 (London System)` (White-London-system.json) → White London System - d4 d5 Bf4 Nf6 e3; `Trap 22 (London System)` (White-London-system.json) → White London System - d4 d5 Bf4 Nf6 e3
-- **Nf3** — `Trap 23 (London System)` (White-London-system.json) → White London System - d4 d5 Bf4 Nf6 e3
-
-### White Queen's Gambit Accepted — branch inside one line
-
-Position: `rnbqkbnr/ppp1pppp/8/8/2pP4/8/PP2PPPP/RNBQKBNR w KQkq -` (e.g. after `d4 d5 c4 dxc4` in `Trap 08 (Queen's Gambit Accepted)` (White-Queens-gambit-accepted.json))
-
-Branches in `White Queen's Gambit Accepted - d4 d5 c4 dxc4 e3` after `d4 d5 c4 dxc4`: **e3**, **Nf3**
-
-- **e3** — `Trap 08 (Queen's Gambit Accepted)` (White-Queens-gambit-accepted.json) → White Queen's Gambit Accepted - d4 d5 c4 dxc4 e3
-- **Nf3** — `Trap 56 (QGA)` (White-Queens-gambit-accepted.json) → White Queen's Gambit Accepted - d4 d5 c4 dxc4 e3
-
-### White Scandinavian Defense — branch inside one line
-
-Position: `rnb1kbnr/ppp1pppp/8/q7/8/2N5/PPPP1PPP/R1BQKBNR w KQkq -` (e.g. after `e4 d5 exd5 Qxd5 Nc3 Qa5` in `Trap 17 (Scandinavian Defense)` (White-Scandinavian-defense.json))
-
-Branches in `White Scandinavian Defense - e4 d5 exd5 Qxd5 Nc3` after `e4 d5 exd5 Qxd5 Nc3 Qa5`: **d4**, **Nf3**
-
-- **d4** — `Trap 17 (Scandinavian Defense)` (White-Scandinavian-defense.json) → White Scandinavian Defense - e4 d5 exd5 Qxd5 Nc3
-- **Nf3** — `Trap 18 (Scandinavian Defense)` (White-Scandinavian-defense.json) → White Scandinavian Defense - e4 d5 exd5 Qxd5 Nc3
-
-### White Sicilian Defense — across lines
-
-Position: `rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -` (e.g. after `e4 c5` in `Trap 13 (Closed Sicilian)` (White-Sicilian-defense.json))
-
-- **Nc3** — `Trap 13 (Closed Sicilian)` (White-Sicilian-defense.json) → White Sicilian Defense - e4 c5 Nc3 Nc6 Bb5; `Trap 14 (Closed Sicilian)` (White-Sicilian-defense.json) → White Sicilian Defense - e4 c5 Nc3 Nc6 Bb5
-- **Nf3** — `Trap 47 (Sicilian Defense)` (White-Sicilian-defense.json) → White Sicilian Defense - e4 c5 Nf3 Nc6 d4; `Trap 48 (Sicilian Defense)` (White-Sicilian-defense.json) → White Sicilian Defense - e4 c5 Nf3 Nc6 d4; `Trap 63 (Sicilian Defense)` (White-Sicilian-defense.json) → White Sicilian Defense - e4 c5 Nf3 Nc6 d4; `Trap 64 (Sicilian Defense)` (White-Sicilian-defense.json) → White Sicilian Defense - e4 c5 Nf3 Nc6 d4

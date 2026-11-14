@@ -1,5 +1,4 @@
 .docker-build-checksum
-.claude-code-version
 
 **/.yarn/*
 !**/.yarn/cache
@@ -34,3 +33,7 @@ yarn-error.log*
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# ai-setup (clone + Claude session history)
+.ai/setup/
+.ai/claude_home/

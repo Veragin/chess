@@ -26,14 +26,7 @@
           },
           "Nb5"
         ],
-        "c3",
-        [
-          "Nf3", "Nc6", "Nbd2", "Bf5", "dxc5", "e6", "Nd4", "Bg6",
-          ["Bxc5", "Nxf5", "exf5", {"san": "c3", "comment": "White has the better pawn structure"}],
-          "Bb5", "Rc8", "b4", "Be7", "Nxc6", "bxc6", "Ba6", "Ra8",
-          {"san": "Bb7", "comment": "White wins the exchange."}
-        ],
-        "Nc6", "Nd2", "e6",
+        "c3", "Nc6", "Nd2", "e6",
         [
           "Bg4", "Ngf3", "e6", "Qa4",
           {
@@ -64,6 +57,22 @@
           "comment": "The Queen is attacked and must move. The Knight cannot be taken, the Pawn is pinned. Next, White plays Ng5 and threatens checkmate. Black can avoid checkmate, but White ends up much better."
         },
         "g6", ["Qe7", "Ng5"], "Nxc5", "gxh5", "Nxd7"
+      ],
+      "userColor": "w",
+      "createdAt": 1792269758926,
+      "updatedAt": 1792269758926,
+      "folder": "London System"
+    },
+    {
+      "id": "641efe18-df68-510b-80ca-d6d03ddb5560",
+      "name": "White London System - d4 d5 Bf4 Nf6 e3 c5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "d4", "d5", {"san": "Bf4", "comment": "London System\nThe London System\nLondon System"},
+        "Nf6", "e3", "c5", "Nf3", "Nc6", "Nbd2", "Bf5", "dxc5", "e6", "Nd4", "Bg6",
+        ["Bxc5", "Nxf5", "exf5", {"san": "c3", "comment": "White has the better pawn structure"}],
+        "Bb5", "Rc8", "b4", "Be7", "Nxc6", "bxc6", "Ba6", "Ra8",
+        {"san": "Bb7", "comment": "White wins the exchange."}
       ],
       "userColor": "w",
       "createdAt": 1792269758926,

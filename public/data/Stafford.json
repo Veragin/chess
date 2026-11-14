@@ -80,15 +80,24 @@
             ],
             "Ng4", "h3", "Qd6", "hxg4", "hxg4", "Bxg4", ["g3", "Qxg3#"], "Qh2#"
           ],
-          {"san": "Bxf2+", "comment": "6...Nxe4 is the stronger trap"},
-          [
-            "Nxe4", "Bxd8", ["dxe4", "Bxf2+", "Kxf2", ["Ke2", "Bg4+", "Kxf2", "Qxd1"], "Qxd1"],
-            "Bxf2+", "Ke2", "Bg4#"
-          ],
-          "Kxf2", "Nxe4+", "Ke1", "Nxg5"
+          {"san": "Bxf2+", "comment": "6...Nxe4 is the stronger trap"}, "Kxf2", "Nxe4+", "Ke1",
+          "Nxg5"
         ],
         "Ne4", "d3", ["d4", "Qh4", "g3", "Nxg3", "hxg3", ["fxg3", "Qe4+", "Be2", "Qxh1+"], "Qxh1"],
         "Bc5", "Be3", "Bxe3", "fxe3", "Qh4+", "Ke2", "Qf2#"
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Stafford/traps"
+    },
+    {
+      "id": "961a4eca-031d-5200-bb6d-9148cf2a88cf",
+      "name": "Stafford traps - e4 e5 Nf3 Nf6 Nxe5 Nc6",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "e5", "Nf3", "Nf6", "Nxe5", "Nc6", "Nxc6", "dxc6", "d3", "Bc5", "Bg5", "Nxe4", "Bxd8",
+        ["dxe4", "Bxf2+", "Kxf2", ["Ke2", "Bg4+", "Kxf2", "Qxd1"], "Qxd1"], "Bxf2+", "Ke2", "Bg4#"
       ],
       "userColor": "b",
       "createdAt": 1792267801162,
@@ -190,10 +199,19 @@
       "name": "Stafford - Bc5 Be2 h5 h3 Qd4",
       "startFen": "r1bqkb1r/ppp2ppp/2p2n2/8/4P3/2N5/PPPP1PPP/R1BQKB1R b KQkq - 0 1",
       "tree": [
-        "Bc5", "Be2", "h5", "h3", "Qd4", ["Qd6", "O-O", "Ng4", "hxg4", "hxg4", "g3", "Qxg3#"],
-        "O-O", "Ng4", "hxg4", "hxg4", "g3", "Qe5", "Kg2", "Bxf2", "Kxf2",
-        ["Rxf2", "Qh5", "Rf4", "Qh2+", "Kf1", "Qxg3"], "Rh2+", "Ke3", "Qxg3+", "Kd4", "Be6"
+        "Bc5", "Be2", "h5", "h3", "Qd4", "O-O", "Ng4", "hxg4", "hxg4", "g3", "Qe5", "Kg2", "Bxf2",
+        "Kxf2", ["Rxf2", "Qh5", "Rf4", "Qh2+", "Kf1", "Qxg3"], "Rh2+", "Ke3", "Qxg3+", "Kd4", "Be6"
       ],
+      "userColor": "b",
+      "createdAt": 1787406270243,
+      "updatedAt": 1787428319849,
+      "folder": "Stafford"
+    },
+    {
+      "id": "6fe1eb43-3278-5834-aa6f-1c92a3521cbb",
+      "name": "Stafford - Bc5 Be2 h5 h3 Qd6",
+      "startFen": "r1bqkb1r/ppp2ppp/2p2n2/8/4P3/2N5/PPPP1PPP/R1BQKB1R b KQkq - 0 1",
+      "tree": ["Bc5", "Be2", "h5", "h3", "Qd6", "O-O", "Ng4", "hxg4", "hxg4", "g3", "Qxg3#"],
       "userColor": "b",
       "createdAt": 1787406270243,
       "updatedAt": 1787428319849,

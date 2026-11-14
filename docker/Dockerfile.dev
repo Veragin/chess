@@ -11,12 +11,4 @@ RUN npm install -g @playwright/cli @playwright/test
 RUN playwright-cli install-browser --with-deps chrome
 RUN su -s /bin/bash "$UNAME" -c "playwright install ffmpeg"
 
-# claude
-# Version is pinned by the Makefile (resolved from npm on `make start`), so this
-# layer is only rebuilt when the published version actually changes.
-ARG CLAUDE_CODE_VERSION=latest
-RUN npm install -g @anthropic-ai/claude-code@$CLAUDE_CODE_VERSION
-RUN mkdir -p /home/$UNAME/.claude
-RUN chown -R $UNAME:$UGROUP /home/$UNAME/.claude/
-
 RUN corepack enable

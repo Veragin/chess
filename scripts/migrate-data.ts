@@ -21,17 +21,24 @@
  *  4. Graft (only with `--graft`): a joined line whose start position is reached inside another
  *     joined line of the same target file and trained side is merged into that line at the first
  *     node (depth-first, main line first) reaching it. Repeated until nothing changes.
- *  5. Name each line `<Opening Name> - <first 5 moves>` (` (2)`, ` (3)`… on clashes).
- *  6. Write the current schema through `serialiseLinesFile` (PGN-like stored tree, compact
- *     layout); ids are derived from the join key, so re-running on its own output reproduces
- *     the same files byte for byte.
- *  7. Write `public/seed-aliases.json`: for each output line, the seed keys (`file::id`) of the
+ *  5. Split every line where the trained side has more than one move, so drill never has to pick
+ *     (`splitAll`). The first variant keeps the line's id and every opponent alternative; each
+ *     further variant becomes its own line right after it (id derived from the line's id), with
+ *     only the opponent moves leading to its own choices. Variants never share a branch, so a
+ *     re-run joins them back in step 3 and splits them the same way.
+ *  6. Name each line `<Opening Name> - <first 5 moves>` (` (2)`, ` (3)`… on clashes); a split-off
+ *     variant takes more moves until its name is unique, so it names the move it differs by.
+ *  7. Write the current schema through `serialiseLinesFile` (PGN-like stored tree, compact
+ *     layout). A line joined from v1 input gets an id derived from the join key; a line already
+ *     in the current schema keeps its id and name (folders and names may have been edited by
+ *     hand since), so re-running on its own output reproduces the same files byte for byte.
+ *  8. Write `public/seed-aliases.json`: for each output line, the seed keys (`file::id`) of the
  *     lines it replaces. The app's seeder (`src/storage/seed.ts`) uses it so a user who was
  *     seeded from the old files is not given every rewritten line a second time. Entries from
  *     earlier runs are kept, so chains across several runs still resolve.
  *
  * Before anything is written, the output is checked: it loads through `migrate()` without
- * refusals, every tree replays, and every source line's moves are still a path in some output
+ * refusals, every tree replays, no line branches on a trained-side move, and every source line's moves are still a path in some output
  * line — from its root, or from a node reaching the source's start position (a grafted line).
  * `duplicities.md` (trained-side positions with more than one repertoire move) is regenerated
  * from the same data.
@@ -146,6 +153,8 @@ interface Source {
   opening: string;
   /** Position of the line in its file, for a stable order. */
   index: number;
+  /** Already in the current schema (an earlier run's output, maybe hand-edited): keeps its id and name. */
+  current: boolean;
 }
 
 /** Placement, side, castling, en passant — the part of a FEN that makes a position. */
@@ -158,16 +167,17 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-function loadFile(dir: string, file: string): LinesFile {
+function loadFile(dir: string, file: string): { content: LinesFile; current: boolean } {
   const result = migrate(readFileSync(join(dir, file), 'utf8'));
   if (result.error !== undefined) fail(`${file}: ${result.error}`);
-  return result.file;
+  return { content: result.file, current: !result.changed };
 }
 
 function loadSources(dir: string, files: string[]): Source[] {
   const sources: Source[] = [];
   for (const file of files) {
-    const { exportedAt, lines } = loadFile(dir, file);
+    const { content, current } = loadFile(dir, file);
+    const { exportedAt, lines } = content;
     lines.forEach((line, index) => {
       const replay = replayTree(line.startFen, line.tree);
       if (replay.broken !== null || replay.startFen === null) {
@@ -189,6 +199,7 @@ function loadSources(dir: string, files: string[]): Source[] {
         target,
         opening: openingName(target.folder, target.file),
         index,
+        current,
       });
     });
   }
@@ -255,6 +266,8 @@ interface Group {
   /** Every source line in the tree, grafted ones included, in join order. */
   members: Source[];
   line: Line;
+  /** The line this one was split off from (`splitAll`); null for a line's first variant. */
+  splitFrom: Group | null;
 }
 
 /** A stable UUID-shaped id derived from the join key, so a re-run writes the same ids. */
@@ -273,7 +286,7 @@ function joinGroup(key: string, members: Source[]): Group {
   const first = members[0] as Source;
   let tree: MoveTree = [];
   const line: Line = {
-    id: stableId(key),
+    id: first.current ? first.line.id : stableId(key),
     name: '', // set by `nameGroups`, which sees every group
     startFen: first.line.startFen,
     tree,
@@ -288,7 +301,7 @@ function joinGroup(key: string, members: Source[]): Group {
   }
   line.tree = tree;
   if (first.target.folder.length > 0) line.folder = first.target.folder;
-  return { key, target: first.target, startKey: first.fenKey, members: [...members], line };
+  return { key, target: first.target, startKey: first.fenKey, members: [...members], line, splitFrom: null };
 }
 
 /** `tree` with `sub` merged into the children of the node at `path`. */
@@ -351,18 +364,123 @@ function graftAll(groups: Group[]): { roots: Group[]; grafts: Graft[] } {
   }
 }
 
-/** `<Opening Name> - <first 5 moves>`, suffixed ` (2)`, ` (3)`… when a name is already taken. */
+/* ------------------------------------------------------------------------------------- *
+ * Splitting
+ * ------------------------------------------------------------------------------------- */
+
+const isTrainedFirst = (line: Line): boolean => line.startFen.trim().split(/\s+/)[1] === line.userColor;
+
+/**
+ * `children` as trees in which the trained side has one move per position, together holding
+ * every branch exactly once. Variant 0 keeps every opponent alternative; variant i > 0 keeps
+ * only the opponent moves whose subtrees have an i-th variant.
+ */
+const trainedVariants = (children: MoveTree, trainedToMove: boolean): MoveTree[] => {
+  if (children.length === 0) return [[]];
+  if (trainedToMove) {
+    return children.flatMap((node) =>
+      trainedVariants(node.next, false).map((next) => [{ ...node, next }]),
+    );
+  }
+  const perChild = children.map((node) => trainedVariants(node.next, true));
+  const count = Math.max(...perChild.map((variants) => variants.length));
+  return Array.from({ length: count }, (_, i) =>
+    children.flatMap((node, k) => {
+      const next = perChild[k]?.[i] ?? (i === 0 ? [] : undefined);
+      return next === undefined ? [] : [{ ...node, next }];
+    }),
+  );
+};
+
+const lineVariants = (line: Line): MoveTree[] => trainedVariants(line.tree, isTrainedFirst(line));
+
+/** Position key → the children lists continuing from it in `line` (start and every node). */
+const startsOf = (line: Line): Map<string, MoveTree[]> => {
+  const replay = replayTree(line.startFen, line.tree);
+  const starts = new Map<string, MoveTree[]>();
+  if (replay.startFen === null) return starts;
+  starts.set(fenKey(replay.startFen), [line.tree]);
+  for (const node of replay.nodes) {
+    const key = fenKey(node.fenAfter);
+    starts.set(key, [...(starts.get(key) ?? []), nodeAt(line.tree, node.path)?.next ?? []]);
+  }
+  return starts;
+};
+
+/** True when `sans`, played from `fen`, is a path somewhere in the line `starts` describes. */
+const playsFrom = (starts: Map<string, MoveTree[]>, fen: string, sans: string[]): boolean =>
+  (starts.get(fen) ?? []).some((children) => hasPath(children, sans));
+
+/**
+ * Every group whose tree branches on a trained-side move, split into one group per variant
+ * (`trainedVariants`), each right after the previous. The first keeps the group object (grafts
+ * point at it) and its id; a source line is a member of every variant holding one of its branches.
+ */
+const splitAll = (groups: Group[]): Group[] =>
+  groups.flatMap((group) => {
+    const variants = lineVariants(group.line);
+    if (variants.length === 1) return [group];
+    const original = group.line;
+    const sources = group.members;
+    const usedIds = new Set<string>();
+    return variants.map((tree, i) => {
+      const starts = startsOf({ ...original, tree });
+      const members = sources.filter((m) =>
+        branchesOf(m.tree).some((branch) => playsFrom(starts, m.fenKey, branchMoves(m.tree, branch))),
+      );
+      const first = members[0];
+      if (first === undefined) fail(`split ${i} of "${group.key}" holds no source line`);
+      const keepsId = i > 0 && first.current && !usedIds.has(first.line.id);
+      const id = i === 0 ? original.id : keepsId ? first.line.id : stableId(`${original.id}/split/${i}`);
+      usedIds.add(id);
+      const line: Line = { ...original, tree, id };
+      if (i === 0) {
+        group.line = line;
+        group.members = members;
+        return group;
+      }
+      return { ...group, key: `${group.key}|split ${i}`, members, line, splitFrom: group };
+    });
+  });
+
+/**
+ * `<Opening Name> - <first 5 moves>`, suffixed ` (2)`, ` (3)`… when a name is already taken.
+ * Lines that were not split off are named first, so their names do not depend on splitting.
+ */
 function nameGroups(groups: Group[]): void {
   const taken = new Set<string>();
-  for (const group of groups) {
+  const keptName = (group: Group): string | null => {
     const first = group.members[0] as Source;
-    const moves = leadingMoves(group.line.tree).join(' ');
-    const base = moves.length > 0 ? `${first.opening} - ${moves}` : first.opening;
-    let name = base;
-    for (let n = 2; taken.has(name); n++) name = `${base} (${n})`;
-    taken.add(name);
-    group.line.name = name;
-  }
+    return first.current && first.line.id === group.line.id ? first.line.name : null;
+  };
+  const name = (group: Group): void => {
+    const kept = keptName(group);
+    if (kept !== null) {
+      let unique = kept;
+      for (let n = 2; taken.has(unique); n++) unique = `${kept} (${n})`;
+      taken.add(unique);
+      group.line.name = unique;
+      return;
+    }
+    // A split-off variant sits beside its line, so it shares that line's (maybe hand-edited) prefix.
+    const opening =
+      group.splitFrom === null
+        ? (group.members[0] as Source).opening
+        : (group.splitFrom.line.name.split(' - ')[0] as string);
+    const moves = leadingMoves(group.line.tree, Infinity);
+    const named = (plies: number): string =>
+      plies > 0 && moves.length > 0 ? `${opening} - ${moves.slice(0, plies).join(' ')}` : opening;
+    let plies = JOIN_PLIES;
+    while (group.splitFrom !== null && plies < moves.length && taken.has(named(plies))) plies++;
+    const base = named(plies);
+    let unique = base;
+    for (let n = 2; taken.has(unique); n++) unique = `${base} (${n})`;
+    taken.add(unique);
+    group.line.name = unique;
+  };
+  groups.filter((g) => keptName(g) !== null).forEach(name);
+  groups.filter((g) => keptName(g) === null && g.splitFrom === null).forEach(name);
+  groups.filter((g) => keptName(g) === null && g.splitFrom !== null).forEach(name);
 }
 
 /**
@@ -388,8 +506,9 @@ function joinAll(sources: Source[]): { groups: Group[]; grafts: Graft[] } {
   const { roots, grafts } = process.argv.includes('--graft')
     ? graftAll(joined)
     : { roots: joined, grafts: [] };
-  nameGroups(roots);
-  return { groups: roots, grafts };
+  const groups = splitAll(roots);
+  nameGroups(groups);
+  return { groups, grafts };
 }
 
 /* ------------------------------------------------------------------------------------- *
@@ -438,10 +557,12 @@ function readAliases(): Record<string, string[]> {
  */
 function seedAliases(groups: Group[], existing: Record<string, string[]>): Record<string, string[]> {
   const aliases: Record<string, string[]> = { ...existing };
+  const outputKeys = new Set(groups.map((g) => seedKey(g.target.file, g.line)));
   for (const group of groups) {
     const key = seedKey(group.target.file, group.line);
+    // A source that is still an output line (split variants on a re-run) replaces nothing.
     const previous = [...new Set(group.members.map((m) => seedKey(m.file, m.line)))]
-      .filter((k) => k !== key)
+      .filter((k) => !outputKeys.has(k))
       .sort();
     if (previous.length > 0) aliases[key] = previous;
   }
@@ -478,7 +599,13 @@ function unmergedReasons(groups: Group[]): string[] {
     return null;
   };
   for (const group of groups) {
-    const others = groups.filter((g) => g !== group && g.target.file === group.target.file);
+    if (group.splitFrom !== null) {
+      out.push(`  ${group.target.file}: ${quote(group.line.name)} — split from ${quote(group.splitFrom.line.name)}`);
+      continue;
+    }
+    const others = groups.filter(
+      (g) => g !== group && g.splitFrom !== group && g.target.file === group.target.file,
+    );
     if (others.length === 0) continue;
     const sameSide = others.filter((g) => g.line.userColor === group.line.userColor);
     const sameStart = sameSide.filter((g) => g.startKey === group.startKey);
@@ -595,15 +722,15 @@ interface Duplicity {
 }
 
 function findDuplicities(groups: Group[]): Duplicity[] {
-  const rootOf = new Map<Source, Group>();
-  for (const group of groups) for (const m of group.members) rootOf.set(m, group);
-
   const positions = new Map<string, Duplicity>();
   const keyOf = (color: string, fen: string): string => `${color}|${fen}`;
   for (const group of groups) {
+    const starts = startsOf(group.line);
     for (const source of group.members) {
       for (const node of replayTree(source.line.startFen, source.tree).nodes) {
         if (node.fenBefore.split(' ')[1] !== source.line.userColor) continue;
+        // A source split over several lines: count the move only for the line holding it.
+        if (!playsFrom(starts, source.fenKey, pathSans(source.tree, node.path))) continue;
         const fen = fenKey(node.fenBefore);
         const key = keyOf(source.line.userColor, fen);
         let entry = positions.get(key);
@@ -614,7 +741,7 @@ function findDuplicities(groups: Group[]): Duplicity[] {
         }
         if (!entry.openings.includes(source.opening)) entry.openings.push(source.opening);
         const users = entry.moves.get(node.san) ?? [];
-        if (!users.some((u) => u.source === source)) users.push({ source, joined: rootOf.get(source) as Group });
+        if (!users.some((u) => u.source === source && u.joined === group)) users.push({ source, joined: group });
         entry.moves.set(node.san, users);
       }
     }
@@ -669,7 +796,7 @@ function renderDuplicities(dups: Duplicity[]): string {
   }
   const breakdown = [...counts].map(([opening, n]) => `${opening} ×${n}`).join(', ');
   const n = (kind: Kind): number => dups.filter((d) => kindOf(d) === kind).length;
-  const where = `${n('branch')} branch inside a single joined line (drill accepts either move there), ${n('transposition')} inside one line by transposition, ${n('across')} across lines.`;
+  const where = `${n('branch')} branch inside a single line, ${n('transposition')} inside one line by transposition, ${n('across')} across lines.`;
   const summary =
     dups.length === 0
       ? '**Summary:** none — every trained-side position has exactly one repertoire move.'
@@ -684,13 +811,13 @@ function renderDuplicities(dups: Duplicity[]): string {
   const out = [
     '# Trained-side duplicities in `public/data`',
     '',
-    'Positions where the repertoire gives the **trained side** more than one move. Lines are joined when they share the start position and the first 3 moves, so most of these alternatives now sit *inside* one joined line, where drill accepts any of them (decision D6). Lines use the re-filing from §8 of the plan.',
+    'Positions where the repertoire gives the **trained side** more than one move. Lines are joined when they share the start position and the first 3 moves, then split wherever the joined tree gives the trained side several moves, so each alternative sits in its own line and drill never has to pick. Lines use the re-filing from §8 of the plan.',
     '',
     summary,
     '',
     'Usually one of them is a mistake or an unintended alternative worth reviewing. Positions are matched by transposition across all files (same trained side); each move lists the original (v1) lines playing it and the joined line they are now part of.',
     '',
-    '- **branch inside one line** — the joined tree branches on a move of the trained side at this position; drill accepts any of the moves and continues on that branch (D6).',
+    '- **branch inside one line** — a line branches on a move of the trained side at this position. The split step removes these, so none should be listed.',
     '- **transposition inside one line** — one joined line reaches the position at different nodes with different moves; at each node drill only knows that node\'s move.',
     '- **across lines** — different joined lines disagree; Explore shows both continuations, drill is not affected.',
     '',
@@ -759,12 +886,8 @@ function verify(
         problems.push(`${file}: "${line.name}": ${replay.broken?.reason ?? 'does not replay'}`);
         continue;
       }
-      const starts = new Map<string, MoveTree[]>([[fenKey(replay.startFen), [line.tree]]]);
-      for (const node of replay.nodes) {
-        const key = fenKey(node.fenAfter);
-        starts.set(key, [...(starts.get(key) ?? []), nodeAt(line.tree, node.path)?.next ?? []]);
-      }
-      written.push({ file, line, starts });
+      if (lineVariants(line).length > 1) problems.push(`${file}: "${line.name}" branches on a trained-side move`);
+      written.push({ file, line, starts: startsOf(line) });
     }
   }
 
@@ -786,9 +909,7 @@ function verify(
     );
     for (const branch of branchesOf(source.tree)) {
       const sans = branchMoves(source.tree, branch);
-      const found = candidates.some((c) =>
-        (c.starts.get(source.fenKey) as MoveTree[]).some((children) => hasPath(children, sans)),
-      );
+      const found = candidates.some((c) => playsFrom(c.starts, source.fenKey, sans));
       if (!found) {
         problems.push(`${source.file}: "${source.line.name}" [${sans.join(' ')}] is in no output line`);
       }
@@ -878,7 +999,7 @@ function main(): void {
       : '\nnothing to change',
   );
   console.log(
-    `verified: ${files.size} files load through migrate(), every tree replays, ` +
+    `verified: ${files.size} files load through migrate(), every tree replays, no trained-side branches, ` +
       `every source line is a path of an output line (from its root or from its start position)`,
   );
 }

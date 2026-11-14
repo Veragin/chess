@@ -7,9 +7,19 @@
       "name": "Sicilian Defense - e4 c5 c3 d5 exd5",
       "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
       "tree": [
-        "e4", "c5", "c3", "d5", ["Nf6", "e5", "Nd5"], "exd5", "Qxd5", "Nf3", "Nf6", "d4", "e6",
-        "Bd3", "c4", "Qa4+", "b5", "Qc2", ["Bxc4", "Qe4+", "Be2", "bxa4"], "cxd3", "Qxd3"
+        "e4", "c5", "c3", "d5", "exd5", "Qxd5", "Nf3", "Nf6", "d4", "e6", "Bd3", "c4", "Qa4+", "b5",
+        "Qc2", ["Bxc4", "Qe4+", "Be2", "bxa4"], "cxd3", "Qxd3"
       ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Sicilian Defense"
+    },
+    {
+      "id": "d07f132b-51ce-531b-be72-0fa0daf16ed7",
+      "name": "Sicilian Defense - e4 c5 c3 Nf6 e5",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": ["e4", "c5", "c3", "Nf6", "e5", "Nd5"],
       "userColor": "b",
       "createdAt": 1792267801162,
       "updatedAt": 1792267801162,
@@ -46,17 +56,33 @@
       "id": "cc53c1a0-ac5f-53d7-b25b-6397c5b955d4",
       "name": "Sicilian Defense - e4 c5 Nf3 Nc6 Bb5",
       "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": ["e4", "c5", "Nf3", "Nc6", "Bb5", "a6", "Ba4", "b5", "Bb3", "c4", "O-O", "cxb3"],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Sicilian Defense"
+    },
+    {
+      "id": "770922e4-3210-5be8-82a2-a626dfe3197f",
+      "name": "Sicilian Defense - e4 c5 Nf3 e6 d4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
       "tree": [
-        "e4", "c5", "Nf3", "Nc6",
-        [
-          "e6", "d4", "cxd4", "Nxd4", "a6",
-          [
-            "Nc6", "Nc3", "d6", "Be3", "Be7", "Qg4", "Nxd4", "Bxd4",
-            {"san": "e5", "comment": "Hits the bishop on d4 and opens Bc8 onto the queen on g4"}
-          ],
-          "Bf4", "e5", "Bxe5", "Qa5+", "Nc3", "Qxe5"
-        ],
-        "Bb5", "a6", "Ba4", "b5", "Bb3", "c4", "O-O", "cxb3"
+        "e4", "c5", "Nf3", "e6", "d4", "cxd4", "Nxd4", "a6", "Bf4", "e5", "Bxe5", "Qa5+", "Nc3",
+        "Qxe5"
+      ],
+      "userColor": "b",
+      "createdAt": 1792267801162,
+      "updatedAt": 1792267801162,
+      "folder": "Sicilian Defense"
+    },
+    {
+      "id": "a3d4d601-eaf5-537c-838a-878b345bd5db",
+      "name": "Sicilian Defense - e4 c5 Nf3 e6 d4 cxd4",
+      "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "tree": [
+        "e4", "c5", "Nf3", "e6", "d4", "cxd4", "Nxd4", "Nc6", "Nc3", "d6", "Be3", "Be7", "Qg4",
+        "Nxd4", "Bxd4",
+        {"san": "e5", "comment": "Hits the bishop on d4 and opens Bc8 onto the queen on g4"}
       ],
       "userColor": "b",
       "createdAt": 1792267801162,
